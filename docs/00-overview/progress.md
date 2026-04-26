@@ -10,7 +10,9 @@
 
 **进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 异常体系** + **D-013 跨层语义校验**已落地；**改名 SimEngine → Polisim**；**599 tests passing**
 
-> 路线：**A → B → C 三段式**（session 18 user 选定）→ 已全部完成 → v1 上线 ✅。剩余可选分支：B.3 协议级重试 / D-011 全量迁移 / walkthrough 扩章 / 第二阶段 LLM 辅助建模 PoC。等用户发令。
+> 路线：**A → B → C 三段式**（session 18 user 选定）→ 已全部完成 → v1 上线 ✅
+>
+> **下一阶段路线（session 22 末与用户决策）**：v0.1.1 引擎严谨化 → v0.2 实时态势前端（单仓库 + FastAPI WebSocket + React）。详见第 51 条目。
 
 **已完成**：
 
@@ -158,10 +160,22 @@
     - **作者身份**：`pyproject.toml` `authors` + LICENSE Copyright 都为 `Kaka-cheaper`；3 个 commit 全部 author 为 `Kaka-cheaper <122336926+Kaka-cheaper@users.noreply.github.com>`（GitHub noreply email 隐私保留 + 贡献图绿格子）
     - **安全检查通过**：git history 无 API key / token / password 泄露；`config/llm.yaml`（含 vveai key）被 `.gitignore` 正确屏蔽（session 21 P1 安全坑修的成果）
     - **README 渲染检查通过**：用户 9 张截图覆盖全部章节，mermaid / 中文路径 / badges / 表格全部正确
+51. **v0.2 路线决策 + v0.1.1 严谨化范围锁定**（session 22 末，与用户对话定稿）：
+    - **背景**：用户问"项目能否通用 / 先 YAML 适配还是先前端 / 前端形式 / GitHub 部署"——4 个产品方向问题。Cascade 分析后用户先选"先严谨化引擎再做前端"，避免在不规范 schema 上盖前端导致返工
+    - **v0.2 目标定位**：**单仓库 + FastAPI WebSocket 后端 + React 实时态势前端**。修订原"独立仓库 polisim-web"方案——用户提出"独立仓库要 clone 两个 + 想要动态实时演进"两个反向意见，Cascade 接受并改方案
+    - **v0.2 用户体验**：`pip install polisim` → `polisim serve scenarios/xxx/scenario.yaml` → 浏览器自动打开 `localhost:8000` → 看到实时 tick 推进、关系图演化、属性折线、LLM 决策面板 + 暂停/单步/干预控制
+    - **v0.2 项目结构（规划）**：在现有 Polisim/ 仓库内增加 `cli/serve.py` + `server/` (FastAPI WebSocket) + `web/` (Vite + React + TS + Tailwind + shadcn/ui)；通过 monorepo 共存，物理上不依赖（前端只通过 WebSocket 收 JSON，零知识 rules）
+    - **GitHub Pages 双部署策略**：主路径是本地 `polisim serve`（实时模式）；辅路径是 `kaka-cheaper.github.io/Polisim/`（静态 demo 模式，内置 sample runs，吸引访客）
+    - **v0.1.1 严谨化范围（v0.2 前的预备工作）**：3 个"半通用"坑评估
+      - **坑 1：action params 强 schema**——当前 `action_types[].params` 是 free-form dict，需改成强结构化 ParamSpec list（name/type/required/description/constraints）。**v0.2 前端紧迫性 🔴 关键**——前端动作面板没有强 schema 无法解释参数语义。工程量约 3-5 天。需升级为 D-014 决策号
+      - **坑 2：effect 系统扩充**——当前只 4 种 effect（属性/关系/消息/环境），缺 EntityCreate/EntityDestroy/ChainedAction。**v0.2 紧迫性 🟡 中等**——撑得住 MVP，可推到 v0.2.x。工程量约 5-7 天。可升级为 D-015
+      - **坑 3：prompt 上下文规范化**——当前每个 rules 模块自己组 prompt。**v0.2 前端紧迫性 🔴 关键**——前端做"LLM 决策实时面板"必须能拆 prompt 为可解释段。工程量约 5-7 天。需升级为 D-016
+    - **v0.1.1 净工时估算**：坑 1 + 坑 3 = 8-12 天 = 3-4 个 session。坑 2 推迟
+    - **session 23 入口任务**：评估这 3 个坑的具体 spec，按紧迫性排序，正式升 D-014/015/016 决策号 + 设计文档 + 测试设计；**先不动代码**——把 spec 写清楚，避免实施时反复返工
 
 **进行中**：
 
-- 无代码进行中——Phase A / B / C 三段闭环已通、债已清、D-011 Runtime 迁移完成、第二个场景 negotiation 已落地（session 21）、D-013 语义校验落地（session 22）。等用户发令下一步：Phase B.3 重试 / walkthrough 扩章 / 第二阶段 LLM 辅助建模 PoC / 或收工 v1
+- 无代码进行中——v0.1 已上线 GitHub，**v0.2 路线已定**（实时态势前端，详见第 51 条目）。**session 23 入口任务**：评估 3 个"半通用"坑（D-014 action params schema / D-015 effect 扩充 / D-016 prompt 上下文规范），按紧迫性排序 + 升决策号 + 设计文档；先不动代码
 
 **阻塞中**：
 
