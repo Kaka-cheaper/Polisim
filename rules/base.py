@@ -27,6 +27,7 @@ from abc import ABC, abstractmethod
 from random import Random
 from typing import Any
 
+from models.llm_models import PromptContext
 from models.runtime_models import (
     ActionProposal,
     AttributeEffect,
@@ -35,6 +36,7 @@ from models.runtime_models import (
     ValidationResult,
     WorldState,
 )
+from models.scenario_models import Scenario
 from models.world_models import WorldDefinition
 
 
@@ -101,6 +103,48 @@ class BaseRules(ABC):
             set[str] | None: 能 resolve 的 action_type 集合，或 None（不声明）。
         """
         return None
+
+    # =========================================================================
+    # 可选钩子：enrich_prompt（D-016 第 5 步）
+    # =========================================================================
+
+    def enrich_prompt(
+        self,
+        ctx: PromptContext,
+        world: WorldDefinition,
+        scenario: Scenario,
+        state: WorldState,
+        entity_id: str,
+        tick: int,
+    ) -> PromptContext:
+        """场景特化 prompt 段注入（D-016 第 5 步）。
+
+        **默认实现：返回原 ctx 不动**——保向后兼容。子类按需覆写注入：
+
+        - 替换 ``ctx.system_role`` 加场景人设（如"你是 2 公司市场中的竞争者"）
+        - 在 ``ctx.custom_segments`` 加目标 / 约束 / 历史叙事提示
+        - 修改 ``ctx.language_hint``（极少用——通常 RuntimeConfig 已统一控制）
+
+        **不应**修改的字段（这些是引擎事实，rules 篡改会破坏 LLM 决策依据）：
+
+        - ``ctx.actor_view``（id / type / attributes / relations / recent_decisions）
+        - ``ctx.perception``（tick / inbox / environment）
+        - ``ctx.available_actions``（D-014 schema）
+
+        **PromptContext frozen=False**——为方便覆写，子类可直接构造新 ctx 用
+        ``ctx.model_copy(update={...})`` 或 Pydantic 的字段赋值。推荐前者（明确
+        显示哪些字段被改）。
+
+        Args:
+            ctx: 由 ``build_prompt_context`` 构造的初始 PromptContext
+            world / scenario / state / entity_id / tick: 与 build_prompt_context
+                同的上下文，方便子类按场景细节定制注入
+
+        Returns:
+            可能扩展过的 PromptContext。**不必**是新对象——但若要修改字段，
+            建议用 ``model_copy(update=...)`` 显式表达。
+        """
+        return ctx
 
     # =========================================================================
     # 通用实现：validate_action

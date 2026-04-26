@@ -176,6 +176,40 @@ def test_runtime_config_defaults() -> None:
     assert cfg.llm_request_timeout_sec == 30.0
     # 多语言支持（session 19 追加）：默认中文
     assert cfg.output_language == "zh-CN"
+    # D-016 第 4 步：prompt_history_size 默认 3
+    assert cfg.prompt_history_size == 3
+
+
+def test_runtime_config_prompt_history_size_custom() -> None:
+    """D-016：prompt_history_size 可自定义 0-10。"""
+    cfg = RuntimeConfig.model_validate(
+        {"version": "0.1", "prompt_history_size": 5}
+    )
+    assert cfg.prompt_history_size == 5
+
+
+def test_runtime_config_prompt_history_size_lower_bound() -> None:
+    """D-016：prompt_history_size=0 合法（关闭历史注入）。"""
+    cfg = RuntimeConfig.model_validate(
+        {"version": "0.1", "prompt_history_size": 0}
+    )
+    assert cfg.prompt_history_size == 0
+
+
+def test_runtime_config_prompt_history_size_negative_rejected() -> None:
+    """D-016：prompt_history_size 负数被拒。"""
+    with pytest.raises(ValidationError):
+        RuntimeConfig.model_validate(
+            {"version": "0.1", "prompt_history_size": -1}
+        )
+
+
+def test_runtime_config_prompt_history_size_over_max_rejected() -> None:
+    """D-016：prompt_history_size > 10 被拒（防 prompt context 爆炸）。"""
+    with pytest.raises(ValidationError):
+        RuntimeConfig.model_validate(
+            {"version": "0.1", "prompt_history_size": 11}
+        )
 
 
 def test_runtime_config_custom_values() -> None:

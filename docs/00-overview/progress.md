@@ -8,7 +8,7 @@
 
 **阶段**：**v0.1 minimum viable engine 已上线 GitHub** 🎉 ——`https://github.com/Kaka-cheaper/Polisim`（session 22 末，2026-04-26）
 
-**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 缩限版**已落地；**改名 SimEngine → Polisim**；**633 tests passing**（599 起点 + D-014/D-015 合计 +35 -1）
+**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 缩限版 / D-016**已落地；**改名 SimEngine → Polisim**；**662 tests passing**（633 起点 + D-016 +29）
 
 > 路线：**A → B → C 三段式**（session 18 user 选定）→ 已全部完成 → v1 上线 ✅
 >
@@ -16,7 +16,9 @@
 >
 > **session 23 已交付**：D-014/D-015/D-016 三份完整 spec（在 `docs/02-design/decisions/`）。
 >
-> **session 24 已交付**：D-014 全量实施 + D-015 缩限版 同 session 携带落地。详见第 53 条目。**session 25+ 入口** = 实施 D-016（按 spec 第八节迁移路径推进）。
+> **session 24 已交付**：D-014 全量实施 + D-015 缩限版 同 session 携带落地。详见第 53 条目。
+>
+> **session 25 已交付**：D-016 全 8 步实施完成——v0.1.1 引擎严谨化收官 ✅。详见第 54 条目。**v0.1.1 全部目标达成，准备进入 v0.2 前端阶段**。
 
 **已完成**：
 
@@ -205,10 +207,32 @@
       - `pitfalls.md` 两条 P2 标"已结清"（random fallback / AttributeEffect 限制）
       - `docs/02-design/decisions/D-014-动作参数强Schema化.md` 实施过程符合 spec 第四节迁移路径，无偏差
     - **session 25+ 入口任务**：实施 D-016（`docs/02-design/decisions/D-016-prompt上下文规范化.md` 第八节迁移路径推进）——build_prompt 重构为 `PromptContext` 结构化表达 + `BaseRules.enrich_prompt` 钩子 + EventLog schema 升级
+54. **D-016 全 8 步完成——v0.1.1 引擎严谨化收官**（session 25，2026-04-26）：
+    - **8 步迁移路径全过**：
+      1. 新建 `models/llm_models.py:PromptContext` Pydantic BaseModel——6 字段（system_role / actor_view / perception / available_actions / language_hint / custom_segments）+ `render()` 方法。**关键设计**：``system_role=None + custom_segments={}`` 默认值保证 render 输出与 D-014 时代 build_prompt **字节级等价**
+      2. `core/llm_policy.py:build_prompt` 重构为 `build_prompt_context + ctx.render()` 薄壳；新增 `_extract_actor_relations` / `_extract_recent_decisions` / `_build_available_actions` 三个 helper
+      3. `actor_view.relations` 抽 actor 涉及的 outgoing/incoming 关系子集（spec 第六节决策：只抽 actor 局部不展开全图；outgoing 用 `to` 键、incoming 用 `from` 键）。空时省略字段保字节级等价
+      4. `actor_view.recent_decisions` 抽 EventLog 最近 N 条 decision_proposed 事件（按 tick 降序），N 由新字段 `RuntimeConfig.prompt_history_size` 驱动（默认 3，min 0 max 10）
+      5. `rules/base.py:BaseRules.enrich_prompt` 钩子（默认 no-op）+ 两产线场景 rules 实施：
+         - `rules/minimal_market.py:MinimalMarketRules.enrich_prompt`——给 Company 注入 system_role + objective + constraint
+         - `rules/three_party_negotiation.py:NegotiationRules.enrich_prompt`——给 Negotiator 注入 system_role + objective + mechanics（含 trust delta 数值）
+      6. EventLog 持久化 prompt_context：新增 `models/llm_models.py:LLMDecisionResult`（封装 proposal + prompt_context）；`core/llm_policy.decide` 返回类型 `ActionProposal` → `LLMDecisionResult`；`core/runtime.py:Runtime` 加 `_last_llm_prompt_context` dict 临时容器；`_decide_via_llm` 解构 result 后存 ctx；主循环写 decision_proposed 事件时弹出 ctx 塞入 `payload['prompt_context']`（仅 LLM 模式塞，rule/random/fallback 跳过）
+      7. **测试增量 +29 项**（633 → 662，0 回归）：
+         - `tests/test_llm_models.py` 新建 +9（PromptContext 构造 4 + render 5）
+         - `tests/test_llm_policy.py` +14（TestBuildPromptContext 6 + TestActorViewRelations 2 + TestActorViewRecentDecisions 4 + TestEnrichPromptHook 3，含 1 项 TestDecide.test_happy_path 重写适配 LLMDecisionResult）
+         - `tests/test_config_models.py` +5（prompt_history_size 默认 / 自定义 / 上下界 4 项 + defaults 测试新增断言）
+         - `tests/test_runtime.py` +1（test_decision_proposed_event_contains_prompt_context_for_llm_mode 端到端验证）
+    - **影响面文件**（与 spec 第三节"影响面矩阵"对齐）：
+      - 新建 2：`models/llm_models.py` / `tests/test_llm_models.py`
+      - 改 7：`core/llm_policy.py` / `core/runtime.py` / `models/config_models.py` / `rules/base.py` / `rules/minimal_market.py` / `rules/three_party_negotiation.py` / `tests/test_llm_policy.py` / `tests/test_config_models.py` / `tests/test_runtime.py`
+    - **向后兼容承诺**：当 `event_log=None` / `history_size=0` / `rules=None` 且 actor 不涉及关系时，`PromptContext.render()` 与 D-014 时代 `build_prompt` 输出**字节级等价**——OpenAI smoke / MockProvider scripted 测试完全无感
+    - **API 破坏性变更**：`core.llm_policy.decide` 返回类型由 `ActionProposal` 改为 `LLMDecisionResult`——调用方需改为 `result = decide(...); proposal = result.proposal`。对项目内部影响：runtime._decide_via_llm 已适配；`tests/test_llm_policy.py` `TestDecide.test_happy_path` 已重写
+    - **v0.1.1 收官**：D-014 + D-015 缩限版 + D-016 三项全部交付，v0.1.1 引擎严谨化阶段完成。**v0.2 前端可启动**——前端可消费 `decision_proposed` 事件 payload 中的 `prompt_context` 字段，分别渲染 system_role / actor_view / perception / available_actions / custom_segments 五段
+    - **session 26+ 入口任务**：用户决定后续——可选项包括 (a) v0.2 前端启动（FastAPI WebSocket + React 实时态势面板）/ (b) D-015 全量版补齐（EntityCreate / EntityDestroy / ChainedAction 三个 Effect 类型）/ (c) B.3 协议级重试 / (d) walkthrough 章节扩
 
 **进行中**：
 
-- D-014 全量实施 + D-015 缩限版同 session 携带落地完成。**session 25+ 入口任务**：实施 D-016（`docs/02-design/decisions/D-016-prompt上下文规范化.md` 第八节迁移路径推进）
+- v0.1.1 全部目标达成。**session 26+ 入口任务**：用户按需指派下一阶段（v0.2 前端启动 / D-015 全量版 / B.3 重试 / walkthrough 扩章 / 新场景）
 
 **阻塞中**：
 

@@ -246,6 +246,34 @@ def test_step_returns_tick_result_with_events(runtime: Runtime) -> None:
     assert "snapshot_saved" in kinds
 
 
+def test_decision_proposed_event_contains_prompt_context_for_llm_mode(
+    runtime: Runtime,
+) -> None:
+    """D-016 第 6 步：LLM 模式 actor 的 decision_proposed payload 含 prompt_context。"""
+    result = runtime.step()
+    decision_events = [e for e in result.events if e.kind == "decision_proposed"]
+
+    # company_a 是 LLM 模式 → payload 含 prompt_context
+    company_decision = next(
+        e for e in decision_events if e.actor_id == "company_a"
+    )
+    assert "prompt_context" in company_decision.payload
+    ctx_dump = company_decision.payload["prompt_context"]
+    assert isinstance(ctx_dump, dict)
+    # 关键字段齐全
+    assert "actor_view" in ctx_dump
+    assert "perception" in ctx_dump
+    assert "available_actions" in ctx_dump
+    # actor_view 含 D-016 第 1-5 步累进字段
+    assert ctx_dump["actor_view"]["id"] == "company_a"
+
+    # regulator_main 是 rule 模式 → payload 不含 prompt_context
+    regulator_decision = next(
+        e for e in decision_events if e.actor_id == "regulator_main"
+    )
+    assert "prompt_context" not in regulator_decision.payload
+
+
 def test_step_applies_promote_effect(runtime: Runtime) -> None:
     """scripted 首个响应是 promote(budget=20) → cash: 100 → 80, reputation: 50 → 55."""
     runtime.step()

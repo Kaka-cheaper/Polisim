@@ -26,6 +26,7 @@
 
 from __future__ import annotations
 
+from models.llm_models import PromptContext
 from models.runtime_models import (
     ActionProposal,
     AttributeEffect,
@@ -36,6 +37,7 @@ from models.runtime_models import (
     ValidationResult,
     WorldState,
 )
+from models.scenario_models import Scenario
 from models.world_models import WorldDefinition
 from rules.base import BaseRules
 
@@ -65,6 +67,55 @@ class NegotiationRules(BaseRules):
         保持同步。
         """
         return {"propose", "accept", "reject", "do_nothing"}
+
+    # ------------------------------------------------------------------
+    # enrich_prompt：D-016 第 5 步——场景特化 prompt 注入
+    # ------------------------------------------------------------------
+
+    def enrich_prompt(
+        self,
+        ctx: PromptContext,
+        world: WorldDefinition,
+        scenario: Scenario,
+        state: WorldState,
+        entity_id: str,
+        tick: int,
+    ) -> PromptContext:
+        """注入三方谈判场景人设与目标段（D-016）。
+
+        - ``system_role``：标注 actor 是 Negotiator，要在限定 ticks 内通过
+          propose / accept / reject 与他人建立信任
+        - ``custom_segments['objective']``：明确"把 trust 拉到 80 与至少一方"
+        - ``custom_segments['mechanics']``：accept 让 trust +20、reject 让
+          trust -10，告知 LLM 这是积极信号 vs 消极信号
+
+        非 Negotiator 实体（场景中暂无）将沿用基础 ctx。
+        """
+        entity = state.entities.get(entity_id)
+        if entity is None or entity.type != "Negotiator":
+            return ctx
+
+        new_system_role = (
+            f"You are a Negotiator named '{entity_id}' in a 3-party trust "
+            f"negotiation. Each tick you may propose a deal to one other "
+            f"party, or accept / reject a pending offer."
+        )
+        new_segments = dict(ctx.custom_segments)
+        new_segments["objective"] = (
+            "Build trust ≥ 80 with at least one other negotiator before "
+            "the simulation ends."
+        )
+        new_segments["mechanics"] = (
+            f"accept(offer_from=X) → trust(self↔X) +{_TRUST_DELTA_ON_ACCEPT}; "
+            f"reject(offer_from=X) → trust(self↔X) {_TRUST_DELTA_ON_REJECT}. "
+            f"trust is clamped to [{_TRUST_MIN}, {_TRUST_MAX}]."
+        )
+        return ctx.model_copy(
+            update={
+                "system_role": new_system_role,
+                "custom_segments": new_segments,
+            }
+        )
 
     # ------------------------------------------------------------------
     # validate_action：业务前置条件

@@ -25,6 +25,7 @@
 
 from __future__ import annotations
 
+from models.llm_models import PromptContext
 from models.runtime_models import (
     ActionProposal,
     AttributeEffect,
@@ -32,6 +33,7 @@ from models.runtime_models import (
     ValidationResult,
     WorldState,
 )
+from models.scenario_models import Scenario
 from models.world_models import WorldDefinition
 from rules.base import BaseRules
 
@@ -59,6 +61,54 @@ class MinimalMarketRules(BaseRules):
         不一致" 或 "fallback_action 不在 actions_handled 内"）。
         """
         return {"promote", "do_nothing"}
+
+    # ------------------------------------------------------------------
+    # enrich_prompt：D-016 第 5 步——场景特化 prompt 注入
+    # ------------------------------------------------------------------
+
+    def enrich_prompt(
+        self,
+        ctx: PromptContext,
+        world: WorldDefinition,
+        scenario: Scenario,
+        state: WorldState,
+        entity_id: str,
+        tick: int,
+    ) -> PromptContext:
+        """注入 minimal-market 的场景人设与目标段（D-016）。
+
+        - ``system_role``：标注 actor 是市场中的 Company，要在限定 ticks 内
+          权衡 cash 与 reputation
+        - ``custom_segments['objective']``：明确"靠 promote 提升 reputation，
+          但要保住 cash 不负"
+        - ``custom_segments['constraint']``：提示 promote 的预算上限受 cash 制约
+
+        Regulator 实体不注入额外段（它在本场景中是被动观察者，沿用基础 ctx）。
+        """
+        entity = state.entities.get(entity_id)
+        if entity is None or entity.type != "Company":
+            return ctx
+
+        new_system_role = (
+            f"You are a Company in a minimal market with one regulator. "
+            f"Your id is '{entity_id}'. You decide each tick whether to "
+            f"promote (spend cash to gain reputation) or do_nothing."
+        )
+        new_segments = dict(ctx.custom_segments)
+        new_segments["objective"] = (
+            "Maximize your final reputation across the remaining ticks, "
+            "without letting cash drop below 0 (the regulator may sanction)."
+        )
+        new_segments["constraint"] = (
+            "promote.budget must be ≤ your current cash; otherwise the action "
+            "will be rejected and a fallback do_nothing will execute instead."
+        )
+        return ctx.model_copy(
+            update={
+                "system_role": new_system_role,
+                "custom_segments": new_segments,
+            }
+        )
 
     # ------------------------------------------------------------------
     # 在通用 validate_action 之上追加业务前置条件

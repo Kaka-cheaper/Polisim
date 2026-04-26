@@ -65,6 +65,7 @@ from models.runtime_models import (
     TickResult,
     WorldState,
 )
+from models.llm_models import PromptContext
 from models.scenario_models import Scenario
 from models.world_models import WorldDefinition
 from rules.base import BaseRules
@@ -155,6 +156,12 @@ class Runtime:
         self._forced_actions: dict[str, dict[str, Any]] = {}
         self._paused: bool = False
         self._event_counter: int = 0
+
+        # D-016 第 6 步：临时 PromptContext 容器
+        # 由 _decide_via_llm 在调 llm_policy.decide 后写入；
+        # 主循环写 decision_proposed 事件时从此 dict 弹出并塞入 payload。
+        # 仅 LLM 决策路径会写入；rule / random / fallback 模式跳过。
+        self._last_llm_prompt_context: dict[str, PromptContext] = {}
 
         # 初始 tick=0 快照（供未来"从头回放"使用）
         self._event_log.save_snapshot(self._make_snapshot(tick=0))
@@ -327,15 +334,23 @@ class Runtime:
         for entity_id in active_ids:
             proposal = self._make_decision(entity_id, next_tick)
             proposals.append(proposal)
+
+            payload: dict[str, Any] = {
+                "action_type": proposal.action_type,
+                "params": proposal.params,
+                "decision_mode": proposal.decision_mode,
+            }
+            # D-016 第 6 步：LLM 模式下注入 prompt_context（rule/random/fallback 跳过）。
+            # pop 保证消费一次即清——下个 tick 的同 actor 决策会重新写入。
+            ctx = self._last_llm_prompt_context.pop(proposal.actor_id, None)
+            if ctx is not None:
+                payload["prompt_context"] = ctx.model_dump()
+
             tick_events.append(
                 self._record_event(
                     "decision_proposed",
                     actor_id=proposal.actor_id,
-                    payload={
-                        "action_type": proposal.action_type,
-                        "params": proposal.params,
-                        "decision_mode": proposal.decision_mode,
-                    },
+                    payload=payload,
                 )
             )
 
@@ -550,7 +565,7 @@ class Runtime:
         （`LLMProtocolError`）都走 `fallback_action`，但日志会区分原因。
         """
         try:
-            return llm_policy.decide(
+            result = llm_policy.decide(
                 self._provider,
                 self._world,
                 self._scenario,
@@ -558,7 +573,12 @@ class Runtime:
                 entity_id,
                 tick,
                 config=self._runtime_config,
+                event_log=self._event_log,
+                rules=self._rules,
             )
+            # D-016 第 6 步：存 ctx 供主循环写 decision_proposed 时塞 payload
+            self._last_llm_prompt_context[entity_id] = result.prompt_context
+            return result.proposal
         except ProviderError as exc:
             logger.warning(
                 "provider error for %s: %s; using fallback", entity_id, exc

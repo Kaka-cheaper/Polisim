@@ -316,6 +316,378 @@ class TestBuildPrompt:
 
 
 # =============================================================================
+# 1.5 build_prompt_context（D-016 第 2 步——新增结构化入口）
+# =============================================================================
+
+
+class TestBuildPromptContext:
+    """D-016 重构后 ``build_prompt`` 是 ``build_prompt_context + render`` 的薄壳。
+
+    本组测试验证：
+
+    1. ``build_prompt_context`` 返 PromptContext 实例
+    2. **字节级等价**——``build_prompt(...) == build_prompt_context(...).render()``
+       （向后兼容回归基线，OpenAI smoke / 现有 mock provider 无感）
+    3. 结构字段对齐 D-016 spec 第 2.1 节
+    """
+
+    def test_returns_prompt_context(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """build_prompt_context 返 PromptContext 类实例。"""
+        from models.llm_models import PromptContext
+
+        ctx = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        assert isinstance(ctx, PromptContext)
+
+    def test_byte_equivalent_to_legacy_build_prompt(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """**关键回归**：build_prompt 输出 == build_prompt_context().render()
+        字节级等价——D-016 第 2 步对 LLMProvider.generate 完全无感的硬证据。"""
+        prompt_str = llm_policy.build_prompt(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        ctx = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        assert prompt_str == ctx.render()
+
+    def test_byte_equivalent_with_custom_language(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """language 参数透传——非默认语言下仍字节级等价。"""
+        prompt_str = llm_policy.build_prompt(
+            world, scenario, initial_state, "company_a", tick=1, language="en"
+        )
+        ctx = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=1, language="en"
+        )
+        assert prompt_str == ctx.render()
+        assert ctx.language_hint == "en"
+
+    def test_actor_view_contains_minimal_fields(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """D-016 第 1-2 步：actor_view 仅含 id / type / attributes（与 D-014 时代等价）。
+        第 3-4 步会补 relations / recent_decisions——届时本测试需更新。"""
+        ctx = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        assert ctx.actor_view["id"] == "company_a"
+        assert ctx.actor_view["type"] == "Company"
+        assert "attributes" in ctx.actor_view
+        # D-016 第 1-2 步暂不含 relations / recent_decisions
+        assert "relations" not in ctx.actor_view
+        assert "recent_decisions" not in ctx.actor_view
+
+    def test_perception_contains_time_inbox_environment(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """perception 含时间维度 + 收件箱 + 环境变量。"""
+        ctx = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=2
+        )
+        assert ctx.perception["tick"] == 2
+        assert ctx.perception["remaining_ticks"] == scenario.config.total_ticks - 2
+        assert "inbox" in ctx.perception
+        assert "environment" in ctx.perception
+
+    def test_default_system_role_and_custom_segments_empty(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """D-016 第 1-2 步基线：不传 rules 时 system_role / custom_segments 留默认值。"""
+        ctx = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        assert ctx.system_role is None
+        assert ctx.custom_segments == {}
+
+
+# =============================================================================
+# 1.6 D-016 第 3-5 步：relations / recent_decisions / enrich_prompt
+# =============================================================================
+
+
+class TestActorViewRelations:
+    """D-016 第 3 步：actor_view.relations 抽取（outgoing/incoming）。"""
+
+    def test_extract_actor_relations_empty_when_no_relations(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """actor 不涉及任何关系时——actor_view 不含 'relations' 键（保字节级等价）。"""
+        ctx = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        assert "relations" not in ctx.actor_view
+
+    def test_relations_outgoing_uses_to_key(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """outgoing 关系按 D-016 spec 用 'to' 键标识对端。"""
+        from models.runtime_models import RelationRuntimeState
+
+        # 注入一条 company_a → regulator_main 的关系
+        initial_state.relations.append(
+            RelationRuntimeState(
+                type="oversees",
+                source="regulator_main",
+                target="company_a",
+                value=0.5,
+            )
+        )
+        initial_state.relations.append(
+            RelationRuntimeState(
+                type="trusts",
+                source="company_a",
+                target="regulator_main",
+                value=0.7,
+            )
+        )
+        ctx = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        assert "relations" in ctx.actor_view
+        rels = ctx.actor_view["relations"]
+        # outgoing：source==company_a 的 trusts 关系
+        assert len(rels["outgoing"]) == 1
+        assert rels["outgoing"][0] == {
+            "type": "trusts",
+            "to": "regulator_main",
+            "value": 0.7,
+        }
+        # incoming：target==company_a 的 oversees 关系
+        assert len(rels["incoming"]) == 1
+        assert rels["incoming"][0] == {
+            "type": "oversees",
+            "from": "regulator_main",
+            "value": 0.5,
+        }
+
+
+class TestActorViewRecentDecisions:
+    """D-016 第 4 步：actor_view.recent_decisions 从 EventLog 抽取最近 N 条。"""
+
+    def test_no_event_log_means_no_recent_decisions(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """不传 event_log → actor_view 不含 'recent_decisions'（保字节级等价）。"""
+        ctx = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=2
+        )
+        assert "recent_decisions" not in ctx.actor_view
+
+    def test_history_size_zero_means_no_recent_decisions(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """history_size=0 → 不抽取（即使提供了 event_log）。"""
+        from core.events import EventLog
+        from models.config_models import StorageConfig
+
+        log = EventLog("test_run", StorageConfig(version="0.1", persist=False))
+        ctx = llm_policy.build_prompt_context(
+            world,
+            scenario,
+            initial_state,
+            "company_a",
+            tick=2,
+            event_log=log,
+            history_size=0,
+        )
+        assert "recent_decisions" not in ctx.actor_view
+
+    def test_recent_decisions_extracted_descending(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """recent_decisions 按 tick 降序——最新在最前。"""
+        from core.events import EventLog
+        from models.config_models import StorageConfig
+        from models.runtime_models import EventRecord
+
+        log = EventLog("test_run2", StorageConfig(version="0.1", persist=False))
+        # 写两条 decision_proposed（tick=1, tick=2）
+        for t in (1, 2):
+            log.append(
+                EventRecord(
+                    event_id=f"evt_{t:06d}",
+                    tick=t,
+                    kind="decision_proposed",
+                    actor_id="company_a",
+                    payload={
+                        "action_type": "promote",
+                        "params": {"budget": 10 * t},
+                        "decision_mode": "llm",
+                    },
+                )
+            )
+        ctx = llm_policy.build_prompt_context(
+            world,
+            scenario,
+            initial_state,
+            "company_a",
+            tick=3,
+            event_log=log,
+            history_size=3,
+        )
+        recent = ctx.actor_view["recent_decisions"]
+        assert len(recent) == 2
+        # 最新（tick=2）在前
+        assert recent[0]["tick"] == 2
+        assert recent[0]["action"] == "promote"
+        assert recent[0]["params"] == {"budget": 20}
+        assert recent[1]["tick"] == 1
+        assert recent[1]["params"] == {"budget": 10}
+
+    def test_recent_decisions_filters_by_actor(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """只抽 entity_id 自己的决策——不掺杂其他 actor。"""
+        from core.events import EventLog
+        from models.config_models import StorageConfig
+        from models.runtime_models import EventRecord
+
+        log = EventLog("test_run3", StorageConfig(version="0.1", persist=False))
+        log.append(
+            EventRecord(
+                event_id="evt_000001",
+                tick=1,
+                kind="decision_proposed",
+                actor_id="company_a",
+                payload={"action_type": "promote", "params": {}, "decision_mode": "llm"},
+            )
+        )
+        log.append(
+            EventRecord(
+                event_id="evt_000002",
+                tick=1,
+                kind="decision_proposed",
+                actor_id="regulator_main",  # 别人
+                payload={"action_type": "do_nothing", "params": {}, "decision_mode": "rule"},
+            )
+        )
+        ctx = llm_policy.build_prompt_context(
+            world,
+            scenario,
+            initial_state,
+            "company_a",
+            tick=2,
+            event_log=log,
+            history_size=5,
+        )
+        recent = ctx.actor_view["recent_decisions"]
+        assert len(recent) == 1
+        assert recent[0]["action"] == "promote"
+
+
+class TestEnrichPromptHook:
+    """D-016 第 5 步：rules.enrich_prompt 钩子被调用 + 注入 custom_segments。"""
+
+    def test_default_base_rules_enrich_is_noop(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """BaseRules 默认 enrich_prompt 不动 ctx——返回原 ctx。"""
+        from models.llm_models import PromptContext
+        from rules.base import BaseRules
+
+        class DummyRules(BaseRules):
+            def resolve_effects(self, world, state, proposal):
+                return []
+
+        rules = DummyRules()
+        ctx_before = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        ctx_after = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=1, rules=rules
+        )
+        # 默认 no-op：两份 ctx 字段等价
+        assert ctx_after.system_role == ctx_before.system_role
+        assert ctx_after.custom_segments == ctx_before.custom_segments
+        assert isinstance(ctx_after, PromptContext)
+
+    def test_minimal_market_rules_inject_objective(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """MinimalMarketRules.enrich_prompt 给 Company 注入 objective + constraint。"""
+        from rules.minimal_market import MinimalMarketRules
+
+        rules = MinimalMarketRules()
+        ctx = llm_policy.build_prompt_context(
+            world, scenario, initial_state, "company_a", tick=1, rules=rules
+        )
+        assert ctx.system_role is not None
+        assert "Company" in ctx.system_role
+        assert "objective" in ctx.custom_segments
+        assert "constraint" in ctx.custom_segments
+
+    def test_enrich_prompt_skips_non_target_entity(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """MinimalMarketRules.enrich_prompt 对非 Company（如 Regulator）不注入——
+        ctx 保持基础形态（system_role=None, custom_segments={}）。"""
+        from rules.minimal_market import MinimalMarketRules
+
+        rules = MinimalMarketRules()
+        ctx = llm_policy.build_prompt_context(
+            world,
+            scenario,
+            initial_state,
+            "regulator_main",
+            tick=1,
+            rules=rules,
+        )
+        assert ctx.system_role is None
+        assert ctx.custom_segments == {}
+
+
+# =============================================================================
 # 2. parse_response
 # =============================================================================
 
@@ -406,7 +778,8 @@ class TestDecide:
                 {"action": "promote", "params": {"budget": 30}, "reason": "x"}
             )
         )
-        proposal = llm_policy.decide(
+        # D-016 第 6 步：decide 返 LLMDecisionResult
+        result = llm_policy.decide(
             provider,
             world,
             scenario,
@@ -415,12 +788,18 @@ class TestDecide:
             tick=1,
             config=runtime_config,
         )
+        from models.llm_models import LLMDecisionResult, PromptContext
+
+        assert isinstance(result, LLMDecisionResult)
+        proposal = result.proposal
         assert isinstance(proposal, ActionProposal)
         assert proposal.action_type == "promote"
         assert proposal.params == {"budget": 30}
         assert proposal.decision_mode == "llm"
         assert proposal.status == "proposed"
         assert proposal.raw_reasoning_summary == "x"
+        # prompt_context 伴随返回，供 Runtime 塑进 EventLog
+        assert isinstance(result.prompt_context, PromptContext)
 
     def test_provider_error_propagates(
         self,

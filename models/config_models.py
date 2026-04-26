@@ -143,6 +143,18 @@ class RuntimeConfig(BaseModel):
             "不关心。默认 zh-CN（简体中文）。"
         ),
     )
+    prompt_history_size: int = Field(
+        default=3,
+        ge=0,
+        le=10,
+        description=(
+            "D-016：build_prompt_context 在 actor_view.recent_decisions 中"
+            "为 LLM 注入最近 N 条决策（按 tick 降序的 decision_proposed 事件）。"
+            "上限 10——防 prompt context 爆炸；下限 0——完全关闭历史注入"
+            "（恢复 D-016 第 1-2 步的「无记忆」行为）。默认 3——单 tick 不"
+            "至于让 LLM 失忆，又不至于让历史段挤占 LLM 推理 token。"
+        ),
+    )
 
 
 # =============================================================================
