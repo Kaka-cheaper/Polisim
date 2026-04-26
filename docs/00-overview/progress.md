@@ -145,6 +145,13 @@
     - **结清 P1 pitfall**：`pitfalls.md` 顶条 P1 `fallback_action` 已被 root cause 上游修复，标注"已结清（D-013 落地）"
     - **测试**：`tests/test_semantic_validator.py` +16（SemanticIssue 数据载体 / 钩子返回 None 跳过 / fallback_action 三种情况 / handled 越界 / 错误聚合 / 异常归属 / 真实场景集成 / Runtime 集成构造成功+失败+不留空目录）
     - 测试总数：**599 passed**（+16 新；0 回归；Pytest 12.53s）
+49. **项目改名 SimEngine → Polisim + Git 仓库重建**（session 22 末，v1 收工动作）：
+    - **改名理由**：调研 GitHub 高星 multi-agent / simulation 项目命名规律——"SimEngine" 由两个最普通词组合，撞名严重（GitHub 已 ~10 个同名项目），SEO 死。新名 **Polisim** = `polis`（古希腊"城邦"，多实体+规则+演化）+ `sim`（仿真），独占词空间，pypi/npm 都空，CLI 友好（`polisim run scenario.yaml`）
+    - **改动范围**：20 个文件全文 `SimEngine → Polisim` / `simengine → polisim`，但**保留** `SimEngineError` 类名（公开 API，已 73 处引用，session 21 D-011 才稳定收口；改名风险大、收益小，等同 `pandas.DataFrame` 不因公司改名而改）。技术实现用"占位法"——先把 `SimEngineError` 临时占位 → 全文替换品牌词 → 还原占位
+    - **Git 仓库重建**：原 `d:\桌面\github_project\.git` 是空架子（0 commit，无 remote，从未追踪过任何文件）；删除 outer .git，在 SimEngine/ 内 `git init -b main` + 71 文件首次提交；与 `MiroFish-main`（同 github_project 父目录的兄弟项目）完全隔离，独立仓库
+    - **物理目录重命名**：`SimEngine/ → Polisim/`——session 内 PowerShell mv 失败（IDE 文件锁），交给用户手动完成；不影响代码（Python 包路径都是相对的，不依赖目录名）
+    - **测试总数仍 599 passed**（改名零回归；Pytest 12.43s）
+    - **下次 session 入口前**：用户需关闭所有 IDE 打开的 markdown 文件 → 手动把 `d:\桌面\github_project\SimEngine\` 重命名为 `d:\桌面\github_project\Polisim\` → 重新打开 IDE 指向新路径
 
 **进行中**：
 
