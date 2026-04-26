@@ -19,9 +19,9 @@ version = "0.1.0-dev"
 description = "分层驱动的通用多实体仿真引擎（Polisim），第一版最小骨架"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 authors = [
-  { name = "Polisim Team" },
+  { name = "Kaka-cheaper" },
 ]
 keywords = ["simulation", "multi-agent", "llm", "tick-based"]
 
