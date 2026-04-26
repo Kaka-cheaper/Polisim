@@ -398,15 +398,26 @@ class TestWalkthrough:
             rt.step()  # tick 2：投递发生在 step 开头
             state = rt.get_state()
 
+        # 测试本意：alice 发出的 direct offer (target_id=bob) 只到 bob，不被错
+        # 路由到 alice/charlie。**D-014 后** charlie (RandomNegotiator) 会真正
+        # 提议 propose——其 offer 也会按 target_id direct 投递。
+        # 所以判断条件按 from_negotiator='alice' 精确过滤，而非 message_type。
         bob_inbox = state.mailboxes.get("bob", [])
-        offers_to_bob = [m for m in bob_inbox if m.message_type == "offer"]
-        assert len(offers_to_bob) == 1
-        assert offers_to_bob[0].payload["from_negotiator"] == "alice"
-        # alice / charlie 不应收到（direct，target_id=bob）
-        alice_inbox = state.mailboxes.get("alice", [])
-        charlie_inbox = state.mailboxes.get("charlie", [])
-        assert all(m.message_type != "offer" for m in alice_inbox)
-        assert all(m.message_type != "offer" for m in charlie_inbox)
+        alice_offers_in_bob = [
+            m for m in bob_inbox
+            if m.message_type == "offer" and m.payload.get("from_negotiator") == "alice"
+        ]
+        assert len(alice_offers_in_bob) == 1
+        # alice 发出的 offer 不应错路由到 alice / charlie 自己
+        for inbox_owner in ("alice", "charlie"):
+            inbox = state.mailboxes.get(inbox_owner, [])
+            alice_offers_misrouted = [
+                m for m in inbox
+                if m.message_type == "offer" and m.payload.get("from_negotiator") == "alice"
+            ]
+            assert len(alice_offers_misrouted) == 0, (
+                f"alice 发出的 offer 不应路由到 {inbox_owner}"
+            )
 
     def test_three_decision_modes_all_active(
         self, world: WorldDefinition, scenario: Scenario

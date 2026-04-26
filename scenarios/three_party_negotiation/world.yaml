@@ -156,9 +156,14 @@ action_types:
       target_id:
         type: entity_ref
         required: true
+        description: 目标 negotiator 的 entity id，不能是自己（self-propose 由 rules 层拒绝）
+        entity_type_filter: [Negotiator, RuleNegotiator, RandomNegotiator]
       price:
         type: number
         required: true
+        description: 报价金额（货币单位），必须 ≥ 0
+        default: 50
+        min: 0
     effects:
       - kind: message
 
@@ -169,9 +174,14 @@ action_types:
       offer_from:
         type: entity_ref
         required: true
+        description: 提出 offer 的 negotiator entity id，不能是自己
+        entity_type_filter: [Negotiator, RuleNegotiator, RandomNegotiator]
       price:
         type: number
         required: true
+        description: 接受的报价金额，应与 offer 中的 price 一致
+        default: 50
+        min: 0
     effects:
       - kind: relation
       - kind: self_attribute
@@ -184,6 +194,8 @@ action_types:
       offer_from:
         type: entity_ref
         required: true
+        description: 提出被拒 offer 的 negotiator entity id，不能是自己
+        entity_type_filter: [Negotiator, RuleNegotiator, RandomNegotiator]
     effects:
       - kind: relation
 

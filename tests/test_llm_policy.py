@@ -213,6 +213,107 @@ class TestBuildPrompt:
         )
         assert _extract_payload(raw_zh) == _extract_payload(raw_en)
 
+    # --- D-014 扩充字段在 prompt payload 中的渲染 ---
+
+    def test_available_actions_includes_d014_param_fields(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """D-014：build_prompt 让 available_actions 输出完整 ParamSchema 字段。
+
+        构造法：替换已加载 world 的 promote.budget 为含 D-014 字段的新版本，
+        再调 build_prompt，断言 payload['available_actions'] 含 description /
+        default / min / max 等字段。
+        """
+        from models.world_models import ActionParamSchema
+
+        world.action_types["promote"].params["budget"] = ActionParamSchema(
+            type="number",
+            required=True,
+            description="推广预算（货币单位）",
+            default=50.0,
+            min=10.0,
+            max=1000.0,
+        )
+
+        raw = llm_policy.build_prompt(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        data = _extract_payload(raw)
+
+        promote_entry = next(
+            a for a in data["available_actions"] if a["name"] == "promote"
+        )
+        budget_payload = promote_entry["params"]["budget"]
+        assert budget_payload["type"] == "number"
+        assert budget_payload["required"] is True
+        assert budget_payload["description"] == "推广预算（货币单位）"
+        assert budget_payload["default"] == 50.0
+        assert budget_payload["min"] == 10.0
+        assert budget_payload["max"] == 1000.0
+
+    def test_available_actions_omits_none_d014_fields(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """D-014：未声明的字段（None）不应出现在 payload——保持 prompt 简洁。
+
+        构造法：替换 budget 为无 D-014 字段的极简版本（所有可选字段 None），
+        断言 payload 不含 description / default / min / max / values 等键。
+        """
+        from models.world_models import ActionParamSchema
+
+        world.action_types["promote"].params["budget"] = ActionParamSchema(
+            type="number",
+            required=True,
+            # 其他 6 个 D-014 字段全部走默认 None
+        )
+
+        raw = llm_policy.build_prompt(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        data = _extract_payload(raw)
+        promote_entry = next(
+            a for a in data["available_actions"] if a["name"] == "promote"
+        )
+        budget_payload = promote_entry["params"]["budget"]
+        # 必有字段
+        assert "type" in budget_payload
+        assert "required" in budget_payload
+        # 未声明字段应被过滤
+        for omitted in ("description", "default", "min", "max", "values", "entity_type_filter"):
+            assert omitted not in budget_payload, f"{omitted} 不应出现在 payload"
+
+    def test_action_description_in_payload_when_provided(
+        self,
+        world: WorldDefinition,
+        scenario: Scenario,
+        initial_state: WorldState,
+    ) -> None:
+        """D-014：action_types[name].description 应进入 available_actions 条目。"""
+        from models.world_models import ActionTypeSchema
+
+        original = world.action_types["promote"]
+        world.action_types["promote"] = ActionTypeSchema(
+            description="推广产品提升声誉",
+            actor_types=original.actor_types,
+            params=original.params,
+            effects=original.effects,
+        )
+
+        raw = llm_policy.build_prompt(
+            world, scenario, initial_state, "company_a", tick=1
+        )
+        data = _extract_payload(raw)
+        promote_entry = next(
+            a for a in data["available_actions"] if a["name"] == "promote"
+        )
+        assert promote_entry.get("description") == "推广产品提升声誉"
+
 
 # =============================================================================
 # 2. parse_response

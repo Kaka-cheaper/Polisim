@@ -51,9 +51,10 @@
   - 接受现状——random mode v1 主要演示**架构机制**而非实用决策
   - 场景设计时若希望"随机选有意义的动作"，把该实体类型的 `actions` 限为**无参动作**（如 `do_nothing`）；否则 fallback 是预期行为
   - 测试时这成为可观测的"fallback 路径覆盖证据"——见 `test_rules_three_party_negotiation.py::test_three_decision_modes_all_active`
-- **解法**（未来）：给 `ParamSchema` 加 `default` 或 `random_strategy` 字段（D-xxx 待开）；`_decide_via_random` 升级为"按 schema 填随机参数"
+- **解法**（未来）：给 `ParamSchema` 加 `default` 或 `random_strategy` 字段（D-xxx 待开）；`_decide_via_random` 升级为“按 schema 填随机参数”
 - **相关文件**：`core/runtime.py:580-592`（`_decide_via_random`）、`scenarios/three_party_negotiation/world.yaml`（charlie 演示此限制）
 - **防再犯**：场景设计时若用 random mode 且实体有多种动作，**预期 fallback 比例高**——这不是 bug，是 v1 的真实约束
+- **已结清**（session 24 落地 D-014）：`ActionParamSchema` 扩充 6 字段（description / default / min / max / values / entity_type_filter）后，`Runtime._decide_via_random` 已升级为“按 schema 填参”——优先用 ``default``，否则按类型采样（number 取 [min,max] 均匀、string 从 values 选、entity_ref 按 entity_type_filter 过滤）。两个场景的 YAML 已迁移补齐字段；negotiation 中 charlie 仅在 self-propose 少数路径仍会 fallback（~33%，来自 target_id 随机选到自己）——从 75% 降到可控水平。本条作为历史样本保留。
 
 ### [P0] 2026-04-25 `api_key_env` 字段被误填真实 API key + 项目无 `.gitignore`
 
@@ -109,7 +110,8 @@
 - **解法**（当前）：
   - 在 `models/runtime_models.AttributeEffect` 的 docstring 明确标注此限制
   - walkthrough 的 minimal_market 公式**绕开**改 enum/string/bool 属性的需求；若 walkthrough 设计里确实有这类需求，走 `Intervention.override_attribute` 或暂缓
-  - 未来需要解除：开 D-xxx，加 ``new_value: Any | None`` 字段 + `model_validator`（delta 与 new_value 互斥）。**不是小改**——鉴于 D-009 决定"公式在代码层"，或可等第二阶段路线 2（schema 数据化）一并处理
+  - 未来需要解除：开 D-xxx，加 ``new_value: Any | None`` 字段 + `model_validator`（delta 与 new_value 互斥）。**不是小改**——鉴于 D-009 决定“公式在代码层”，或可等第二阶段路线 2（schema 数据化）一并处理
+- **已结清**（session 24 落地 D-015 缩限版）：`AttributeEffect` 已增加 ``new_value: Any`` 字段 + `model_validator` 实施 ``delta`` XOR ``new_value`` 互斥。现在规则可用 `AttributeEffect(actor_id=..., attribute=..., new_value="aggressive")` 表达改 enum/string/bool 属性，同时 `Runtime._apply_attribute_effect` 已适配双形式路径。`BaseRules._clamp_attribute` 对 ``new_value`` 形式透传不裁剪（后续若需给数值形 new_value 加 clamp 仅需在该 helper 内追加分支）。所有现有 rules 仍用 ``delta`` 形式，完全向后兼容。
 - **相关文件**：
   - `models/runtime_models.py` 的 `AttributeEffect` 类（限制说明已更新）
   - `docs/02-design/规则层设计.md` 3.2 节效果映射规则

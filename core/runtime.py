@@ -591,18 +591,79 @@ class Runtime:
         )
 
     def _decide_via_random(self, entity_id: str, tick: int) -> ActionProposal:
-        """随机模式：从允许动作中均匀采样（用 seeded RNG 保证复现）。"""
+        """随机模式：动作均匀采样 + **D-014**：按 schema 填参（结清 pitfalls P2 顶条）。
+
+        v1 旧行为：``params={}`` 空字典——遇到 required 参数立即被 validate_action
+        判 ``decision_rejected`` → 走 fallback。**75% 失败率**（pitfalls 顶条 P2）。
+
+        D-014 新行为：用 ``ActionParamSchema`` 给每个声明的参数填值——
+        ``required=True`` 必填、``required=False`` 也填以提升 random 路径覆盖。
+        填值优先级：``default`` > ``type`` 采样（受 min/max/values/entity_type_filter 约束）。
+
+        seeded RNG 保证可复现。
+        """
         entity = self._state.entities[entity_id]
         actions = self._world.entity_types[entity.type].actions
         picked = self._rng.choice(actions)
+
+        # D-014：按 schema 填参
+        action_schema = self._world.action_types.get(picked)
+        params: dict[str, Any] = {}
+        if action_schema is not None:
+            for p_name, p_schema in action_schema.params.items():
+                params[p_name] = self._random_param_value(p_schema)
+
         return ActionProposal(
             tick=tick,
             actor_id=entity_id,
             action_type=picked,
-            params={},
+            params=params,
             decision_mode="random",
             status="proposed",
         )
+
+    def _random_param_value(self, schema: Any) -> Any:
+        """根据 ``ActionParamSchema`` 给参数采样一个合法值（D-014）。
+
+        策略（按优先级）：
+
+        1. 若 ``schema.default`` 非 None，直接用——尊重场景 YAML 的偏好
+        2. 否则按 ``schema.type`` 采样：
+           - ``number``：``rng.uniform(min, max)``，默认范围 [0, 100]
+           - ``string``：从 ``values`` 列表选；无则空串（场景设计建议用 default）
+           - ``boolean``：50/50
+           - ``entity_ref``：从 ``state.entities`` 选（按 ``entity_type_filter`` 过滤）；
+             无候选时返回空串（让 validate_action 拦截，降级走 fallback）
+
+        返回值类型与 ``schema.type`` 对齐。
+        ``schema`` 类型注释为 ``Any`` 而非 ``ActionParamSchema``——避免 runtime.py
+        从 world_models 引入额外 import 链；调用者保证传入正确类型。
+        """
+        if schema.default is not None:
+            return schema.default
+
+        if schema.type == "number":
+            lo = schema.min if schema.min is not None else 0.0
+            hi = schema.max if schema.max is not None else 100.0
+            return self._rng.uniform(lo, hi)
+        if schema.type == "string":
+            if schema.values:
+                return self._rng.choice(schema.values)
+            return ""
+        if schema.type == "boolean":
+            return self._rng.choice([True, False])
+        if schema.type == "entity_ref":
+            candidates = list(self._state.entities.keys())
+            if schema.entity_type_filter is not None:
+                candidates = [
+                    eid for eid in candidates
+                    if self._state.entities[eid].type in schema.entity_type_filter
+                ]
+            if not candidates:
+                return ""  # 无候选——validate_action 会拦截，降级 fallback
+            return self._rng.choice(candidates)
+
+        return None  # 未知类型：防御式
 
     def _fallback_proposal(self, entity_id: str, tick: int) -> ActionProposal:
         """走 `world.defaults.fallback_action`；未定义则 ``do_nothing``。"""
@@ -630,7 +691,8 @@ class Runtime:
     ) -> list[EventRecord]:
         """把 Effect 列表逐个落到 state + 产生事件。
 
-        - `AttributeEffect`：mutate state.entities[id].attributes[name]（数值 delta）
+        - `AttributeEffect`：mutate state.entities[id].attributes[name]
+          （**D-015**：支持 ``delta`` 数值增量或 ``new_value`` 绝对值赋值二选一）
         - `EnvironmentEffect`：mutate state.environment + 写 ``environment_changed``
         - `RelationEffect`：改 state.relations + 写 ``relation_changed``
         - `MessageEffect`：envelope 入 outbox（下一 tick 投递）+ 写 ``message_emitted``
@@ -693,6 +755,13 @@ class Runtime:
                 "AttributeEffect 目标实体 '%s' 不存在，跳过", effect.actor_id
             )
             return
+
+        # D-015：new_value 形式——直接赋值（覆盖任何类型；不做 numeric 校验）
+        if effect.new_value is not None:
+            entity.attributes[effect.attribute] = effect.new_value
+            return
+
+        # delta 形式（数值增量）——保留原有 numeric 校验
         current = entity.attributes.get(effect.attribute, 0)
         if not _is_numeric(current):
             logger.warning(

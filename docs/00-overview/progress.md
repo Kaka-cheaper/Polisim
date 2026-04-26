@@ -8,13 +8,15 @@
 
 **阶段**：**v0.1 minimum viable engine 已上线 GitHub** 🎉 ——`https://github.com/Kaka-cheaper/Polisim`（session 22 末，2026-04-26）
 
-**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 异常体系** + **D-013 跨层语义校验**已落地；**改名 SimEngine → Polisim**；**599 tests passing**
+**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 缩限版**已落地；**改名 SimEngine → Polisim**；**633 tests passing**（599 起点 + D-014/D-015 合计 +35 -1）
 
 > 路线：**A → B → C 三段式**（session 18 user 选定）→ 已全部完成 → v1 上线 ✅
 >
 > **下一阶段路线（session 22 末与用户决策）**：v0.1.1 引擎严谨化 → v0.2 实时态势前端（单仓库 + FastAPI WebSocket + React）。详见第 51 条目。
 >
-> **session 23 已交付**：D-014/D-015/D-016 三份完整 spec（在 `docs/02-design/decisions/`）。session 24+ 入口 = 实施 D-014（按其 spec 第四节迁移路径推进）。详见第 52 条目。
+> **session 23 已交付**：D-014/D-015/D-016 三份完整 spec（在 `docs/02-design/decisions/`）。
+>
+> **session 24 已交付**：D-014 全量实施 + D-015 缩限版 同 session 携带落地。详见第 53 条目。**session 25+ 入口** = 实施 D-016（按 spec 第八节迁移路径推进）。
 
 **已完成**：
 
@@ -184,10 +186,29 @@
     - **进度文档同步**：progress.md 的"待决策"段升 D-014/D-015/D-016 三项决策号（每项简短记录核心收益 + 预计 session + 依赖关系，完整内容引用上述独立 spec 文档）
     - **实施顺序锁定**：D-014 → D-015（缩限版可融入 D-014 session）→ D-016。理由：D-016 的 available_actions 必须含 D-014 的 ParamSchema 完整字段；D-015 全量版独立可后做
     - **session 24+ 入口任务**：实施 D-014——按 spec 第四节"迁移路径"的 6 步推进；先 schema/Pydantic 双写 + cross-validation，再 LLM 协议、Rules 校验、Runtime random、场景 YAML 迁移、回归测试
+53. **D-014 全量实施 + D-015 缩限版同 session 携带落地**（session 24，2026-04-26）：
+    - **D-014 6 步迁移路径全过**：
+      1. `schemas/world_definition.schema.json` 扩充 ActionParamSchema 加 6 字段（description / default / min / max / values / entity_type_filter）
+      2. `models/world_models.py:ActionParamSchema` Pydantic 双写 + `_check_param_constraints` 实施 6 项跨字段约束（含 bool 是 int 子类陷阱保护——number 校验显式排除 bool）
+      3. `core/llm_policy.py:build_prompt` available_actions 依次输出全字段 + None 字段过滤保持 prompt 简洁
+      4. `rules/base.py:validate_action` 加约束 7-9：min/max/values/entity_type_filter 校验三项（含实体存在性）
+      5. `core/runtime.py:_decide_via_random` + 新 `_random_param_value` helper——按 schema 填参（优先 default，否则按类型采样：number 取 [min,max] 均匀、string 从 values 选、entity_ref 按 entity_type_filter 过滤）。**结清 pitfalls.md P2 顶条**（random mode 75% fallback → 可控水平 ~33%）
+      6. `scenarios/minimal_market/world.yaml` + `scenarios/three_party_negotiation/world.yaml` 迁移补齐字段（promote.budget / propose.target_id / propose.price / accept.* / reject.* 等）
+    - **D-015 缩限版同 session 携带**：`models/runtime_models.py:AttributeEffect` 加 ``new_value: Any`` 字段 + `_check_delta_xor_new_value` 实施互斥；`core/runtime.py:_apply_attribute_effect` 适配双形式路径（new_value 直接赋值，delta 走原有 numeric 校验 + 增量）；`rules/base.py:_clamp_attribute` 入口对 ``new_value`` 形式透传不裁剪。**结清 pitfalls.md P2 第 105 行**（AttributeEffect 只能改 numeric → 现支持 enum/string/bool）
+    - **测试增量：+34 项**（599 → 633 passed，0 回归）：
+      - `tests/test_world_models.py` +17（D-014 cross-validation 全分支：合法 5 + 非法 12，覆盖 6 项约束的各角度）
+      - `tests/test_llm_policy.py` +3（build_prompt 输出含 D-014 字段 / None 过滤 / action description）
+      - `tests/test_rules_base.py` +9（D-014 强约束：min/max/values/entity_type_filter 合法 + 非法 + 多错聚合）
+      - `tests/test_runtime_models.py` +6（D-015 cross-validator：string/bool/number absolute / 互斥错 / 都不给错 / delta=0 合法）
+      - `tests/test_rules_three_party_negotiation.py` 1 项重写（test_offer_message_routed_directly_to_bob 收紧断言：D-014 后 charlie 不再"哑巴"，按 from_negotiator 精确过滤验证 alice 发出的 offer 路由正确）
+    - **产出文档同步**：
+      - `pitfalls.md` 两条 P2 标"已结清"（random fallback / AttributeEffect 限制）
+      - `docs/02-design/decisions/D-014-动作参数强Schema化.md` 实施过程符合 spec 第四节迁移路径，无偏差
+    - **session 25+ 入口任务**：实施 D-016（`docs/02-design/decisions/D-016-prompt上下文规范化.md` 第八节迁移路径推进）——build_prompt 重构为 `PromptContext` 结构化表达 + `BaseRules.enrich_prompt` 钩子 + EventLog schema 升级
 
 **进行中**：
 
-- 无代码进行中——v0.1 已上线 GitHub，**v0.2 路线已定**，**v0.1.1 三 spec 已起草**（D-014/D-015/D-016，详见第 52 条目）。**session 24+ 入口任务**：实施 D-014（按 `docs/02-design/decisions/D-014-动作参数强Schema化.md` 第四节迁移路径推进）
+- D-014 全量实施 + D-015 缩限版同 session 携带落地完成。**session 25+ 入口任务**：实施 D-016（`docs/02-design/decisions/D-016-prompt上下文规范化.md` 第八节迁移路径推进）
 
 **阻塞中**：
 
@@ -255,7 +276,7 @@ Phase A / B / C 三个主段已全通。剩下三个选项，按优先级：
 - **测试**：`tests/test_semantic_validator.py` 16 项（SemanticIssue 数据载体 / 钩子返回 None 跳过 / fallback_action 合法+不合法+未配置 / handled 越界 / 错误聚合 / 异常归属 / 真实场景集成 / Runtime 集成构造成功+失败+不留空目录）
 - **关联**：`pitfalls.md` P1 fallback_action（已结清）/ `LLM辅助建模方案.md` 5.3 陷阱 1（已落地，5.4 第 1 项可勾除）
 
-### D-014 动作参数强 Schema 化（spec 已起草 2026-04-26 session 23，待实施）
+### D-014 动作参数强 Schema 化（✅ 已实施 2026-04-26 session 24）
 
 - **决策**：扩充 `ActionParamSchema` 加 6 个新字段（description / default / min / max / values / entity_type_filter）+ cross-validation
 - **完整 spec**：`docs/02-design/decisions/D-014-动作参数强Schema化.md`（含 8 节验收清单 / 影响面表 / 测试设计 / 未决问题）
@@ -267,7 +288,7 @@ Phase A / B / C 三个主段已全通。剩下三个选项，按优先级：
 - **依赖**：无；是 D-016 的前置依赖（available_actions 必须含完整字段）
 - **测试增量**：约 30+ 项
 
-### D-015 effect 系统扩充（spec 已起草 2026-04-26 session 23，缩限版待实施）
+### D-015 effect 系统扩充（✅ 缩限版已实施 2026-04-26 session 24；全量版推 v0.2.x）
 
 - **决策（缩限版）**：v0.1.1 只做 `AttributeEffect.new_value` 字段（与 delta 互斥）——结清 `pitfalls.md` 第 105 行 P2（AttributeEffect 不支持 enum/string/bool）
 - **完整 spec**：`docs/02-design/decisions/D-015-effect系统扩充.md`（含全量提案 + 缩限版理由 + 推迟到 v0.2.x 的 EntityCreate / EntityDestroy / ChainedAction）

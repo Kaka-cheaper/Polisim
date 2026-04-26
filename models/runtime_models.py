@@ -238,21 +238,31 @@ class EventRecord(BaseModel):
 
 
 class AttributeEffect(BaseModel):
-    """对某实体的某属性施加的**数值增量**（D-009 路线 1）。
+    """对某实体的某属性施加的效果——**支持数值增量（delta）或绝对值赋值（new_value）**。
 
-    ⚠️ **v1 已知限制**（见 `docs/03-implementation/pitfalls.md` P2 2026-04-24）：
+    **D-015 缩限版**（2026-04 落地）：本模型新增 ``new_value: Any`` 字段，与
+    ``delta`` 二选一（model_validator 强制）。这部分解除了 v1 仅能改数值属性
+    的限制——现在也能表达：
 
-    - 本模型**只能**表达 numeric 属性的 delta（加减数值），**不能**表达：
+    - 把 enum 属性从 ``"balanced"`` 改到 ``"aggressive"``（用 ``new_value``）
+    - 把 boolean 属性翻转（用 ``new_value=True/False``）
+    - 把 string 属性重写（用 ``new_value="xxx"``）
+
+    数值属性既可用 ``delta``（增量）也可用 ``new_value``（绝对值赋值）。
+
+    **下游适配**：``BaseRules.apply_constraints`` 对 ``new_value`` 形式的
+    AttributeEffect 当前**透传不裁剪**——后续若需要绝对值版本的 clamp，
+    在该 helper 内追加分支即可，不影响本模型契约。
+
+    ⚠️ **历史背景**（D-015 之前的限制，现已部分结清）：
+
+    - 旧版本只能表达 numeric 属性的 delta（加减数值），**不能**表达：
       - 把 enum 属性从 ``"balanced"`` 改到 ``"aggressive"``
       - 把 boolean 属性翻转
       - 把 string 属性重写
-    - 若规则公式需要改 non-numeric 属性，当前 v1 的出口是
-      `Intervention.override_attribute`——但那是"人工干预"路径，会写
-      `intervention_applied` 事件，不是常规动作效果
-    - 换句话说：**v1 的规则层无法让一个动作改 enum/string/bool 属性**
-    - 需要解除这个限制时，请开 D-xxx 讨论：候选方案是给本模型加
-      ``new_value: Any | None`` 字段 + `model_validator` 确保 delta 与 new_value
-      二选一
+    - **D-015 缩限版**已用 ``new_value`` 字段填补该缺口（见上）；
+      `Intervention.override_attribute` 仍保留为"人工干预"路径，会写
+      `intervention_applied` 事件——两者职责不同，不冲突
 
     ``kind`` 是 Literal 常量，供上层做 discriminated union 分发。
     """
@@ -264,7 +274,27 @@ class AttributeEffect(BaseModel):
     )
     actor_id: str = Field(..., min_length=1, description="目标实体 id")
     attribute: str = Field(..., min_length=1, description="目标属性名")
-    delta: float = Field(..., description="数值增量；正数表增加，负数表减少")
+    delta: float | None = Field(
+        default=None, description="数值增量；正数增加、负数减少。与 new_value 二选一"
+    )
+    new_value: Any = Field(
+        default=None,
+        description="绝对值赋值（适用于 enum/string/bool 或数值绝对值）。"
+        "与 delta 二选一。**注意**：v1 用 None 兼任 sentinel——无法把属性显式赋为 None",
+    )
+
+    @model_validator(mode="after")
+    def _check_delta_xor_new_value(self) -> "AttributeEffect":
+        """D-015：``delta`` 与 ``new_value`` 必须二选一（不能都给也不能都不给）。"""
+        if self.delta is None and self.new_value is None:
+            raise ValueError(
+                "AttributeEffect 必须给 delta 或 new_value 之一（不能都为 None）"
+            )
+        if self.delta is not None and self.new_value is not None:
+            raise ValueError(
+                "AttributeEffect 的 delta 与 new_value 不能同时给——二选一"
+            )
+        return self
 
 
 class RelationEffect(BaseModel):

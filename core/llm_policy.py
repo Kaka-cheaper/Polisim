@@ -95,15 +95,35 @@ def build_prompt(
         if action_schema is None:
             # 跨引用已由 loader 校验过；到本层仍缺失表示编排层异常，静默跳过
             continue
-        available_actions.append(
-            {
-                "name": action_name,
-                "params": {
-                    p_name: {"type": p.type, "required": p.required}
-                    for p_name, p in action_schema.params.items()
-                },
-            }
-        )
+
+        # D-014：构造每个 param 的完整 schema 描述。None 字段被过滤——LLM 看到
+        # `"description": null` 会浪费 token 也容易被理解为"该字段无值"，去掉更干净。
+        params_payload: dict[str, dict[str, Any]] = {}
+        for p_name, p in action_schema.params.items():
+            param_dict: dict[str, Any] = {"type": p.type, "required": p.required}
+            if p.description is not None:
+                param_dict["description"] = p.description
+            if p.default is not None:
+                param_dict["default"] = p.default
+            if p.min is not None:
+                param_dict["min"] = p.min
+            if p.max is not None:
+                param_dict["max"] = p.max
+            if p.values is not None:
+                param_dict["values"] = p.values
+            if p.entity_type_filter is not None:
+                param_dict["entity_type_filter"] = p.entity_type_filter
+            params_payload[p_name] = param_dict
+
+        action_entry: dict[str, Any] = {
+            "name": action_name,
+            "params": params_payload,
+        }
+        # 同时输出 action 自身的 description（如果场景 YAML 提供了）
+        if action_schema.description is not None:
+            action_entry["description"] = action_schema.description
+
+        available_actions.append(action_entry)
 
     payload = {
         "tick": tick,

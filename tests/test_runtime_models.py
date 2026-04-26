@@ -600,6 +600,51 @@ def test_attribute_effect_rejects_extra_field() -> None:
         )
 
 
+# --- D-015 缩限版：new_value 字段 + delta XOR new_value 互斥 ---
+
+
+def test_attribute_effect_d015_new_value_string() -> None:
+    """D-015：new_value 可赋字符串（适用于 enum/string 属性）。"""
+    eff = AttributeEffect(actor_id="company_a", attribute="strategy", new_value="aggressive")
+    assert eff.delta is None
+    assert eff.new_value == "aggressive"
+
+
+def test_attribute_effect_d015_new_value_bool() -> None:
+    """D-015：new_value 可赋布尔值（适用于 boolean 属性）。"""
+    eff = AttributeEffect(actor_id="company_a", attribute="active", new_value=True)
+    assert eff.new_value is True
+    assert eff.delta is None
+
+
+def test_attribute_effect_d015_new_value_number_absolute() -> None:
+    """D-015：new_value 可赋数值（数值属性的绝对值赋值）。"""
+    eff = AttributeEffect(actor_id="company_a", attribute="cash", new_value=200)
+    assert eff.new_value == 200
+    assert eff.delta is None
+
+
+def test_attribute_effect_d015_rejects_both_delta_and_new_value() -> None:
+    """D-015：delta 与 new_value 都给 → 拒绝（互斥）。"""
+    with pytest.raises(ValidationError, match="不能同时给"):
+        AttributeEffect(
+            actor_id="a", attribute="x", delta=10, new_value=20
+        )
+
+
+def test_attribute_effect_d015_rejects_neither_delta_nor_new_value() -> None:
+    """D-015：delta 与 new_value 都不给 → 拒绝（必填二选一）。"""
+    with pytest.raises(ValidationError, match="必须给"):
+        AttributeEffect(actor_id="a", attribute="x")
+
+
+def test_attribute_effect_d015_delta_zero_still_valid() -> None:
+    """D-015：delta=0 仍是合法 delta 形式（0 不是 None）。"""
+    eff = AttributeEffect(actor_id="a", attribute="x", delta=0)
+    assert eff.delta == 0
+    assert eff.new_value is None
+
+
 def test_relation_effect_add_and_update_require_value() -> None:
     # 合法：add/update_value + value
     RelationEffect(

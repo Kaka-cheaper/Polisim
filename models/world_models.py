@@ -11,7 +11,7 @@
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class WorldInfo(BaseModel):
@@ -140,12 +140,97 @@ class MessageTypeSchema(BaseModel):
 
 
 class ActionParamSchema(BaseModel):
-    """动作参数定义。"""
+    """动作参数定义（D-014 扩充版）。
+
+    除 ``type`` / ``required`` 外，其余字段均为可选——向后兼容现有 YAML。
+
+    跨字段约束（由 ``_check_param_constraints`` 实施）：
+
+    1. ``default`` 非 None 时，类型必须与 ``type`` 一致（number↔int/float、
+       string↔str、boolean↔bool、entity_ref↔str）；注意 ``bool`` 是 ``int`` 的
+       子类，number 校验必须显式排除 bool
+    2. ``min`` / ``max`` 仅在 ``type="number"`` 时有意义
+    3. ``values`` 仅在 ``type="string"`` 时有意义
+    4. ``entity_type_filter`` 仅在 ``type="entity_ref"`` 时有意义
+    5. ``min <= max``（若两者都给）
+    6. ``default in values``（若 ``values`` 给了）
+
+    JSON Schema 不强制 cross-field 约束（按项目惯例双层分工：JSON Schema 做语
+    法层、Pydantic 做语义层），约束 2-6 仅在本层强制。
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     type: Literal["number", "string", "boolean", "entity_ref"] = Field(..., description="参数类型")
     required: bool = Field(default=False, description="是否必填")
+
+    # ── D-014 新增字段 ──
+    description: str | None = Field(default=None, description="参数语义说明，LLM/前端读取")
+    default: Any = Field(default=None, description="默认值，required=False 时降级 + random mode 填值")
+    min: float | None = Field(default=None, description="数值下限（type=number 时）")
+    max: float | None = Field(default=None, description="数值上限（type=number 时）")
+    values: list[str] | None = Field(default=None, description="枚举候选值（type=string 时）")
+    entity_type_filter: list[str] | None = Field(default=None, description="实体类型限定（type=entity_ref 时）")
+
+    @model_validator(mode="after")
+    def _check_param_constraints(self) -> "ActionParamSchema":
+        # 约束 2：min / max 仅 type=number 时有意义
+        if self.type != "number":
+            if self.min is not None:
+                raise ValueError(
+                    f"min 仅在 type='number' 时有意义；当前 type='{self.type}'"
+                )
+            if self.max is not None:
+                raise ValueError(
+                    f"max 仅在 type='number' 时有意义；当前 type='{self.type}'"
+                )
+        # 约束 5：min <= max
+        if self.min is not None and self.max is not None and self.min > self.max:
+            raise ValueError(
+                f"min ({self.min}) 不能大于 max ({self.max})"
+            )
+
+        # 约束 3：values 仅 type=string
+        if self.values is not None and self.type != "string":
+            raise ValueError(
+                f"values 仅在 type='string' 时有意义；当前 type='{self.type}'"
+            )
+
+        # 约束 4：entity_type_filter 仅 type=entity_ref
+        if self.entity_type_filter is not None and self.type != "entity_ref":
+            raise ValueError(
+                f"entity_type_filter 仅在 type='entity_ref' 时有意义；当前 type='{self.type}'"
+            )
+
+        # 约束 1：default 类型与 type 一致（注意 bool 是 int 子类，须显式排除）
+        if self.default is not None:
+            if self.type == "number":
+                if isinstance(self.default, bool) or not isinstance(self.default, (int, float)):
+                    raise ValueError(
+                        f"default ({self.default!r}, type={type(self.default).__name__}) "
+                        f"与 type='number' 不匹配（预期 int/float）"
+                    )
+            elif self.type == "boolean":
+                if not isinstance(self.default, bool):
+                    raise ValueError(
+                        f"default ({self.default!r}, type={type(self.default).__name__}) "
+                        f"与 type='boolean' 不匹配（预期 bool）"
+                    )
+            elif self.type in ("string", "entity_ref"):
+                if not isinstance(self.default, str):
+                    raise ValueError(
+                        f"default ({self.default!r}, type={type(self.default).__name__}) "
+                        f"与 type='{self.type}' 不匹配（预期 str）"
+                    )
+
+        # 约束 6：default in values
+        if self.values is not None and self.default is not None:
+            if self.default not in self.values:
+                raise ValueError(
+                    f"default ({self.default!r}) 不在 values ({self.values}) 中"
+                )
+
+        return self
 
 
 class ActionEffectSchema(BaseModel):

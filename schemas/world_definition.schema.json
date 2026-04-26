@@ -260,6 +260,7 @@
       "type": "object",
       "required": ["type"],
       "additionalProperties": false,
+      "description": "动作参数定义（D-014 扩充版）。除 type/required 外的字段均为可选，向后兼容现有 YAML。",
       "properties": {
         "type": {
           "type": "string",
@@ -268,6 +269,31 @@
         "required": {
           "type": "boolean",
           "default": false
+        },
+        "description": {
+          "type": "string",
+          "description": "参数语义说明。LLM 必读以理解参数用途；前端展示在动作详情面板的 tooltip。"
+        },
+        "default": {
+          "description": "默认值。required=False 且 LLM 未提供时使用；random mode 缺参时也使用。类型必须与 type 字段一致——load 期由 Pydantic 校验。"
+        },
+        "min": {
+          "type": "number",
+          "description": "数值下限（type=number 时有效）。"
+        },
+        "max": {
+          "type": "number",
+          "description": "数值上限（type=number 时有效）。"
+        },
+        "values": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "枚举候选值（type=string 时有效）。LLM 只能从此列表中选；BaseRules.validate_action 校验提议值是否在列表中。"
+        },
+        "entity_type_filter": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "实体类型限定（type=entity_ref 时有效）。例如目标实体必须是 'company' 类型。"
         }
       }
     },

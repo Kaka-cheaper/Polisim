@@ -355,3 +355,163 @@ def test_cross_reference_of_actions_is_not_checked_here() -> None:
     # 模型层应通过
     w = WorldDefinition.model_validate(payload)
     assert "undefined_action" in w.entity_types["Company"].actions
+
+
+# ---------- D-014 ActionParamSchema 扩充字段 ----------
+#
+# 对应 `docs/02-design/decisions/D-014-动作参数强Schema化.md` 第二节
+# 测试覆盖：合法路径 + 6 项 cross-validation 约束的全分支
+
+
+from models.world_models import ActionParamSchema  # noqa: E402  分组导入便于阅读
+
+
+def test_action_param_minimal_valid() -> None:
+    """D-014：只含必填 type 字段的 ActionParamSchema 能加载（向后兼容）。
+
+    新加 6 个字段（description / default / min / max / values / entity_type_filter）
+    全部默认 None，已有 YAML 不需要任何改动即可继续工作。
+    """
+    p = ActionParamSchema.model_validate({"type": "number"})
+    assert p.type == "number"
+    assert p.required is False
+    assert p.description is None
+    assert p.default is None
+    assert p.min is None
+    assert p.max is None
+    assert p.values is None
+    assert p.entity_type_filter is None
+
+
+def test_action_param_full_number_valid() -> None:
+    """D-014：number 类型 + 全部相关字段（description / default / min / max）合法。"""
+    p = ActionParamSchema.model_validate(
+        {
+            "type": "number",
+            "required": True,
+            "description": "推广预算",
+            "default": 50,
+            "min": 10,
+            "max": 1000,
+        }
+    )
+    assert p.description == "推广预算"
+    assert p.default == 50
+    assert p.min == 10.0
+    assert p.max == 1000.0
+
+
+def test_action_param_full_string_with_values_valid() -> None:
+    """D-014：string 类型 + values 枚举 + default in values 合法。"""
+    p = ActionParamSchema.model_validate(
+        {
+            "type": "string",
+            "values": ["aggressive", "balanced", "conservative"],
+            "default": "balanced",
+        }
+    )
+    assert p.values == ["aggressive", "balanced", "conservative"]
+    assert p.default == "balanced"
+
+
+def test_action_param_full_entity_ref_with_filter_valid() -> None:
+    """D-014：entity_ref 类型 + entity_type_filter 合法。"""
+    p = ActionParamSchema.model_validate(
+        {
+            "type": "entity_ref",
+            "entity_type_filter": ["Company", "Regulator"],
+        }
+    )
+    assert p.entity_type_filter == ["Company", "Regulator"]
+
+
+def test_action_param_boolean_default_true_valid() -> None:
+    """D-014：boolean 类型 + default=True 合法（确认 bool 不被误识别为 number）。"""
+    p = ActionParamSchema.model_validate({"type": "boolean", "default": True})
+    assert p.default is True
+
+
+# --- 约束 1：default 类型与 type 必须一致 ---
+
+
+def test_action_param_default_type_mismatch_number_with_string() -> None:
+    """约束 1：type=number 但 default 是字符串 → 拒绝。"""
+    with pytest.raises(ValidationError, match="number"):
+        ActionParamSchema.model_validate({"type": "number", "default": "abc"})
+
+
+def test_action_param_default_bool_for_number_is_rejected() -> None:
+    """约束 1：bool 是 int 子类陷阱——type=number 但 default=True 必须被拒。"""
+    with pytest.raises(ValidationError, match="number"):
+        ActionParamSchema.model_validate({"type": "number", "default": True})
+
+
+def test_action_param_default_type_mismatch_boolean_with_int() -> None:
+    """约束 1：type=boolean 但 default 是 int → 拒绝。"""
+    with pytest.raises(ValidationError, match="boolean"):
+        ActionParamSchema.model_validate({"type": "boolean", "default": 1})
+
+
+def test_action_param_default_type_mismatch_string_with_int() -> None:
+    """约束 1：type=string 但 default 是 int → 拒绝。"""
+    with pytest.raises(ValidationError, match="string"):
+        ActionParamSchema.model_validate({"type": "string", "default": 42})
+
+
+def test_action_param_default_type_mismatch_entity_ref_with_int() -> None:
+    """约束 1：type=entity_ref 但 default 是 int → 拒绝。"""
+    with pytest.raises(ValidationError, match="entity_ref"):
+        ActionParamSchema.model_validate({"type": "entity_ref", "default": 42})
+
+
+# --- 约束 2：min / max 仅 type=number 时有意义 ---
+
+
+def test_action_param_min_on_string_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="min"):
+        ActionParamSchema.model_validate({"type": "string", "min": 0})
+
+
+def test_action_param_max_on_boolean_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="max"):
+        ActionParamSchema.model_validate({"type": "boolean", "max": 1})
+
+
+# --- 约束 3：values 仅 type=string 时有意义 ---
+
+
+def test_action_param_values_on_number_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="values"):
+        ActionParamSchema.model_validate({"type": "number", "values": ["a", "b"]})
+
+
+# --- 约束 4：entity_type_filter 仅 type=entity_ref 时有意义 ---
+
+
+def test_action_param_entity_type_filter_on_string_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="entity_type_filter"):
+        ActionParamSchema.model_validate(
+            {"type": "string", "entity_type_filter": ["Company"]}
+        )
+
+
+# --- 约束 5：min <= max ---
+
+
+def test_action_param_min_greater_than_max_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="min.*max"):
+        ActionParamSchema.model_validate({"type": "number", "min": 100, "max": 10})
+
+
+# --- 约束 6：default in values ---
+
+
+def test_action_param_default_not_in_values_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="values"):
+        ActionParamSchema.model_validate(
+            {
+                "type": "string",
+                "values": ["a", "b"],
+                "default": "c",  # 不在 values 列表中
+            }
+        )

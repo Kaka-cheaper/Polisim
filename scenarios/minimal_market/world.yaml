@@ -72,6 +72,9 @@ action_types:
       budget:
         type: number
         required: true
+        description: 推广预算（货币单位），必须 ≤ 当前 cash。LLM 应权衡 cash 与策略选值
+        default: 10
+        min: 0
     effects:
       - kind: self_attribute
 

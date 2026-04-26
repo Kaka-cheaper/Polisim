@@ -125,6 +125,10 @@ class BaseRules(ABC):
         4. 动作的 ``required=True`` 参数必须出现在 ``proposal.params``
         5. ``proposal.params`` 中不得有未声明的参数
         6. 每个参数的值类型应匹配其声明（number / string / boolean / entity_ref）
+        7. **D-014**：number 类型参数值需在 ``[min, max]`` 内（若 min/max 给）
+        8. **D-014**：string 类型参数值需在 ``values`` 列表中（若 values 给）
+        9. **D-014**：entity_ref 类型参数引用的实体须存在 + 其 type 须在
+           ``entity_type_filter`` 中（若 entity_type_filter 给）
         """
         errors: list[str] = []
 
@@ -158,19 +162,51 @@ class BaseRules(ABC):
             if param_schema.required and param_name not in given_params:
                 errors.append(f"必填参数 '{param_name}' 缺失")
 
-        # 5/6. given params: each declared + type match
+        # 5/6/7/8/9. given params: declared + type match + D-014 strong constraints
         for param_name, value in given_params.items():
             if param_name not in declared_params:
                 errors.append(
                     f"参数 '{param_name}' 未在动作 '{proposal.action_type}' 中声明"
                 )
                 continue
-            expected_type = declared_params[param_name].type
+            param_schema = declared_params[param_name]
+            expected_type = param_schema.type
             if not self._matches_param_type(value, expected_type):
                 errors.append(
                     f"参数 '{param_name}' 类型不匹配："
                     f"期望 {expected_type}，实际 {type(value).__name__}"
                 )
+                continue  # 类型不对就不做强约束校验（避免误导性的二次错误）
+
+            # ---- D-014 强约束（依赖类型已通过） ----
+            if expected_type == "number":
+                if param_schema.min is not None and value < param_schema.min:
+                    errors.append(
+                        f"参数 '{param_name}' = {value} 小于 min ({param_schema.min})"
+                    )
+                if param_schema.max is not None and value > param_schema.max:
+                    errors.append(
+                        f"参数 '{param_name}' = {value} 大于 max ({param_schema.max})"
+                    )
+            elif expected_type == "string":
+                if param_schema.values is not None and value not in param_schema.values:
+                    errors.append(
+                        f"参数 '{param_name}' = '{value}' 不在 values "
+                        f"{param_schema.values} 中"
+                    )
+            elif expected_type == "entity_ref":
+                if param_schema.entity_type_filter is not None:
+                    target = state.entities.get(value)
+                    if target is None:
+                        errors.append(
+                            f"参数 '{param_name}' 引用的实体 '{value}' 不存在"
+                        )
+                    elif target.type not in param_schema.entity_type_filter:
+                        errors.append(
+                            f"参数 '{param_name}' 引用的实体 '{value}' 类型 "
+                            f"'{target.type}' 不在 entity_type_filter "
+                            f"{param_schema.entity_type_filter} 中"
+                        )
 
         return ValidationResult(valid=len(errors) == 0, errors=errors)
 
@@ -225,6 +261,12 @@ class BaseRules(ABC):
         state: WorldState,
         effect: AttributeEffect,
     ) -> AttributeEffect:
+        # D-015：new_value 形式的 effect 暂时透传不裁剪。
+        # 后续若需要给 new_value 也加 clamp（数值属性的绝对值赋值场景），
+        # 在此处追加分支即可——但 v1 的 rules 全用 delta 形式，不影响。
+        if effect.delta is None:
+            return effect
+
         actor = state.entities.get(effect.actor_id)
         if actor is None:
             return effect  # 未知实体：留给 Runtime 处理

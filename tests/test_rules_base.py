@@ -328,6 +328,193 @@ def test_validate_action_aggregates_multiple_errors() -> None:
 
 
 # =============================================================================
+# D-014 强约束（min / max / values / entity_type_filter）
+# =============================================================================
+#
+# 对应 `docs/02-design/decisions/D-014-动作参数强Schema化.md` 第二节
+
+
+def _make_world_with_d014() -> WorldDefinition:
+    """D-014 测试专用 world：含 min/max/values/entity_type_filter 的 promote_strict 动作。
+
+    - promote_strict.budget: number, required, min=10, max=1000
+    - promote_strict.channel: string, optional, values=[online, offline, mixed]
+    - promote_strict.target: entity_ref, optional, entity_type_filter=[Company]
+    """
+    return WorldDefinition.model_validate(
+        {
+            "version": "0.1",
+            "world": {"id": "test-d014", "name": "D-014 Test"},
+            "entity_types": {
+                "Company": {
+                    "decision_mode": "llm",
+                    "attributes": {"cash": {"type": "number", "default": 100}},
+                    "actions": ["promote_strict", "do_nothing"],
+                },
+                "Regulator": {
+                    "decision_mode": "rule",
+                    "attributes": {"strictness": {"type": "number", "default": 50}},
+                    "actions": ["do_nothing"],
+                },
+            },
+            "action_types": {
+                "promote_strict": {
+                    "actor_types": ["Company"],
+                    "params": {
+                        "budget": {
+                            "type": "number",
+                            "required": True,
+                            "min": 10,
+                            "max": 1000,
+                        },
+                        "channel": {
+                            "type": "string",
+                            "required": False,
+                            "values": ["online", "offline", "mixed"],
+                        },
+                        "target": {
+                            "type": "entity_ref",
+                            "required": False,
+                            "entity_type_filter": ["Company"],
+                        },
+                    },
+                    "effects": [{"kind": "self_attribute"}],
+                },
+                "do_nothing": {
+                    "actor_types": ["Company", "Regulator"],
+                    "params": {},
+                    "effects": [],
+                },
+            },
+        }
+    )
+
+
+# --- min / max（type=number） ---
+
+
+def test_validate_action_d014_number_min_violation() -> None:
+    rules = _NoOpRules()
+    result = rules.validate_action(
+        _make_world_with_d014(),
+        _make_state(),
+        _proposal(action_type="promote_strict", params={"budget": 5}),
+    )
+    assert result.valid is False
+    assert any("小于 min" in e for e in result.errors)
+
+
+def test_validate_action_d014_number_max_violation() -> None:
+    rules = _NoOpRules()
+    result = rules.validate_action(
+        _make_world_with_d014(),
+        _make_state(),
+        _proposal(action_type="promote_strict", params={"budget": 9999}),
+    )
+    assert result.valid is False
+    assert any("大于 max" in e for e in result.errors)
+
+
+def test_validate_action_d014_number_in_range_passes() -> None:
+    rules = _NoOpRules()
+    result = rules.validate_action(
+        _make_world_with_d014(),
+        _make_state(),
+        _proposal(action_type="promote_strict", params={"budget": 50}),
+    )
+    assert result.valid is True
+
+
+# --- values 枚举（type=string） ---
+
+
+def test_validate_action_d014_string_values_violation() -> None:
+    rules = _NoOpRules()
+    result = rules.validate_action(
+        _make_world_with_d014(),
+        _make_state(),
+        _proposal(
+            action_type="promote_strict",
+            params={"budget": 50, "channel": "tv"},  # 不在 values 中
+        ),
+    )
+    assert result.valid is False
+    assert any("不在 values" in e for e in result.errors)
+
+
+def test_validate_action_d014_string_values_in_set_passes() -> None:
+    rules = _NoOpRules()
+    result = rules.validate_action(
+        _make_world_with_d014(),
+        _make_state(),
+        _proposal(
+            action_type="promote_strict",
+            params={"budget": 50, "channel": "online"},
+        ),
+    )
+    assert result.valid is True
+
+
+# --- entity_type_filter（type=entity_ref） ---
+
+
+def test_validate_action_d014_entity_ref_target_not_found() -> None:
+    rules = _NoOpRules()
+    result = rules.validate_action(
+        _make_world_with_d014(),
+        _make_state(),
+        _proposal(
+            action_type="promote_strict",
+            params={"budget": 50, "target": "ghost"},
+        ),
+    )
+    assert result.valid is False
+    assert any("引用的实体" in e and "不存在" in e for e in result.errors)
+
+
+def test_validate_action_d014_entity_ref_type_mismatch() -> None:
+    rules = _NoOpRules()
+    result = rules.validate_action(
+        _make_world_with_d014(),
+        _make_state(),
+        _proposal(
+            action_type="promote_strict",
+            params={"budget": 50, "target": "regulator"},
+        ),
+    )
+    assert result.valid is False
+    assert any("不在 entity_type_filter" in e for e in result.errors)
+
+
+def test_validate_action_d014_entity_ref_type_matches() -> None:
+    rules = _NoOpRules()
+    result = rules.validate_action(
+        _make_world_with_d014(),
+        _make_state(),
+        _proposal(
+            action_type="promote_strict",
+            params={"budget": 50, "target": "company_b"},
+        ),
+    )
+    assert result.valid is True
+
+
+def test_validate_action_d014_aggregates_multiple_constraints() -> None:
+    """D-014：多个强约束错误一次性聚合（min 违反 + values 违反 + 实体不存在）。"""
+    rules = _NoOpRules()
+    result = rules.validate_action(
+        _make_world_with_d014(),
+        _make_state(),
+        _proposal(
+            action_type="promote_strict",
+            params={"budget": 5, "channel": "tv", "target": "ghost"},
+        ),
+    )
+    assert result.valid is False
+    assert len(result.errors) >= 3
+
+
+# =============================================================================
 # apply_constraints
 # =============================================================================
 
