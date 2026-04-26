@@ -6,11 +6,11 @@
 
 ## 一、当前位置
 
-**阶段**：实现阶段 / **Phase C 落地** ✅——分析层 LLM 增强链路全通；OpenAI provider + 多语言输出全就位
+**阶段**：**v0.1 minimum viable engine 已上线 GitHub** 🎉 ——`https://github.com/Kaka-cheaper/Polisim`（session 22 末，2026-04-26）
 
-**进度**：第 1 步 100% ✅；第 2 步 100% ✅；第 5 步 Phase A 100% ✅；**Phase B 核心 80%**（B.0/B.1/B.2/B.4/B.6 完；B.3 协议级重试延后）；**Phase C 100%** ✅（`core/analysis.enhance_with_llm` + CLI `--llm-enhance`）
+**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 异常体系** + **D-013 跨层语义校验**已落地；**改名 SimEngine → Polisim**；**599 tests passing**
 
-> 路线：**A → B → C 三段式**（session 18 user 选定）—— A 纯规则分析 → B 接入 OpenAI/Anthropic provider → C 分析层加 LLM 增强字段
+> 路线：**A → B → C 三段式**（session 18 user 选定）→ 已全部完成 → v1 上线 ✅。剩余可选分支：B.3 协议级重试 / D-011 全量迁移 / walkthrough 扩章 / 第二阶段 LLM 辅助建模 PoC。等用户发令。
 
 **已完成**：
 
@@ -151,7 +151,13 @@
     - **Git 仓库重建**：原 `d:\桌面\github_project\.git` 是空架子（0 commit，无 remote，从未追踪过任何文件）；删除 outer .git，在 SimEngine/ 内 `git init -b main` + 71 文件首次提交；与 `MiroFish-main`（同 github_project 父目录的兄弟项目）完全隔离，独立仓库
     - **物理目录重命名**：`SimEngine/ → Polisim/`——session 内 PowerShell mv 失败（IDE 文件锁），交给用户手动完成；不影响代码（Python 包路径都是相对的，不依赖目录名）
     - **测试总数仍 599 passed**（改名零回归；Pytest 12.43s）
-    - **下次 session 入口前**：用户需关闭所有 IDE 打开的 markdown 文件 → 手动把 `d:\桌面\github_project\SimEngine\` 重命名为 `d:\桌面\github_project\Polisim\` → 重新打开 IDE 指向新路径
+50. **v0.1 上线 GitHub**（session 22 真正终点）：
+    - **仓库地址**：[https://github.com/Kaka-cheaper/Polisim](https://github.com/Kaka-cheaper/Polisim)
+    - **README**：中英双语 tagline + 4 个 badges（License/Python/Tests/Architecture）+ mermaid 6 层架构图（GitHub 完美渲染）+ quick start（含 OpenAI Phase B / Phase C 三种用法）+ 两个内置场景说明 + 项目结构 + 文档表格 + Roadmap + Acknowledgments（致敬 AgentVerse / AutoGen / CrewAI）。所有中文路径链接 GitHub 自动 URL-encode 可点
+    - **LICENSE**：MIT，与 `pyproject.toml` `license = { text = "MIT" }` 同步
+    - **作者身份**：`pyproject.toml` `authors` + LICENSE Copyright 都为 `Kaka-cheaper`；3 个 commit 全部 author 为 `Kaka-cheaper <122336926+Kaka-cheaper@users.noreply.github.com>`（GitHub noreply email 隐私保留 + 贡献图绿格子）
+    - **安全检查通过**：git history 无 API key / token / password 泄露；`config/llm.yaml`（含 vveai key）被 `.gitignore` 正确屏蔽（session 21 P1 安全坑修的成果）
+    - **README 渲染检查通过**：用户 9 张截图覆盖全部章节，mermaid / 中文路径 / badges / 表格全部正确
 
 **进行中**：
 
