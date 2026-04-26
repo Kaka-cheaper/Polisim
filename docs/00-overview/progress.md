@@ -13,6 +13,8 @@
 > 路线：**A → B → C 三段式**（session 18 user 选定）→ 已全部完成 → v1 上线 ✅
 >
 > **下一阶段路线（session 22 末与用户决策）**：v0.1.1 引擎严谨化 → v0.2 实时态势前端（单仓库 + FastAPI WebSocket + React）。详见第 51 条目。
+>
+> **session 23 已交付**：D-014/D-015/D-016 三份完整 spec（在 `docs/02-design/decisions/`）。session 24+ 入口 = 实施 D-014（按其 spec 第四节迁移路径推进）。详见第 52 条目。
 
 **已完成**：
 
@@ -172,10 +174,20 @@
       - **坑 3：prompt 上下文规范化**——当前每个 rules 模块自己组 prompt。**v0.2 前端紧迫性 🔴 关键**——前端做"LLM 决策实时面板"必须能拆 prompt 为可解释段。工程量约 5-7 天。需升级为 D-016
     - **v0.1.1 净工时估算**：坑 1 + 坑 3 = 8-12 天 = 3-4 个 session。坑 2 推迟
     - **session 23 入口任务**：评估这 3 个坑的具体 spec，按紧迫性排序，正式升 D-014/015/016 决策号 + 设计文档 + 测试设计；**先不动代码**——把 spec 写清楚，避免实施时反复返工
+52. **D-014/D-015/D-016 完整 spec 起草**（session 23，2026-04-26）：
+    - **用户决策（session 23 早段）**：v0.1.1 范围 = 全 3 坑（D-014 + D-015 + D-016），把版本成本压到引擎侧，让 v0.2 前端心无旁骛。Cascade 推荐缩限 D-015 仅做 `AttributeEffect.new_value`，其余推 v0.2.x
+    - **代码评估**（在写 spec 前）：读了 `models/world_models.py:142-148`（ActionParamSchema 现状）、`core/llm_policy.py:64-136`（build_prompt 现状）、`rules/minimal_market.py`（一个具体 rules 实现示例）、`pitfalls.md` 全量。3 个坑的现状证据 + 影响面已在代码层面确认
+    - **产出 1：`docs/02-design/decisions/`** 子目录（新建，与现有"主题型"设计文档分离，便于决策追溯）
+    - **产出 2：`D-014-动作参数强Schema化.md`** 完整版 spec（约 280 行）：8 节内容含背景证据 / 6 个新字段定义 / cross-validation 约束 / 影响面矩阵（11 文件）/ 8 步迁移路径 / 30+ 测试设计 / 9 项验收清单 / 5 项未决问题
+    - **产出 3：`D-015-effect系统扩充.md`** 简版 spec（约 175 行）：含 4 个新 Effect 类型设计（EntityCreate/EntityDestroy/ChainedAction/AttributeEffect.new_value）+ 缩限版理由（v0.1.1 仅 0.5 天即可结清 P2 第 105 行）+ 推迟全量到 v0.2.x 的论证
+    - **产出 4：`D-016-prompt上下文规范化.md`** 简版 spec（约 200 行）：含 PromptContext 数据类完整设计（6 字段 + render 方法）+ EventLog schema 升级 + Rules.enrich_prompt 钩子 + 8 步迁移路径 + 18+ 测试清单
+    - **进度文档同步**：progress.md 的"待决策"段升 D-014/D-015/D-016 三项决策号（每项简短记录核心收益 + 预计 session + 依赖关系，完整内容引用上述独立 spec 文档）
+    - **实施顺序锁定**：D-014 → D-015（缩限版可融入 D-014 session）→ D-016。理由：D-016 的 available_actions 必须含 D-014 的 ParamSchema 完整字段；D-015 全量版独立可后做
+    - **session 24+ 入口任务**：实施 D-014——按 spec 第四节"迁移路径"的 6 步推进；先 schema/Pydantic 双写 + cross-validation，再 LLM 协议、Rules 校验、Runtime random、场景 YAML 迁移、回归测试
 
 **进行中**：
 
-- 无代码进行中——v0.1 已上线 GitHub，**v0.2 路线已定**（实时态势前端，详见第 51 条目）。**session 23 入口任务**：评估 3 个"半通用"坑（D-014 action params schema / D-015 effect 扩充 / D-016 prompt 上下文规范），按紧迫性排序 + 升决策号 + 设计文档；先不动代码
+- 无代码进行中——v0.1 已上线 GitHub，**v0.2 路线已定**，**v0.1.1 三 spec 已起草**（D-014/D-015/D-016，详见第 52 条目）。**session 24+ 入口任务**：实施 D-014（按 `docs/02-design/decisions/D-014-动作参数强Schema化.md` 第四节迁移路径推进）
 
 **阻塞中**：
 
@@ -242,6 +254,41 @@ Phase A / B / C 三个主段已全通。剩下三个选项，按优先级：
   - 两个产线场景（minimal_market / three_party_negotiation）以及未来新场景的 rules 子类有了显式的"能力声明"机制，scope 错配在构造期就暴露
 - **测试**：`tests/test_semantic_validator.py` 16 项（SemanticIssue 数据载体 / 钩子返回 None 跳过 / fallback_action 合法+不合法+未配置 / handled 越界 / 错误聚合 / 异常归属 / 真实场景集成 / Runtime 集成构造成功+失败+不留空目录）
 - **关联**：`pitfalls.md` P1 fallback_action（已结清）/ `LLM辅助建模方案.md` 5.3 陷阱 1（已落地，5.4 第 1 项可勾除）
+
+### D-014 动作参数强 Schema 化（spec 已起草 2026-04-26 session 23，待实施）
+
+- **决策**：扩充 `ActionParamSchema` 加 6 个新字段（description / default / min / max / values / entity_type_filter）+ cross-validation
+- **完整 spec**：`docs/02-design/decisions/D-014-动作参数强Schema化.md`（含 8 节验收清单 / 影响面表 / 测试设计 / 未决问题）
+- **核心收益**：
+  - 结清 `pitfalls.md` 顶条 P2（random mode 75% 失败 → 100% 成功）
+  - 让 LLM 看到参数语义（description）与约束（min/max/values），减少 LLM 出错
+  - **v0.2 前端**的"动作详情面板"前提条件
+- **预计 session**：session 24-25（4-5 天）
+- **依赖**：无；是 D-016 的前置依赖（available_actions 必须含完整字段）
+- **测试增量**：约 30+ 项
+
+### D-015 effect 系统扩充（spec 已起草 2026-04-26 session 23，缩限版待实施）
+
+- **决策（缩限版）**：v0.1.1 只做 `AttributeEffect.new_value` 字段（与 delta 互斥）——结清 `pitfalls.md` 第 105 行 P2（AttributeEffect 不支持 enum/string/bool）
+- **完整 spec**：`docs/02-design/decisions/D-015-effect系统扩充.md`（含全量提案 + 缩限版理由 + 推迟到 v0.2.x 的 EntityCreate / EntityDestroy / ChainedAction）
+- **核心收益**（缩限版）：
+  - 结清 `pitfalls.md` 第 105 行 P2
+  - 让动作能改 enum/string/bool 属性（如把 `strategy_bias` 从 `"balanced"` 改到 `"aggressive"`），不再依赖 Intervention 后门
+- **预计 session**：缩限版 0.5 天（融入 D-014 一并做）；全量版 5-7 天（推迟 v0.2.x）
+- **依赖**：无
+- **测试增量**：缩限版 5+ 项；全量版 20+ 项
+
+### D-016 prompt 上下文规范化（spec 已起草 2026-04-26 session 23，待实施）
+
+- **决策**：把 `build_prompt` 重构为结构化 `PromptContext`（system_role / actor_view / perception / available_actions / language_hint / custom_segments）+ `BaseRules.enrich_prompt` 钩子 + EventLog 持久化结构化版本
+- **完整 spec**：`docs/02-design/decisions/D-016-prompt上下文规范化.md`（含完整 PromptContext 设计 / 8 步迁移路径 / 18+ 测试清单）
+- **核心收益**：
+  - actor 看到关系视图 + 决策历史 + 角色提示——**LLM 行为更连贯**
+  - rules 模块可注入场景特化提示（"你是谈判者，目标是…"）
+  - **v0.2 前端**的"LLM 决策实时面板"前提条件——能拆段可视化
+- **预计 session**：session 26-27（5-6 天）
+- **依赖**：D-014（available_actions 必须含完整 ParamSchema）
+- **测试增量**：约 18+ 项 + smoke OpenAI 验证
 
 ### D-002 schema 与 Pydantic 模型的同步策略
 
