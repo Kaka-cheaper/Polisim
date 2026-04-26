@@ -1,0 +1,216 @@
+# Polisim 第二个场景：三人谈判 World Definition
+#
+# 设计目标——验证 minimal_market 没充分覆盖的架构特性：
+#   - direct 消息（target_id 路由）—— offer 消息
+#   - 关系层（update_value 操作）—— trust 关系动态调整
+#   - 多 decision_mode 共存 —— 3 个 negotiator 各走 llm / rule / random
+#   - rules 同时产生多种 Effect（AttributeEffect + RelationEffect + MessageEffect）
+#   - breakpoint 真触发 —— 任一 negotiator 的 max_trust ≥ 80 时暂停
+#
+# 配套：
+#   - scenarios/three_party_negotiation/scenario.yaml
+#   - rules/three_party_negotiation.py
+
+version: "0.1"
+
+world:
+  id: three-party-negotiation
+  name: 三人谈判
+  description: 3 个谈判者就一个待定价格相互发 offer，accept 提升信任、reject 降低；信任达阈值时触发 breakpoint
+
+entity_types:
+
+  Negotiator:
+    description: 谈判方；可由 LLM / rule / random 三种模式驱动决策
+    decision_mode: llm  # 类型默认；scenario 实例可覆盖（D-005 实例级覆盖未实装，v1 类型默认 + 各实体单独类型）
+    activation:
+      on_message: true
+      decision_interval: 1
+    attributes:
+      cash:
+        type: number
+        min: 0
+        default: 100
+      target_price:
+        type: number
+        min: 0
+        max: 1000
+        default: 100
+      flexibility:
+        type: number
+        min: 0
+        max: 100
+        default: 20
+      max_trust:
+        type: number
+        min: 0
+        max: 100
+        default: 0
+    actions:
+      - propose
+      - accept
+      - reject
+      - do_nothing
+
+  RuleNegotiator:
+    description: 与 Negotiator 同结构，但 decision_mode=rule（v1 类型级 decision_mode 唯一，故拆类型）
+    decision_mode: rule
+    activation:
+      on_message: true
+      decision_interval: 1
+    attributes:
+      cash:
+        type: number
+        min: 0
+        default: 100
+      target_price:
+        type: number
+        min: 0
+        max: 1000
+        default: 100
+      flexibility:
+        type: number
+        min: 0
+        max: 100
+        default: 20
+      max_trust:
+        type: number
+        min: 0
+        max: 100
+        default: 0
+    actions:
+      - propose
+      - accept
+      - reject
+      - do_nothing
+
+  RandomNegotiator:
+    description: 与 Negotiator 同结构，但 decision_mode=random
+    decision_mode: random
+    activation:
+      on_message: true
+      decision_interval: 1
+    attributes:
+      cash:
+        type: number
+        min: 0
+        default: 100
+      target_price:
+        type: number
+        min: 0
+        max: 1000
+        default: 100
+      flexibility:
+        type: number
+        min: 0
+        max: 100
+        default: 20
+      max_trust:
+        type: number
+        min: 0
+        max: 100
+        default: 0
+    actions:
+      - propose
+      - accept
+      - reject
+      - do_nothing
+
+relation_types:
+
+  trust:
+    description: 谈判方对另一方的信任值（0~100）。有向——A→B 与 B→A 独立计量
+    directed: true
+    transient: false
+
+message_types:
+
+  offer:
+    description: 一方向另一方发出的报价（direct delivery，必须在 payload 含 target_id）
+    delivery: direct
+    payload:
+      target_id:
+        type: string
+      price:
+        type: number
+      from_negotiator:
+        type: string
+
+  agreement:
+    description: 一方接受了某 offer 后向所有人广播的成交通告
+    delivery: broadcast
+    payload:
+      acceptor:
+        type: string
+      counterparty:
+        type: string
+      price:
+        type: number
+
+action_types:
+
+  propose:
+    description: 向某 negotiator 发出 offer。前置条件：target_id 必须存在且不是自己（由 rules 校验）
+    actor_types: [Negotiator, RuleNegotiator, RandomNegotiator]
+    params:
+      target_id:
+        type: entity_ref
+        required: true
+      price:
+        type: number
+        required: true
+    effects:
+      - kind: message
+
+  accept:
+    description: 接受某方的 offer。后果：trust(self→from) +20，self.max_trust 更新，广播 agreement
+    actor_types: [Negotiator, RuleNegotiator, RandomNegotiator]
+    params:
+      offer_from:
+        type: entity_ref
+        required: true
+      price:
+        type: number
+        required: true
+    effects:
+      - kind: relation
+      - kind: self_attribute
+      - kind: message
+
+  reject:
+    description: 拒绝某方的 offer。后果：trust(self→from) -10
+    actor_types: [Negotiator, RuleNegotiator, RandomNegotiator]
+    params:
+      offer_from:
+        type: entity_ref
+        required: true
+    effects:
+      - kind: relation
+
+  do_nothing:
+    description: 无动作；fallback_action 兜底
+    actor_types: [Negotiator, RuleNegotiator, RandomNegotiator]
+    params: {}
+    effects: []
+
+environment:
+  variables:
+    market_pressure:
+      type: number
+      min: 0
+      max: 100
+      default: 50
+    round_number:
+      type: number
+      min: 1
+      default: 1
+
+defaults:
+  conflict_resolution: both
+  max_messages_per_tick: 100
+  fallback_action: do_nothing
+  action_effect_order:
+    - self_attribute
+    - relation
+    - environment
+    - message

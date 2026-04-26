@@ -1,0 +1,48 @@
+# LLM 配置模板（对应 `models/config_models.LLMConfig`）。
+#
+# 使用方式：
+#   1. 复制本文件为 `config/llm.yaml`
+#   2. 把下面任一条目的 `api_key_env` 指向你环境里真实存在的变量名
+#   3. 在 shell 里 `export OPENAI_API_KEY="sk-..."`
+#   4. 跑 `python -m cli.run run scenarios/minimal_market/scenario.yaml --llm-provider openai`
+#
+# 也可以指定某条具体条目：
+#   python -m cli.run run ... --llm-provider openai --provider-key openai_gpt4_via_proxy
+#
+# 注意：
+#   - **永远不要**把真实 API key 直接写进 YAML；始终通过环境变量间接引用
+#   - `provider` 字段目前只支持 Literal["openai", "anthropic", "mock"]
+#     （session 19 Phase B.2 只落地 openai；anthropic 留给后续）
+#   - `base_url` 可指向 Azure OpenAI / OpenRouter / 本地 vLLM 等 OpenAI 兼容端点
+
+version: "0.1"
+
+# 默认选用的 provider key（必须是 providers 下某个条目的 key）
+default_provider: openai_gpt4mini
+
+providers:
+
+  # 条目 1：走官方 OpenAI API
+  openai_gpt4mini:
+    provider: openai
+    model: gpt-4o-mini          # 便宜、够快、对 JSON 模式支持稳定
+    api_key_env: OPENAI_API_KEY # 从 $OPENAI_API_KEY 读取
+    temperature: 0.7
+    timeout_sec: 30.0
+    max_retries: 2
+
+  # 条目 2：走代理 / 兼容端点（示例：OpenRouter）
+  openai_gpt4_via_proxy:
+    provider: openai
+    model: openai/gpt-4o        # 模型名直通；不同 proxy 命名可能不同
+    api_key_env: OPENROUTER_API_KEY
+    base_url: https://openrouter.ai/api/v1
+    temperature: 0.7
+    timeout_sec: 60.0
+    max_retries: 3
+
+  # 条目 3：mock——完全离线，用于 CI 与默认开发流程
+  mock_default:
+    provider: mock
+    model: mock-v1
+    # mock provider 不需要 api_key_env / base_url

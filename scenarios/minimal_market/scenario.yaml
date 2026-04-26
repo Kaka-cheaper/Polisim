@@ -1,0 +1,49 @@
+# Polisim Walkthrough 最小场景实例
+#
+# 对应 `docs/01-requirements/最小示例Walkthrough.md` 第四节"第二步：写场景实例"。
+# 与本目录的 `world.yaml` 配套使用，描述 1 家企业 + 1 个监管方的 5-tick 仿真。
+
+version: "0.1"
+
+world_id: minimal-market
+
+# D-010：规则模块的显式引用，格式 "module.path:ClassName"
+# 由 `core/rules_loader.load_rules_class` 解析为 BaseRules 子类
+rules_module: "rules.minimal_market:MinimalMarketRules"
+
+scenario:
+  id: walkthrough-min
+  name: Walkthrough 最小示例
+  description: 验证引擎分层闭环的 5-tick 双实体场景；第 2 tick 注入一条政策信号
+
+entities:
+  - id: company_a
+    type: Company
+    name: A 公司
+    attributes:
+      cash: 100
+      reputation: 50
+
+  - id: regulator_main
+    type: Regulator
+    name: 监管方
+    attributes:
+      strictness: 50
+
+environment:
+  policy_pressure: 20
+
+scheduled_events:
+  - tick: 2
+    type: message_injection
+    name: 政策信号加强
+    message:
+      type: policy_signal
+      delivery: broadcast
+      payload:
+        strength: 80
+        directive: 加强审查
+
+config:
+  total_ticks: 5
+  max_ticks: 10

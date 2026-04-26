@@ -1,0 +1,187 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scenario",
+  "description": "Polisim 场景文件格式 v0.1",
+  "type": "object",
+  "required": ["version", "world_id", "scenario", "entities", "config"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "场景文件格式版本",
+      "enum": ["0.1"]
+    },
+    "world_id": {
+      "type": "string",
+      "description": "引用的世界定义 id",
+      "minLength": 1
+    },
+    "rules_module": {
+      "type": "string",
+      "minLength": 1,
+      "description": "可选；规则模块的 Python 导入路径，格式 'module.path:ClassName'（D-010）。由 core/rules_loader.py 解析。未声明时 Runtime 需由调用方显式传入 rules 实例。",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "scenario": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "minItems": 1,
+      "description": "实体实例列表。场景必须至少包含一个实体，否则无法推进仿真（D-003）。",
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "minLength": 1 },
+          "name": { "type": "string" },
+          "attributes": {
+            "type": "object",
+            "description": "实体实例属性覆盖值",
+            "additionalProperties": {
+              "type": ["number", "string", "boolean", "array", "object", "null"]
+            }
+          }
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "source", "target"],
+        "additionalProperties": false,
+        "properties": {
+          "type": { "type": "string" },
+          "source": { "type": "string" },
+          "target": { "type": "string" },
+          "value": { "type": "number" }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "description": "环境初始值；字段是否存在于世界定义中由 loader 做跨文件校验",
+      "additionalProperties": {
+        "type": ["number", "string", "boolean", "null"]
+      }
+    },
+    "scheduled_events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tick", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "tick": { "type": "integer", "minimum": 1 },
+          "type": {
+            "type": "string",
+            "enum": ["environment_event", "message_injection"]
+          },
+          "name": { "type": "string" },
+          "payload": {
+            "type": "object",
+            "additionalProperties": {
+              "type": ["number", "string", "boolean", "null"]
+            }
+          },
+          "message": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "breakpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "when"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "when": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "environment": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "gte": { "type": "number" },
+                    "lte": { "type": "number" }
+                  }
+                }
+              },
+              "entity": {
+                "type": "object",
+                "required": ["id", "attribute"],
+                "additionalProperties": false,
+                "properties": {
+                  "id": { "type": "string" },
+                  "attribute": { "type": "string" },
+                  "gte": { "type": "number" },
+                  "lte": { "type": "number" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "required": ["total_ticks"],
+      "additionalProperties": false,
+      "properties": {
+        "total_ticks": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "本次仿真的总轮次"
+        },
+        "max_ticks": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "安全上限。需在 loader 中校验 max_ticks >= total_ticks"
+        },
+        "pause_mode": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "manual": { "type": "boolean", "default": true },
+            "every_tick": { "type": "boolean", "default": false }
+          }
+        },
+        "snapshot_mode": {
+          "type": "string",
+          "enum": ["every_tick", "on_pause", "on_end"],
+          "default": "every_tick"
+        },
+        "analysis": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "snapshot_fields": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["entities", "relations", "environment", "messages"]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

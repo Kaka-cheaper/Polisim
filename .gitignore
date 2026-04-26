@@ -1,0 +1,51 @@
+# Python 编译产物
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# 测试 / 类型检查缓存
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# SimEngine 专属
+# ==========================================
+
+# 本地 LLM 配置——可能含真实 API key 或通过 api_key_env 间接引用
+# 仅 example 进版本控制，实际配置每位开发者自己 cp + 填环境变量名
+config/llm.yaml
+config/runtime.yaml
+config/storage.yaml
+config/logging.yaml
+
+# 运行产物（events.jsonl / snapshots / analysis）——按 run_id 归档
+runs/
+
+# 临时文件
+*.log
+*.tmp

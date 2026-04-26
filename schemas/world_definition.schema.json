@@ -1,0 +1,311 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WorldDefinition",
+  "description": "Polisim 世界定义文件格式 v0.1",
+  "type": "object",
+  "required": ["version", "world", "entity_types", "action_types"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "世界定义格式版本",
+      "enum": ["0.1"]
+    },
+    "world": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "世界唯一标识",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "description": "世界名称",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "世界描述（可选）"
+        }
+      }
+    },
+    "entity_types": {
+      "type": "object",
+      "description": "实体类型定义，key 为类型名",
+      "additionalProperties": {
+        "$ref": "#/definitions/EntityTypeSchema"
+      }
+    },
+    "relation_types": {
+      "type": "object",
+      "description": "关系类型定义，key 为关系名",
+      "additionalProperties": {
+        "$ref": "#/definitions/RelationTypeSchema"
+      }
+    },
+    "message_types": {
+      "type": "object",
+      "description": "消息类型定义，key 为消息名",
+      "additionalProperties": {
+        "$ref": "#/definitions/MessageTypeSchema"
+      }
+    },
+    "action_types": {
+      "type": "object",
+      "description": "动作类型定义，key 为动作名",
+      "additionalProperties": {
+        "$ref": "#/definitions/ActionTypeSchema"
+      }
+    },
+    "environment": {
+      "type": "object",
+      "description": "全局环境变量模板",
+      "required": ["variables"],
+      "additionalProperties": false,
+      "properties": {
+        "variables": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/AttributeSchema"
+          }
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "description": "运行级默认参数",
+      "additionalProperties": false,
+      "properties": {
+        "conflict_resolution": {
+          "type": "string",
+          "enum": ["both", "priority", "random"],
+          "default": "both"
+        },
+        "max_messages_per_tick": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 100
+        },
+        "fallback_action": {
+          "type": "string",
+          "description": "决策失败时的降级动作"
+        },
+        "action_effect_order": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["self_attribute", "relation", "environment", "message"]
+          },
+          "default": ["self_attribute", "relation", "environment", "message"]
+        }
+      }
+    }
+  },
+  "definitions": {
+    "AttributeSchema": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["number", "string", "boolean", "enum", "entity_ref"]
+        },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "default": {},
+        "values": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "type=enum 时的候选值列表"
+        },
+        "clamp": {
+          "type": "boolean",
+          "description": "是否自动截断到 min/max 范围",
+          "default": true
+        }
+      }
+    },
+    "ActivationSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "on_message": {
+          "type": "boolean",
+          "default": true
+        },
+        "decision_interval": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "wake_on": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["environment_changed", "relation_changed", "action_finished"]
+          }
+        },
+        "environment_triggers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["field"],
+            "properties": {
+              "field": { "type": "string" },
+              "gte_delta": { "type": "number" },
+              "lte_delta": { "type": "number" }
+            }
+          }
+        },
+        "attribute_triggers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["field"],
+            "properties": {
+              "field": { "type": "string" },
+              "gte": { "type": "number" },
+              "lte": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "PerceptionSchema": {
+      "type": "object",
+      "required": ["scope"],
+      "additionalProperties": false,
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": ["global", "relation", "attribute", "custom"]
+        },
+        "include_relations": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "EntityTypeSchema": {
+      "type": "object",
+      "required": ["decision_mode", "attributes", "actions"],
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": "string" },
+        "decision_mode": {
+          "type": "string",
+          "enum": ["llm", "rule", "random"]
+        },
+        "activation": {
+          "$ref": "#/definitions/ActivationSchema"
+        },
+        "perception": {
+          "$ref": "#/definitions/PerceptionSchema"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/AttributeSchema"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      }
+    },
+    "RelationTypeSchema": {
+      "type": "object",
+      "required": ["directed", "transient"],
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": "string" },
+        "directed": { "type": "boolean" },
+        "transient": { "type": "boolean" }
+      }
+    },
+    "MessagePayloadFieldSchema": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean"]
+        }
+      }
+    },
+    "MessageTypeSchema": {
+      "type": "object",
+      "required": ["delivery"],
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": "string" },
+        "delivery": {
+          "type": "string",
+          "enum": ["direct", "broadcast", "by_relation"]
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/MessagePayloadFieldSchema"
+          }
+        }
+      }
+    },
+    "ActionParamSchema": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["number", "string", "boolean", "entity_ref"]
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "ActionEffectSchema": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["self_attribute", "relation", "message", "environment"]
+        }
+      }
+    },
+    "ActionTypeSchema": {
+      "type": "object",
+      "required": ["actor_types", "params", "effects"],
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": "string" },
+        "actor_types": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/ActionParamSchema"
+          }
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ActionEffectSchema"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,95 @@
+# Polisim 第二个场景：三人谈判 Scenario
+#
+# 与 world.yaml 配套：3 个 negotiator 实例，各走不同 decision_mode；
+# 6 条 trust 关系（双向）；1 breakpoint（alice.max_trust >= 80）；
+# 1 scheduled_event 在 tick 2 提升 market_pressure；总 8 tick
+
+version: "0.1"
+
+world_id: three-party-negotiation
+
+rules_module: "rules.three_party_negotiation:NegotiationRules"
+
+scenario:
+  id: walkthrough-three-party
+  name: 三人谈判 Walkthrough
+  description: alice(llm) / bob(rule) / charlie(random) 互相 propose / accept / reject；信任值 ≥ 80 时触发 breakpoint
+
+entities:
+  - id: alice
+    type: Negotiator
+    name: Alice（LLM 决策）
+    attributes:
+      cash: 200
+      target_price: 80
+      flexibility: 25
+      max_trust: 50
+
+  - id: bob
+    type: RuleNegotiator
+    name: Bob（规则决策——默认 do_nothing）
+    attributes:
+      cash: 150
+      target_price: 120
+      flexibility: 15
+      max_trust: 50
+
+  - id: charlie
+    type: RandomNegotiator
+    name: Charlie（随机决策）
+    attributes:
+      cash: 180
+      target_price: 100
+      flexibility: 30
+      max_trust: 50
+
+# 6 条双向 trust 关系（初始全 50）——演示 RelationEffect.update_value 的初始数据
+relations:
+  - type: trust
+    source: alice
+    target: bob
+    value: 50
+  - type: trust
+    source: alice
+    target: charlie
+    value: 50
+  - type: trust
+    source: bob
+    target: alice
+    value: 50
+  - type: trust
+    source: bob
+    target: charlie
+    value: 50
+  - type: trust
+    source: charlie
+    target: alice
+    value: 50
+  - type: trust
+    source: charlie
+    target: bob
+    value: 50
+
+environment:
+  market_pressure: 50
+  round_number: 1
+
+scheduled_events:
+  - tick: 2
+    type: environment_event
+    name: 市场压力上升
+    payload:
+      market_pressure: 80
+
+breakpoints:
+  # alice 在累计 max_trust 达到 80 时暂停——任意 LLM accept 决策刷高 trust 即触发
+  - id: alice_high_trust
+    when:
+      entity:
+        id: alice
+        attribute: max_trust
+        gte: 80
+
+config:
+  total_ticks: 8
+  max_ticks: 12
