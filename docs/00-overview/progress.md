@@ -8,7 +8,7 @@
 
 **阶段**：**v0.1 minimum viable engine 已上线 GitHub** 🎉 ——`https://github.com/Kaka-cheaper/Polisim`（session 22 末，2026-04-26）
 
-**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 缩限版 / D-016**已落地；**改名 SimEngine → Polisim**；**662 tests passing**（633 起点 + D-016 +29）
+**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 缩限版 / D-016 + LLM 增强分析升级**已落地；**改名 SimEngine → Polisim**；**670 tests passing**（633 起点 + D-016 +29 + LLM 增强升级 +8）
 
 > 路线：**A → B → C 三段式**（session 18 user 选定）→ 已全部完成 → v1 上线 ✅
 >
@@ -18,7 +18,9 @@
 >
 > **session 24 已交付**：D-014 全量实施 + D-015 缩限版 同 session 携带落地。详见第 53 条目。
 >
-> **session 25 已交付**：D-016 全 8 步实施完成——v0.1.1 引擎严谨化收官 ✅。详见第 54 条目。**v0.1.1 全部目标达成，准备进入 v0.2 前端阶段**。
+> **session 25 已交付**：D-016 全 8 步实施完成——v0.1.1 引擎严谨化收官 ✅。详见第 54 条目。
+>
+> **session 26 已交付**：LLM 增强分析升级（world_overview 段 + 证据援引 + 章节重排）+ CLI `--output-language` / `--prompt-history-size` 参数。详见第 55 条目。**v0.1.1 全部目标达成 + LLM 增强体验改进，准备进入 v0.2 前端阶段**。
 
 **已完成**：
 
@@ -229,10 +231,30 @@
     - **API 破坏性变更**：`core.llm_policy.decide` 返回类型由 `ActionProposal` 改为 `LLMDecisionResult`——调用方需改为 `result = decide(...); proposal = result.proposal`。对项目内部影响：runtime._decide_via_llm 已适配；`tests/test_llm_policy.py` `TestDecide.test_happy_path` 已重写
     - **v0.1.1 收官**：D-014 + D-015 缩限版 + D-016 三项全部交付，v0.1.1 引擎严谨化阶段完成。**v0.2 前端可启动**——前端可消费 `decision_proposed` 事件 payload 中的 `prompt_context` 字段，分别渲染 system_role / actor_view / perception / available_actions / custom_segments 五段
     - **session 26+ 入口任务**：用户决定后续——可选项包括 (a) v0.2 前端启动（FastAPI WebSocket + React 实时态势面板）/ (b) D-015 全量版补齐（EntityCreate / EntityDestroy / ChainedAction 三个 Effect 类型）/ (c) B.3 协议级重试 / (d) walkthrough 章节扩
+55. **LLM 增强分析升级 + CLI 多语言参数**（session 26，2026-04-28）：
+    - **触发**：用户实跑 `python -m cli run scenarios/minimal_market/scenario.yaml --llm-enhance` 后反馈：final.md 中初始/中间/最终状态都是面向开发者的数值表格；LLM 增强叙事段没有解释"初始世界是什么、有哪些实体、关系含义、场景目标"，且局势判断与建议**未援引证据**
+    - **同 session 携带的两组改动**：
+      1. **CLI 多语言/历史参数**（`@d:\桌面\github_project\Polisim\cli\run.py`）：`run` + `step` 子命令各加 `--output-language`（透传 `RuntimeConfig.output_language`）+ `--prompt-history-size`（透传 D-016 第 4 步的 `prompt_history_size`）；新增 `_build_runtime_config` helper 收口构造逻辑
+      2. **LLM 增强分析升级**（commit `f91ec7c`，5 文件 +605/-142）：
+         - `models/analysis_models.py:AnalysisResult` 加 `world_overview: str | None` 字段——LLM 据此解释初始世界的实体角色 / 关系含义 / 场景目标
+         - `core/analysis.py:_ANALYSIS_SYSTEM_PROMPT` / `_ANALYSIS_PROMPT_HEADER` / `_ANALYSIS_PROMPT_INSTRUCTIONS` 三段常量重写：prompt 由 1 段 JSON（仅 Phase A） → 3 段 JSON（**World Definition + Scenario + Phase A**），LLM 协议从 3 字段升 4 字段，**强制要求 `situation_judgement` 与每条 `next_action_suggestions` 援引具体 tick / 属性变化 / 实体 id 作为证据**
+         - `core/analysis.py:enhance_with_llm` 签名变更：新增必填 `world: WorldDefinition` + `scenario: Scenario` 关键字参数；max_tokens 1500 → 2000（容纳 world_overview 段）
+         - `core/analysis.py:render_markdown` **章节顺序重排** + 去章节编号：
+           - 旧序：元信息 → 一·全轨迹总结 → 二·关键转折点 → 三·实体比较 → 四·环境 → 五·局势判断（C） → 六·建议（C） → 七·叙事（C）
+           - 新序：元信息 → **世界概览（C） → 全过程叙事（C） → 局势判断（C） → 面向用户的建议（C）** → 全轨迹总结 → 关键转折点 → 实体比较 → 环境
+           - LLM 增强段在前，为读者建立背景；Phase A 数值在后作为支撑。"自然语言总览"重命名为"全过程叙事（自然语言总览）"
+         - `cli/run.py:cmd_run` 把 world / scenario 传给 enhance_with_llm
+    - **测试增量 +5 项 0 回归**（665 → 670 passed）：
+      - `tests/test_analysis.py` +5（`test_contains_world_definition` / `test_contains_scenario_payload` / `test_evidence_requirement_in_instructions` / `test_missing_world_overview_raises` / `test_empty_world_overview_raises`）
+      - `tests/test_analysis.py` 适配现有 9 项 TestEnhanceWithLLM（加 world/scenario fixture + kwargs）+ 4 项 TestParseAnalysisResponse（raw json 补 world_overview）+ 2 项 TestRenderMarkdown（断言世界概览 / 全过程叙事）
+      - `tests/test_cli.py` 3 项适配新章节标题（`test_run_analysis_final_md_contains_expected_sections` 去章节号 / `test_run_llm_enhance_fills_three_sections` 重命名为 four_sections + 加 world_overview / `test_run_llm_enhance_protocol_error_graceful_fallback` 改新标题断言）
+    - **API 破坏性变更**：`core.analysis.enhance_with_llm` 必填 `world` + `scenario` kwargs；调用方（CLI 已改）需要传入完整 World Definition + Scenario 对象
+    - **向后兼容**：`AnalysisResult.world_overview` 默认 None；纯 Phase A 模式（不调 enhance_with_llm）输出与升级前**等效**——只是去掉了章节"一二三四"编号
+    - **session 27+ 入口任务**：用户重跑 OpenAI smoke 验收新版 final.md 的 4 段 LLM 内容；之后按 session 25 末"v0.2 前端启动 / D-015 全量版 / B.3 重试 / walkthrough 扩章 / 新场景"五选项指派
 
 **进行中**：
 
-- v0.1.1 全部目标达成。**session 26+ 入口任务**：用户按需指派下一阶段（v0.2 前端启动 / D-015 全量版 / B.3 重试 / walkthrough 扩章 / 新场景）
+- v0.1.1 全部目标达成 + LLM 增强分析升级。**session 27+ 入口任务**：用户重跑 OpenAI smoke 验收新版 final.md，之后按需指派下一阶段
 
 **阻塞中**：
 
