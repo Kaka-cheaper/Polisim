@@ -262,6 +262,69 @@ def test_run_seed_option_propagated(
     assert exit_code == 0
 
 
+def test_run_output_language_option_propagated(
+    tmp_path: Path,
+    captured_streams: tuple[io.StringIO, io.StringIO, io.StringIO],
+) -> None:
+    """D-016：--output-language 透传到 RuntimeConfig.output_language。"""
+    exit_code = _invoke(
+        [
+            "run",
+            str(WALKTHROUGH_SCENARIO),
+            "--runs-root",
+            str(tmp_path),
+            "--ticks",
+            "2",
+            "--output-language",
+            "en",
+        ],
+        captured_streams,
+    )
+    assert exit_code == 0
+
+
+def test_run_prompt_history_size_option_propagated(
+    tmp_path: Path,
+    captured_streams: tuple[io.StringIO, io.StringIO, io.StringIO],
+) -> None:
+    """D-016：--prompt-history-size 透传到 RuntimeConfig.prompt_history_size。"""
+    exit_code = _invoke(
+        [
+            "run",
+            str(WALKTHROUGH_SCENARIO),
+            "--runs-root",
+            str(tmp_path),
+            "--ticks",
+            "2",
+            "--prompt-history-size",
+            "5",
+        ],
+        captured_streams,
+    )
+    assert exit_code == 0
+
+
+def test_run_prompt_history_size_invalid_rejected(
+    tmp_path: Path,
+    captured_streams: tuple[io.StringIO, io.StringIO, io.StringIO],
+) -> None:
+    """D-016：--prompt-history-size 11 超过 max=10 → Pydantic 校验失败 → exit 非 0。"""
+    exit_code = _invoke(
+        [
+            "run",
+            str(WALKTHROUGH_SCENARIO),
+            "--runs-root",
+            str(tmp_path),
+            "--ticks",
+            "2",
+            "--prompt-history-size",
+            "11",
+        ],
+        captured_streams,
+    )
+    assert exit_code != 0
+
+
 def test_run_no_analysis_skips_report(
     tmp_path: Path,
     captured_streams: tuple[io.StringIO, io.StringIO, io.StringIO],
@@ -331,10 +394,11 @@ def test_run_analysis_final_md_contains_expected_sections(
     run_dir = next(tmp_path.iterdir())
     md = (run_dir / "analysis" / "final.md").read_text(encoding="utf-8")
     assert "# 仿真分析报告" in md
-    assert "## 一、全轨迹总结" in md
-    assert "## 二、关键转折点" in md
-    assert "## 三、各实体最终状态比较" in md
-    assert "## 四、环境变量轨迹" in md
+    # v0.1.1 收官：去章节编号，纯 Phase A 输出四节
+    assert "## 全轨迹总结" in md
+    assert "## 关键转折点" in md
+    assert "## 各实体最终状态比较" in md
+    assert "## 环境变量轨迹" in md
 
 
 # =============================================================================
@@ -376,21 +440,24 @@ def test_run_without_llm_enhance_leaves_phase_a_only(
     assert exit_code == 0
     run_dir = next(tmp_path.iterdir())
     md = (run_dir / "analysis" / "final.md").read_text(encoding="utf-8")
-    assert "## 五、局势判断" not in md
-    assert "## 六、面向用户的建议" not in md
-    assert "## 七、自然语言总览" not in md
+    # v0.1.1 收官：LLM 增强字段未填时，世界概览/叙事/判断/建议 四节都不应出现
+    assert "## 世界概览" not in md
+    assert "## 全过程叙事" not in md
+    assert "## 局势判断" not in md
+    assert "## 面向用户的建议" not in md
 
 
-def test_run_llm_enhance_fills_three_sections(
+def test_run_llm_enhance_fills_four_sections(
     tmp_path: Path,
     captured_streams: tuple[io.StringIO, io.StringIO, io.StringIO],
 ) -> None:
-    """--llm-enhance + mock 合法增强响应：final.md 含三节 LLM 增强内容。"""
+    """v0.1.1 收官：--llm-enhance + mock 合法增强响应：final.md 含四节 LLM 增强内容。"""
     _, stdout, _ = captured_streams
     script = tmp_path / "script.jsonl"
     _write_enhance_script(
         script,
         enhance_response={
+            "world_overview": "本仿真包含一家公司与一名监管者。",
             "narrative_summary": "这一个 tick 双方都没有实际动作。",
             "situation_judgement": "局势平稳，没有明显的优势方。",
             "next_action_suggestions": ["关注 reputation 变化", "观察 demand"],
@@ -415,17 +482,21 @@ def test_run_llm_enhance_fills_three_sections(
 
     run_dir = next(tmp_path.iterdir())
     md = (run_dir / "analysis" / "final.md").read_text(encoding="utf-8")
-    assert "## 五、局势判断" in md
+    # v0.1.1 收官：世界概览在最前
+    assert "## 世界概览" in md
+    assert "一家公司与一名监管者" in md
+    assert "## 局势判断" in md
     assert "局势平稳" in md
-    assert "## 六、面向用户的建议" in md
+    assert "## 面向用户的建议" in md
     assert "关注 reputation 变化" in md
-    assert "## 七、自然语言总览" in md
+    assert "## 全过程叙事" in md  # v0.1.1 重命名：原“自然语言总览”
     assert "双方都没有实际动作" in md
 
-    # JSON 产物同步更新了三字段
+    # JSON 产物同步更新了四字段
     js = json.loads(
         (run_dir / "analysis" / "final.json").read_text(encoding="utf-8")
     )
+    assert js["world_overview"].startswith("本仿真")
     assert js["narrative_summary"].startswith("这一个 tick")
     assert js["situation_judgement"].startswith("局势平稳")
     assert js["next_action_suggestions"][0] == "关注 reputation 变化"
@@ -470,10 +541,11 @@ def test_run_llm_enhance_protocol_error_graceful_fallback(
     md = (run_dir / "analysis" / "final.md").read_text(encoding="utf-8")
     # Phase A 产物保留
     assert "# 仿真分析报告" in md
-    assert "## 一、全轨迹总结" in md
-    # Phase C 三节被阻断——不应出现
-    assert "## 五、局势判断" not in md
-    assert "## 六、面向用户的建议" not in md
+    assert "## 全轨迹总结" in md
+    # Phase C 四节被阻断——不应出现（v0.1.1 收官去章节编号）
+    assert "## 世界概览" not in md
+    assert "## 局势判断" not in md
+    assert "## 面向用户的建议" not in md
 
 
 def test_run_no_analysis_overrides_llm_enhance(

@@ -58,6 +58,8 @@ from models.analysis_models import (
 )
 from models.config_models import RuntimeConfig
 from models.runtime_models import EventRecord, Snapshot
+from models.scenario_models import Scenario
+from models.world_models import WorldDefinition
 
 
 # =============================================================================
@@ -329,81 +331,133 @@ def analyze_run(run_dir: Path) -> AnalysisResult:
 # 两层都遵守同一个规约：prompt 后追加自然语言指令注入 output_language
 
 
-# 分析增强的 system/user prompt 以 JSON-first 风格：把 Phase A 的确定性聚合结果
-# 作为 payload，附带严格 JSON 输出约定。与决策协议风格对齐（JSON in, JSON out）。
+# 分析增强的 system/user prompt 以 JSON-first 风格：把 World Definition / Scenario /
+# Phase A 的确定性聚合结果一起作为 payload，附带严格 JSON 输出约定 + 证据要求。
+# 与决策协议风格对齐（JSON in, JSON out）。
 _ANALYSIS_SYSTEM_PROMPT = (
-    "You are a simulation trajectory analyst. Given a structured JSON "
-    "summary of a completed multi-entity simulation run, you will write "
-    "a brief narrative, a situational judgement, and a few actionable "
-    "suggestions for the human operator. "
-    "Your response MUST be a valid JSON object with EXACTLY three keys: "
-    '{"narrative_summary", "situation_judgement", "next_action_suggestions"}. '
+    "You are a simulation trajectory analyst. You will be given: "
+    "(a) a World Definition describing entity types, attributes, action types, "
+    "relation types; "
+    "(b) a Scenario describing initial entities, initial relations, "
+    "scheduled events, and the simulation goal; "
+    "(c) a structured JSON analysis of the completed run (turning points, "
+    "entity comparisons, environment trajectory). "
+    "Your job is to write a reader-friendly report containing four parts: "
+    "world_overview (explain the initial world in plain language: what entities "
+    "exist, what their roles mean, what the relations mean, what the scenario "
+    "goal is), narrative_summary (the trajectory in plain language), "
+    "situation_judgement (final situation + advantages + risks), and "
+    "next_action_suggestions (concrete actionable suggestions). "
+    "CRITICAL: situation_judgement and each next_action_suggestions item "
+    "MUST cite concrete evidence by referencing specific tick numbers, "
+    "attribute changes, or entity ids drawn from the analysis JSON "
+    "(for example: 'at tick 3, company_a.cash dropped from 100 to 80'). "
+    "Your response MUST be a valid JSON object with EXACTLY four keys: "
+    '{"world_overview", "narrative_summary", "situation_judgement", '
+    '"next_action_suggestions"}. '
     "Do NOT include any prose, markdown, or explanation outside the JSON object."
 )
 """Phase C 分析增强专用 system prompt。
 
 与决策层 system prompt（`OpenAIProvider._DEFAULT_SYSTEM_PROMPT`）的角色定位
 不同——决策层定位 "decision-making agent"，要求返回 ``{action, params, reason}``；
-本常量定位 "trajectory analyst"，要求返回 ``{narrative_summary,
-situation_judgement, next_action_suggestions}``。``enhance_with_llm`` 通过
-``provider.generate(..., system_prompt=_ANALYSIS_SYSTEM_PROMPT)`` 覆盖默认值，
+本常量定位 "trajectory analyst"，要求返回 ``{world_overview, narrative_summary,
+situation_judgement, next_action_suggestions}``——四字段结构（v0.1.1 收官后扩展，
+新增 world_overview 段以解释初始世界、降低读者理解门槛）。``enhance_with_llm``
+通过 ``provider.generate(..., system_prompt=_ANALYSIS_SYSTEM_PROMPT)`` 覆盖默认值，
 避免与决策层 system prompt 角色冲突。
+
+证据要求：``situation_judgement`` 与 ``next_action_suggestions`` 每条必须引用
+具体 tick / 属性变化 / 实体 id 作为支撑——避免 LLM 给出"凭空判断"。
 
 约束：必须含 ``"JSON"`` 关键词——OpenAI ``response_format={"type":"json_object"}``
 模式要求 prompt 中至少出现一次 "json"，否则 API 拒绝请求。
 """
 
 _ANALYSIS_PROMPT_HEADER = (
-    "You are a simulation trajectory analyst. Below is a JSON object "
-    "containing the structured analysis of a completed simulation run "
-    "(trajectory summary, turning points, entity comparisons, environment "
-    "trajectory). Read it carefully.\n\n"
-    "Analysis result (JSON):\n"
+    "You are a simulation trajectory analyst. Three JSON sections follow:\n"
+    "1. World Definition (entity types / attributes / actions / relations)\n"
+    "2. Scenario (initial entities, initial relations, scheduled events, goal)\n"
+    "3. Phase A analysis result (trajectory summary, turning points, "
+    "entity comparisons, environment trajectory)\n\n"
+    "Read all three carefully before writing your output.\n\n"
 )
 
 _ANALYSIS_PROMPT_INSTRUCTIONS = (
     "\n\nRespond with ONLY a single JSON object (no markdown code fences, "
-    "no surrounding prose) containing exactly these three keys:\n"
+    "no surrounding prose) containing exactly these four keys:\n"
+    "- \"world_overview\": string, 3-6 sentences explaining the initial world. "
+    "Cover: what entities exist (id + type + role), what their key initial "
+    "attributes mean, what the initial relations mean, and what the scenario "
+    "goal is. Write for a reader unfamiliar with the YAML config.\n"
     "- \"narrative_summary\": string, 2-4 sentences describing the overall "
-    "trajectory\n"
+    "trajectory. Reference key turning points by tick.\n"
     "- \"situation_judgement\": string, 2-3 sentences on the final situation, "
-    "which entity has the advantage, and key risks\n"
+    "which entity has the advantage, and key risks. MUST cite at least one "
+    "concrete evidence (tick + attribute change, or entity comparison row).\n"
     "- \"next_action_suggestions\": array of 2-5 concrete, actionable "
-    "suggestion strings for a human operator"
+    "suggestion strings for a human operator. EACH suggestion MUST embed "
+    "supporting evidence (e.g. 'because regulator_main.strictness rose to 80 "
+    "at tick 4, consider...')."
 )
 
 
 def _build_analysis_prompt(
-    result: AnalysisResult, *, language: str = "zh-CN"
+    result: AnalysisResult,
+    world: WorldDefinition,
+    scenario: Scenario,
+    *,
+    language: str = "zh-CN",
 ) -> str:
     """为 `enhance_with_llm` 构造 LLM prompt。
 
-    输入 payload 是 `AnalysisResult` 的 Phase A 部分的 JSON dump——三个 LLM
-    字段（若已有值）会被剔除，避免"让 LLM 看自己的旧答案"。
+    Prompt 由三段 JSON 拼成：
 
-    语言注入机制与 `core/llm_policy.build_prompt` 对齐：prompt 尾部追加
-    "Natural-language fields must be in {language}"。**不**影响 JSON 结构
-    字段。
+    1. **World Definition**——实体类型 / 属性 schema / 动作类型 / 关系类型
+    2. **Scenario**——初始实体（含初始属性）/ 初始关系 / scheduled events / 目标
+    3. **Phase A AnalysisResult**——结构化轨迹（已剔除四个增强字段，避免"让
+       LLM 看自己的旧答案"）
+
+    LLM 据此输出 four-key JSON：``world_overview / narrative_summary /
+    situation_judgement / next_action_suggestions``。
+
+    语言注入机制与 `core/llm_policy.build_prompt_context.render` 对齐：prompt
+    尾部追加 "All natural-language fields must be in {language}"。**不**影响
+    JSON 结构字段名。
     """
-    # 只送 Phase A 部分给 LLM——剔除三个增强字段避免噪声
-    payload = result.model_dump(
+    # 1. World Definition——只送 LLM 真正用得上的字段（节省 token）
+    world_payload = world.model_dump()
+    world_json = json.dumps(world_payload, ensure_ascii=False, indent=2)
+
+    # 2. Scenario——同样全量 dump（含初始关系 / scheduled / goal 等关键背景）
+    scenario_payload = scenario.model_dump()
+    scenario_json = json.dumps(scenario_payload, ensure_ascii=False, indent=2)
+
+    # 3. Phase A 结果——剔除四个增强字段
+    result_payload = result.model_dump(
         exclude={
+            "world_overview",
             "narrative_summary",
             "situation_judgement",
             "next_action_suggestions",
         }
     )
-    payload_json = json.dumps(payload, ensure_ascii=False, indent=2)
+    result_json = json.dumps(result_payload, ensure_ascii=False, indent=2)
 
     language_instruction = (
         f"\n\nAll natural-language fields in your JSON output "
-        f"(narrative_summary, situation_judgement, and each string in "
-        f"next_action_suggestions) MUST be written in {language}. "
+        f"(world_overview, narrative_summary, situation_judgement, and each "
+        f"string in next_action_suggestions) MUST be written in {language}. "
         f"JSON keys remain in English."
     )
     return (
         _ANALYSIS_PROMPT_HEADER
-        + payload_json
+        + "World Definition (JSON):\n"
+        + world_json
+        + "\n\nScenario (JSON):\n"
+        + scenario_json
+        + "\n\nPhase A analysis result (JSON):\n"
+        + result_json
         + _ANALYSIS_PROMPT_INSTRUCTIONS
         + language_instruction
     )
@@ -415,14 +469,15 @@ def _parse_analysis_response(raw: str) -> dict[str, Any]:
     协议约定：
 
     - 顶层必须是 object；否则 `LLMProtocolError`
+    - ``world_overview``：必填非空字符串（v0.1.1 收官后新增）
     - ``narrative_summary``：必填非空字符串
     - ``situation_judgement``：必填非空字符串
     - ``next_action_suggestions``：必填 list[str]，长度 ≥ 1，每项非空字符串
     - 其他 key 容忍（忽略）——LLM 偶尔会额外加解释字段，不作为错误
 
     Returns:
-        ``{"narrative_summary": str, "situation_judgement": str,
-        "next_action_suggestions": list[str]}``
+        ``{"world_overview": str, "narrative_summary": str,
+        "situation_judgement": str, "next_action_suggestions": list[str]}``
 
     Raises:
         LLMProtocolError: 解析或校验失败
@@ -442,6 +497,12 @@ def _parse_analysis_response(raw: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise LLMProtocolError(
             f"LLM 分析响应顶层必须是 object，实际为 {type(data).__name__}"
+        )
+
+    overview = data.get("world_overview")
+    if not isinstance(overview, str) or not overview.strip():
+        raise LLMProtocolError(
+            "LLM 分析响应缺失 world_overview 或值非空字符串"
         )
 
     narrative = data.get("narrative_summary")
@@ -469,6 +530,7 @@ def _parse_analysis_response(raw: str) -> dict[str, Any]:
             )
 
     return {
+        "world_overview": overview.strip(),
         "narrative_summary": narrative.strip(),
         "situation_judgement": judgement.strip(),
         "next_action_suggestions": [s.strip() for s in suggestions],
@@ -479,20 +541,29 @@ def enhance_with_llm(
     result: AnalysisResult,
     provider: LLMProvider,
     config: RuntimeConfig,
+    *,
+    world: WorldDefinition,
+    scenario: Scenario,
 ) -> AnalysisResult:
-    """用 LLM 为 `AnalysisResult` 补齐三个叙事字段，返回**新对象**。
+    """用 LLM 为 `AnalysisResult` 补齐四个叙事字段，返回**新对象**。
 
     这是 Phase C 的公开入口。典型调用点是 CLI 的 ``run`` 子命令在
     ``analyze_run`` + ``write_analysis`` 之后、仅当用户显式要求（``--llm-enhance``）
     时调用。
 
+    **v0.1.1 收官扩展**：新增 ``world`` + ``scenario`` 关键字参数（必填），
+    LLM 据此先解释初始世界（``world_overview``），并在 ``situation_judgement``
+    与 ``next_action_suggestions`` 中援引具体证据（tick / 属性变化 / 实体）。
+
     Args:
         result: Phase A 已产出的 ``AnalysisResult``（可能已含增强字段——会被覆盖）
         provider: 任意 ``LLMProvider`` 实例（mock / openai / ...）
         config: 取 ``output_language`` + ``llm_request_timeout_sec`` 两项
+        world: World Definition——LLM 据此解释实体/动作/关系类型含义
+        scenario: Scenario——LLM 据此解释初始实体/初始关系/场景目标
 
     Returns:
-        新的 ``AnalysisResult``——原前五个字段不变，后三个字段被填充
+        新的 ``AnalysisResult``——原前五个字段不变，后四个字段被填充
 
     Raises:
         ProviderError: 传输层失败（原样上抛，由调用方决定降级策略）
@@ -507,13 +578,16 @@ def enhance_with_llm(
         的 provider（OpenAIProvider）会用本常量替换构造期默认值；
         不识别的 provider（MockProvider）按 ABC 约定静默忽略。
     """
-    prompt = _build_analysis_prompt(result, language=config.output_language)
+    prompt = _build_analysis_prompt(
+        result, world, scenario, language=config.output_language
+    )
 
-    # max_tokens 比决策层 (512) 大——三段叙事 + 5 条建议的合理上限
+    # max_tokens 比决策层 (512) 大——四段叙事（含 world_overview）+ 5 条建议的
+    # 合理上限。v0.1.1 收官升 1500 → 2000 容纳新增的 world_overview 段
     raw = provider.generate(
         prompt,
         temperature=0.5,
-        max_tokens=1500,
+        max_tokens=2000,
         timeout=config.llm_request_timeout_sec,
         system_prompt=_ANALYSIS_SYSTEM_PROMPT,
     )
@@ -523,6 +597,7 @@ def enhance_with_llm(
     # 用 model_copy(update=...) 返新对象——Pydantic v2 惯用法，保持不可变性
     return result.model_copy(
         update={
+            "world_overview": parsed["world_overview"],
             "narrative_summary": parsed["narrative_summary"],
             "situation_judgement": parsed["situation_judgement"],
             "next_action_suggestions": parsed["next_action_suggestions"],
@@ -563,9 +638,26 @@ def _format_delta(delta: float | None) -> str:
 def render_markdown(result: AnalysisResult) -> str:
     """把 `AnalysisResult` 渲染成 markdown 字符串。
 
-    Phase A 产出前四节（全轨迹总结 / 关键转折点 / 各实体状态比较 / 环境变量轨迹）；
-    Phase C 的 LLM 增强字段（`narrative_summary` / `situation_judgement` /
-    `next_action_suggestions`）若为 None 则对应 section 省略。
+    **章节顺序**（v0.1.1 收官重排）：
+
+    1. 元信息（run_id / schema 版本 / tick 数 / 事件数）
+    2. **LLM 增强段（可选）**——放在最前为读者建立背景：
+       - 世界概览（解释初始世界、实体角色、关系含义、场景目标）
+       - 全过程叙事（自然语言描述轨迹）
+       - 局势判断（含援引证据）
+       - 面向用户的建议（每条含援引证据）
+    3. **Phase A 确定性数据段**（始终渲染，作为 LLM 段的支撑）：
+       - 全轨迹总结
+       - 关键转折点
+       - 各实体最终状态比较
+       - 环境变量轨迹
+
+    Phase C 的 LLM 增强字段（`world_overview` / `narrative_summary` /
+    `situation_judgement` / `next_action_suggestions`）若为 None 则对应 section
+    省略；纯 Phase A 模式（无 LLM 增强）只渲染元信息 + Phase A 四段。
+
+    **去章节编号**：标题不再前缀 "一、二、..."——LLM 段是否存在会影响后段编号
+    位置，去编号后语义清晰且不与测试的子串断言耦合。
     """
     lines: list[str] = []
     lines.append("# 仿真分析报告")
@@ -576,8 +668,45 @@ def render_markdown(result: AnalysisResult) -> str:
     lines.append(f"- **总事件数**：{result.summary.total_events}")
     lines.append("")
 
-    # ---- 一、全轨迹总结
-    lines.append("## 一、全轨迹总结")
+    # ============================================================
+    # LLM 增强段（可选）——放在最前为读者建立背景
+    # ============================================================
+
+    # ---- 世界概览（LLM 增强，可选）
+    if result.world_overview is not None:
+        lines.append("## 世界概览")
+        lines.append("")
+        lines.append(result.world_overview)
+        lines.append("")
+
+    # ---- 全过程叙事（LLM 增强，可选）
+    if result.narrative_summary is not None:
+        lines.append("## 全过程叙事（自然语言总览）")
+        lines.append("")
+        lines.append(result.narrative_summary)
+        lines.append("")
+
+    # ---- 局势判断（LLM 增强，可选）
+    if result.situation_judgement is not None:
+        lines.append("## 局势判断")
+        lines.append("")
+        lines.append(result.situation_judgement)
+        lines.append("")
+
+    # ---- 面向用户的建议（LLM 增强，可选）
+    if result.next_action_suggestions:
+        lines.append("## 面向用户的建议")
+        lines.append("")
+        for sug in result.next_action_suggestions:
+            lines.append(f"- {sug}")
+        lines.append("")
+
+    # ============================================================
+    # Phase A 确定性数据段（始终渲染——LLM 段的"原始证据"）
+    # ============================================================
+
+    # ---- 全轨迹总结
+    lines.append("## 全轨迹总结")
     lines.append("")
     if result.summary.events_by_kind:
         lines.append("### 事件分布（按类型）")
@@ -609,8 +738,8 @@ def render_markdown(result: AnalysisResult) -> str:
         )
         lines.append("")
 
-    # ---- 二、关键转折点
-    lines.append("## 二、关键转折点（按 |delta| 降序）")
+    # ---- 关键转折点
+    lines.append("## 关键转折点（按 |delta| 降序）")
     lines.append("")
     if not result.turning_points:
         lines.append("_无显著属性变化——实体整个仿真保持稳定_")
@@ -626,8 +755,8 @@ def render_markdown(result: AnalysisResult) -> str:
             )
         lines.append("")
 
-    # ---- 三、各实体最终状态比较
-    lines.append("## 三、各实体最终状态比较")
+    # ---- 各实体最终状态比较
+    lines.append("## 各实体最终状态比较")
     lines.append("")
     if not result.entity_comparisons:
         lines.append("_未发现任何实体快照_")
@@ -649,8 +778,8 @@ def render_markdown(result: AnalysisResult) -> str:
                 )
             lines.append("")
 
-    # ---- 四、环境变量轨迹
-    lines.append("## 四、环境变量轨迹")
+    # ---- 环境变量轨迹
+    lines.append("## 环境变量轨迹")
     lines.append("")
     if not result.environment_trajectory:
         lines.append("_无环境变量_")
@@ -666,28 +795,6 @@ def render_markdown(result: AnalysisResult) -> str:
                     f"| {point.tick} | {_format_any(point.value)} |"
                 )
             lines.append("")
-
-    # ---- 五、局势判断（LLM 增强，可选）
-    if result.situation_judgement is not None:
-        lines.append("## 五、局势判断")
-        lines.append("")
-        lines.append(result.situation_judgement)
-        lines.append("")
-
-    # ---- 六、面向用户的建议（LLM 增强，可选）
-    if result.next_action_suggestions:
-        lines.append("## 六、面向用户的建议")
-        lines.append("")
-        for sug in result.next_action_suggestions:
-            lines.append(f"- {sug}")
-        lines.append("")
-
-    # ---- 七、自然语言总览（LLM 增强，可选，放末尾避免抢占确定性内容）
-    if result.narrative_summary is not None:
-        lines.append("## 七、自然语言总览")
-        lines.append("")
-        lines.append(result.narrative_summary)
-        lines.append("")
 
     return "\n".join(lines).rstrip() + "\n"
 

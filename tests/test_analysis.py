@@ -37,9 +37,11 @@ from core.analysis import (
     render_markdown,
     write_analysis,
 )
+from core.definition_loader import load_world_definition
 from core.errors import LLMProtocolError, ProviderError
 from core.providers.base import LLMProvider
 from core.providers.mock import MockProvider
+from core.scenario_loader import load_scenario
 from models.analysis_models import (
     AnalysisResult,
     AttributeChange,
@@ -49,6 +51,8 @@ from models.analysis_models import (
 )
 from models.config_models import RuntimeConfig
 from models.runtime_models import EventRecord, MessageSummary, Snapshot
+from models.scenario_models import Scenario
+from models.world_models import WorldDefinition
 
 
 # =============================================================================
@@ -449,19 +453,24 @@ class TestRenderMarkdown:
         assert "面向用户的建议" not in md
 
     def test_llm_sections_rendered_when_provided(self) -> None:
+        """四个 LLM 增强字段都被填时，render_markdown 全部输出。"""
         result = AnalysisResult(
             run_id="x",
             summary=TrajectorySummary(total_ticks=0, total_events=0),
+            world_overview="初始世界描述",
             narrative_summary="整体稳定",
             situation_judgement="当前平衡",
             next_action_suggestions=["建议A", "建议B"],
         )
         md = render_markdown(result)
+        # v0.1.1 收官加 world_overview 节
+        assert "世界概览" in md
+        assert "初始世界描述" in md
         assert "局势判断" in md
         assert "当前平衡" in md
         assert "- 建议A" in md
         assert "- 建议B" in md
-        assert "自然语言总览" in md
+        assert "全过程叙事" in md  # v0.1.1 重命名
         assert "整体稳定" in md
 
     def test_ends_with_newline(self) -> None:
@@ -644,19 +653,26 @@ def phase_a_result() -> AnalysisResult:
 
 def _enhancement_json(
     *,
+    overview: str = "本仿真包含一家公司与一名监管者，目标是观察双方互动。",
     narrative: str = "公司 A 缓慢积累资本。",
-    judgement: str = "目前局势偏稳，风险可控。",
+    judgement: str = "目前局势偏稳，风险可控。在 tick 1 公司 A 选择 promote。",
     suggestions: list[str] | None = None,
 ) -> str:
     """构造一条合法的 LLM 增强响应 JSON（测试辅助函数）。
+
+    v0.1.1 收官扩展：增加 ``world_overview`` 字段——LLM 协议从三字段升为四字段。
 
     注意：suggestions 用 ``is None`` 判默认——显式传空 list `[]` 时保留空 list，
     这是"测边界错误"路径的必要行为（绕开 Python `or` 对 falsy 的折叠）。
     """
     if suggestions is None:
-        suggestions = ["建议 1", "建议 2"]
+        suggestions = [
+            "建议 1（援引 tick 1 的 promote 动作）",
+            "建议 2（援引 cash 数值变化）",
+        ]
     return json.dumps(
         {
+            "world_overview": overview,
             "narrative_summary": narrative,
             "situation_judgement": judgement,
             "next_action_suggestions": suggestions,
@@ -665,17 +681,39 @@ def _enhancement_json(
     )
 
 
+_WALKTHROUGH_DIR = (
+    Path(__file__).resolve().parent.parent / "scenarios" / "minimal_market"
+)
+
+
+@pytest.fixture
+def world() -> WorldDefinition:
+    """复用 minimal_market world——LLM 增强测试需要真实 world 喂 prompt。"""
+    return load_world_definition(_WALKTHROUGH_DIR / "world.yaml")
+
+
+@pytest.fixture
+def scenario(world: WorldDefinition) -> Scenario:
+    """复用 minimal_market scenario——同上。"""
+    return load_scenario(_WALKTHROUGH_DIR / "scenario.yaml", world)
+
+
 class TestBuildAnalysisPrompt:
     def test_contains_phase_a_payload_json(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """prompt 必须内嵌 AnalysisResult 的 Phase A 部分 JSON。"""
-        prompt = _build_analysis_prompt(phase_a_result)
+        prompt = _build_analysis_prompt(phase_a_result, world, scenario)
         assert phase_a_result.run_id in prompt
         assert '"total_ticks": 3' in prompt
         assert '"total_events": 12' in prompt
 
-    def test_excludes_llm_enhancement_fields(self) -> None:
+    def test_excludes_llm_enhancement_fields(
+        self, world: WorldDefinition, scenario: Scenario
+    ) -> None:
         """若 result 已含增强字段，prompt 必须剔除——不让 LLM 看到自己的旧答案。"""
         result = AnalysisResult(
             version="0.1",
@@ -688,50 +726,109 @@ class TestBuildAnalysisPrompt:
                 paused_ticks=[],
                 breakpoints_triggered=[],
             ),
+            world_overview="这是旧的世界概览，不应出现",
             narrative_summary="这是旧的叙事，不应出现",
             situation_judgement="这是旧的判断，不应出现",
             next_action_suggestions=["旧建议"],
         )
-        prompt = _build_analysis_prompt(result)
+        prompt = _build_analysis_prompt(result, world, scenario)
+        assert "旧的世界概览" not in prompt
         assert "旧的叙事" not in prompt
         assert "旧的判断" not in prompt
         assert "旧建议" not in prompt
 
     def test_default_language_is_zh_cn(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """默认 language 注入为 zh-CN。"""
-        prompt = _build_analysis_prompt(phase_a_result)
+        prompt = _build_analysis_prompt(phase_a_result, world, scenario)
         assert "zh-CN" in prompt
 
     def test_custom_language_injected(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """自定义 language 要出现在 prompt 里且 zh-CN 不应出现（避免冲突指令）。"""
-        prompt = _build_analysis_prompt(phase_a_result, language="en")
+        prompt = _build_analysis_prompt(
+            phase_a_result, world, scenario, language="en"
+        )
         assert "en" in prompt
         assert "zh-CN" not in prompt
 
     def test_language_does_not_affect_payload(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """不同语言下 payload JSON 内容完全一致——只有尾部指令变。"""
-        p_zh = _build_analysis_prompt(phase_a_result, language="zh-CN")
-        p_en = _build_analysis_prompt(phase_a_result, language="en")
-        # 抽取中间的 payload JSON
-        header = "Analysis result (JSON):\n"
+        p_zh = _build_analysis_prompt(
+            phase_a_result, world, scenario, language="zh-CN"
+        )
+        p_en = _build_analysis_prompt(
+            phase_a_result, world, scenario, language="en"
+        )
+        # 抽取 Phase A 部分的 payload JSON（v0.1.1 收官改了 header 文案）
+        header = "Phase A analysis result (JSON):\n"
         zh_body = p_zh.split(header, 1)[1].split("\n\n", 1)[0]
         en_body = p_en.split(header, 1)[1].split("\n\n", 1)[0]
         assert zh_body == en_body
 
     def test_includes_json_output_contract(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
-        """prompt 必须告知 LLM 返 JSON 三字段。"""
-        prompt = _build_analysis_prompt(phase_a_result)
+        """prompt 必须告知 LLM 返 JSON 四字段（v0.1.1 收官加 world_overview）。"""
+        prompt = _build_analysis_prompt(phase_a_result, world, scenario)
+        assert "world_overview" in prompt
         assert "narrative_summary" in prompt
         assert "situation_judgement" in prompt
         assert "next_action_suggestions" in prompt
+
+    def test_contains_world_definition(
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
+    ) -> None:
+        """v0.1.1 收官：prompt 必须含 World Definition payload——LLM 据此解释世界。"""
+        prompt = _build_analysis_prompt(phase_a_result, world, scenario)
+        assert "World Definition (JSON):" in prompt
+        # minimal_market world 含 Company / Regulator 实体类型
+        assert "Company" in prompt
+        assert "Regulator" in prompt
+
+    def test_contains_scenario_payload(
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
+    ) -> None:
+        """v0.1.1 收官：prompt 必须含 Scenario payload——LLM 据此解释初始关系/目标。"""
+        prompt = _build_analysis_prompt(phase_a_result, world, scenario)
+        assert "Scenario (JSON):" in prompt
+        # minimal_market scenario 含 company_a / regulator_main
+        assert "company_a" in prompt
+        assert "regulator_main" in prompt
+
+    def test_evidence_requirement_in_instructions(
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
+    ) -> None:
+        """v0.1.1 收官：prompt 必须明文要求援引证据（tick / 属性 / 实体）。"""
+        prompt = _build_analysis_prompt(phase_a_result, world, scenario)
+        # CRITICAL 关键字 + 至少一处 evidence 词 + tick 字样
+        assert "evidence" in prompt.lower()
+        assert "tick" in prompt.lower()
 
 
 class TestParseAnalysisResponse:
@@ -747,9 +844,10 @@ class TestParseAnalysisResponse:
         assert parsed["next_action_suggestions"] == ["Do X", "Try Y"]
 
     def test_strips_whitespace(self) -> None:
-        """三段自然语言字段的首尾空白要剥掉。"""
+        """四段自然语言字段的首尾空白要剥掉。"""
         raw = json.dumps(
             {
+                "world_overview": "  世界  ",
                 "narrative_summary": "  叙事  ",
                 "situation_judgement": "  判断  ",
                 "next_action_suggestions": ["  建议 1  "],
@@ -757,6 +855,7 @@ class TestParseAnalysisResponse:
             ensure_ascii=False,
         )
         parsed = _parse_analysis_response(raw)
+        assert parsed["world_overview"] == "世界"
         assert parsed["narrative_summary"] == "叙事"
         assert parsed["situation_judgement"] == "判断"
         assert parsed["next_action_suggestions"] == ["建议 1"]
@@ -765,6 +864,7 @@ class TestParseAnalysisResponse:
         """LLM 偶尔会加解释性 key——容忍但忽略。"""
         raw = json.dumps(
             {
+                "world_overview": "世界",
                 "narrative_summary": "叙事",
                 "situation_judgement": "判断",
                 "next_action_suggestions": ["S1"],
@@ -775,6 +875,7 @@ class TestParseAnalysisResponse:
         )
         parsed = _parse_analysis_response(raw)
         assert set(parsed.keys()) == {
+            "world_overview",
             "narrative_summary",
             "situation_judgement",
             "next_action_suggestions",
@@ -792,9 +893,28 @@ class TestParseAnalysisResponse:
         with pytest.raises(LLMProtocolError, match="object"):
             _parse_analysis_response(json.dumps(["a", "b"]))
 
+    def test_missing_world_overview_raises(self) -> None:
+        """v0.1.1 收官：world_overview 缺失 → LLMProtocolError。"""
+        raw = json.dumps(
+            {
+                "narrative_summary": "叙事",
+                "situation_judgement": "判断",
+                "next_action_suggestions": ["s1"],
+            }
+        )
+        with pytest.raises(LLMProtocolError, match="world_overview"):
+            _parse_analysis_response(raw)
+
+    def test_empty_world_overview_raises(self) -> None:
+        """v0.1.1 收官：world_overview 为空白 → LLMProtocolError。"""
+        raw = _enhancement_json(overview="   ")
+        with pytest.raises(LLMProtocolError, match="world_overview"):
+            _parse_analysis_response(raw)
+
     def test_missing_narrative_raises(self) -> None:
         raw = json.dumps(
             {
+                "world_overview": "世界",
                 "situation_judgement": "judgement",
                 "next_action_suggestions": ["s1"],
             }
@@ -810,6 +930,7 @@ class TestParseAnalysisResponse:
     def test_missing_judgement_raises(self) -> None:
         raw = json.dumps(
             {
+                "world_overview": "世界",
                 "narrative_summary": "叙事",
                 "next_action_suggestions": ["s1"],
             }
@@ -825,6 +946,7 @@ class TestParseAnalysisResponse:
     def test_suggestions_missing_raises(self) -> None:
         raw = json.dumps(
             {
+                "world_overview": "w",
                 "narrative_summary": "n",
                 "situation_judgement": "j",
             }
@@ -835,6 +957,7 @@ class TestParseAnalysisResponse:
     def test_suggestions_not_list_raises(self) -> None:
         raw = json.dumps(
             {
+                "world_overview": "w",
                 "narrative_summary": "n",
                 "situation_judgement": "j",
                 "next_action_suggestions": "not a list",
@@ -851,6 +974,7 @@ class TestParseAnalysisResponse:
     def test_suggestion_item_not_str_raises(self) -> None:
         raw = json.dumps(
             {
+                "world_overview": "w",
                 "narrative_summary": "n",
                 "situation_judgement": "j",
                 "next_action_suggestions": ["ok", 123],
@@ -866,52 +990,74 @@ class TestParseAnalysisResponse:
 
 
 class TestEnhanceWithLLM:
-    def test_happy_path_fills_three_fields(
-        self, phase_a_result: AnalysisResult
+    def test_happy_path_fills_four_fields(
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
-        """成功路径：provider 返合法 JSON → 返回新 result 三字段被填。"""
+        """成功路径：provider 返合法 JSON → 返回新 result 四字段被填。"""
         provider = MockProvider(
             fixed_response=_enhancement_json(
+                overview="世界概览文本。",
                 narrative="全流程稳定。",
                 judgement="A 略占优势。",
                 suggestions=["S1", "S2", "S3"],
             )
         )
         config = RuntimeConfig(version="0.1")
-        enhanced = enhance_with_llm(phase_a_result, provider, config)
+        enhanced = enhance_with_llm(
+            phase_a_result, provider, config, world=world, scenario=scenario
+        )
+        assert enhanced.world_overview == "世界概览文本。"
         assert enhanced.narrative_summary == "全流程稳定。"
         assert enhanced.situation_judgement == "A 略占优势。"
         assert enhanced.next_action_suggestions == ["S1", "S2", "S3"]
 
     def test_returns_new_object_does_not_mutate_input(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """input result 必须不被修改——Pydantic v2 不可变性惯例。"""
         provider = MockProvider(fixed_response=_enhancement_json())
         config = RuntimeConfig(version="0.1")
-        enhanced = enhance_with_llm(phase_a_result, provider, config)
-        # 原对象三字段仍为 None
+        enhanced = enhance_with_llm(
+            phase_a_result, provider, config, world=world, scenario=scenario
+        )
+        # 原对象四字段仍为 None
+        assert phase_a_result.world_overview is None
         assert phase_a_result.narrative_summary is None
         assert phase_a_result.situation_judgement is None
         assert phase_a_result.next_action_suggestions is None
         # 新对象已填
         assert enhanced is not phase_a_result
+        assert enhanced.world_overview is not None
         assert enhanced.narrative_summary is not None
 
     def test_phase_a_fields_preserved(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """前五个 Phase A 字段原样保留，只增量填增强字段。"""
         provider = MockProvider(fixed_response=_enhancement_json())
         config = RuntimeConfig(version="0.1")
-        enhanced = enhance_with_llm(phase_a_result, provider, config)
+        enhanced = enhance_with_llm(
+            phase_a_result, provider, config, world=world, scenario=scenario
+        )
         assert enhanced.run_id == phase_a_result.run_id
         assert enhanced.version == phase_a_result.version
         assert enhanced.summary == phase_a_result.summary
         assert enhanced.turning_points == phase_a_result.turning_points
 
     def test_passes_output_language_to_prompt(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """config.output_language 必须注入 prompt——多语言链路完整闭合。"""
         captured: list[str] = []
@@ -922,13 +1068,22 @@ class TestEnhanceWithLLM:
                 return _enhancement_json()
 
         config = RuntimeConfig(version="0.1", output_language="fr-FR")
-        enhance_with_llm(phase_a_result, PromptCapturingProvider(), config)
+        enhance_with_llm(
+            phase_a_result,
+            PromptCapturingProvider(),
+            config,
+            world=world,
+            scenario=scenario,
+        )
         assert len(captured) == 1
         assert "fr-FR" in captured[0]
         assert "zh-CN" not in captured[0]
 
     def test_passes_timeout_to_provider(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """config.llm_request_timeout_sec 必须透传到 provider.generate。"""
         captured_kwargs: dict = {}
@@ -939,13 +1094,22 @@ class TestEnhanceWithLLM:
                 return _enhancement_json()
 
         config = RuntimeConfig(version="0.1", llm_request_timeout_sec=45.0)
-        enhance_with_llm(phase_a_result, TracingProvider(), config)
+        enhance_with_llm(
+            phase_a_result,
+            TracingProvider(),
+            config,
+            world=world,
+            scenario=scenario,
+        )
         assert captured_kwargs["timeout"] == 45.0
         assert "temperature" in captured_kwargs
         assert "max_tokens" in captured_kwargs
 
     def test_passes_analysis_system_prompt_to_provider(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """F1：enhance_with_llm 必须把分析导向 system_prompt 透传给 provider。
 
@@ -959,10 +1123,17 @@ class TestEnhanceWithLLM:
                 return _enhancement_json()
 
         config = RuntimeConfig(version="0.1")
-        enhance_with_llm(phase_a_result, TracingProvider(), config)
+        enhance_with_llm(
+            phase_a_result,
+            TracingProvider(),
+            config,
+            world=world,
+            scenario=scenario,
+        )
         assert "system_prompt" in captured_kwargs
         sp = captured_kwargs["system_prompt"]
-        # 分析导向——含三个分析字段名
+        # 分析导向——含四个分析字段名（v0.1.1 收官加 world_overview）
+        assert "world_overview" in sp
         assert "narrative_summary" in sp
         assert "situation_judgement" in sp
         assert "next_action_suggestions" in sp
@@ -970,9 +1141,14 @@ class TestEnhanceWithLLM:
         assert "available_actions" not in sp
         # 含 "JSON" 关键词——OpenAI response_format=json_object 模式硬性要求
         assert "JSON" in sp
+        # v0.1.1 收官：必须明文要求援引证据
+        assert "evidence" in sp.lower()
 
     def test_provider_error_propagates(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """ProviderError 原样上抛——由调用方（CLI）决定降级策略。"""
 
@@ -982,46 +1158,85 @@ class TestEnhanceWithLLM:
 
         config = RuntimeConfig(version="0.1")
         with pytest.raises(ProviderError, match="network down"):
-            enhance_with_llm(phase_a_result, FailingProvider(), config)
+            enhance_with_llm(
+                phase_a_result,
+                FailingProvider(),
+                config,
+                world=world,
+                scenario=scenario,
+            )
 
     def test_invalid_json_raises_protocol_error(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """provider 返非 JSON → LLMProtocolError。"""
         provider = MockProvider(fixed_response="not valid json")
         config = RuntimeConfig(version="0.1")
         with pytest.raises(LLMProtocolError, match="合法 JSON"):
-            enhance_with_llm(phase_a_result, provider, config)
+            enhance_with_llm(
+                phase_a_result,
+                provider,
+                config,
+                world=world,
+                scenario=scenario,
+            )
 
     def test_missing_field_raises_protocol_error(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
         """provider 返字段不全 → LLMProtocolError。"""
         raw = json.dumps(
-            {"narrative_summary": "n", "situation_judgement": "j"}
+            {
+                "world_overview": "w",
+                "narrative_summary": "n",
+                "situation_judgement": "j",
+            }
         )
         provider = MockProvider(fixed_response=raw)
         config = RuntimeConfig(version="0.1")
         with pytest.raises(LLMProtocolError, match="next_action_suggestions"):
-            enhance_with_llm(phase_a_result, provider, config)
+            enhance_with_llm(
+                phase_a_result,
+                provider,
+                config,
+                world=world,
+                scenario=scenario,
+            )
 
     def test_renders_enhanced_markdown(
-        self, phase_a_result: AnalysisResult
+        self,
+        phase_a_result: AnalysisResult,
+        world: WorldDefinition,
+        scenario: Scenario,
     ) -> None:
-        """enhance 后的 result 走 render_markdown 应展示三节新内容。"""
+        """enhance 后的 result 走 render_markdown 应展示四节新内容（v0.1.1 加世界概览）。"""
         provider = MockProvider(
             fixed_response=_enhancement_json(
+                overview="世界概览内容文本",
                 narrative="叙事段落内容",
                 judgement="局势判断内容",
                 suggestions=["建议一", "建议二"],
             )
         )
         config = RuntimeConfig(version="0.1")
-        enhanced = enhance_with_llm(phase_a_result, provider, config)
+        enhanced = enhance_with_llm(
+            phase_a_result, provider, config, world=world, scenario=scenario
+        )
         md = render_markdown(enhanced)
+        # v0.1.1 收官：世界概览在最前
+        assert "世界概览" in md
+        assert "世界概览内容文本" in md
         assert "局势判断" in md
         assert "局势判断内容" in md
         assert "面向用户的建议" in md
         assert "建议一" in md
-        assert "自然语言总览" in md
+        assert "全过程叙事" in md  # v0.1.1 重命名：原“自然语言总览”
         assert "叙事段落内容" in md
+        # 世界概览出现在局势判断之前（重排验证）
+        assert md.index("世界概览") < md.index("全轨迹总结")

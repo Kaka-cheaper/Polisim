@@ -158,6 +158,24 @@ def _load_world_scenario(
     return world, scenario
 
 
+def _build_runtime_config(args: argparse.Namespace) -> RuntimeConfig:
+    """按 CLI args 构造 RuntimeConfig。
+
+    未注册的字段（如某些子命令未声明的 ``--output-language``）走 ``getattr``
+    +默认 None，让 Pydantic 用模型自身默认值。
+    """
+    overrides: dict[str, Any] = {"version": "0.1"}
+    if getattr(args, "seed", None) is not None:
+        overrides["random_seed"] = args.seed
+    output_language = getattr(args, "output_language", None)
+    if output_language is not None:
+        overrides["output_language"] = output_language
+    prompt_history_size = getattr(args, "prompt_history_size", None)
+    if prompt_history_size is not None:
+        overrides["prompt_history_size"] = prompt_history_size
+    return RuntimeConfig(**overrides)
+
+
 def _format_event_line(ev: EventRecord) -> str:
     """单行紧凑的 EventRecord 文本表示（tick/kind/actor + 关键 payload 片段）。"""
     actor = ev.actor_id if ev.actor_id else "-"
@@ -234,7 +252,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         scenario.config.total_ticks = args.ticks
 
     provider = _build_provider(args)
-    runtime_config = RuntimeConfig(version="0.1", random_seed=args.seed)
+    runtime_config = _build_runtime_config(args)
     storage_config = StorageConfig(
         version="0.1",
         persist=not args.no_persist,
@@ -285,7 +303,11 @@ def cmd_run(args: argparse.Namespace) -> int:
             if args.llm_enhance:
                 try:
                     enhanced = enhance_with_llm(
-                        result, provider, runtime_config
+                        result,
+                        provider,
+                        runtime_config,
+                        world=world,
+                        scenario=scenario,
                     )
                     write_analysis(run_dir, enhanced)
                     print(
@@ -327,7 +349,7 @@ def cmd_step(args: argparse.Namespace) -> int:
     """
     world, scenario = _load_world_scenario(args.scenario, args.world)
     provider = _build_provider(args)
-    runtime_config = RuntimeConfig(version="0.1", random_seed=args.seed)
+    runtime_config = _build_runtime_config(args)
     storage_config = StorageConfig(
         version="0.1",
         persist=not args.no_persist,
@@ -614,6 +636,24 @@ def _build_parser() -> argparse.ArgumentParser:
         help="跳过 runs/<run_id>/analysis/ 产物生成（默认自动生成）",
     )
     run_p.add_argument(
+        "--output-language",
+        type=str,
+        default=None,
+        help=(
+            "LLM prompt / 分析报告的输出语言（如 zh-CN、en、ja 等）；"
+            "省略时用 RuntimeConfig 默认 zh-CN"
+        ),
+    )
+    run_p.add_argument(
+        "--prompt-history-size",
+        type=int,
+        default=None,
+        help=(
+            "D-016：prompt 中注入的最近决策条数（0-10，默认 3）；"
+            "0 关闭历史注入"
+        ),
+    )
+    run_p.add_argument(
         "--llm-enhance",
         action="store_true",
         help=(
@@ -637,6 +677,18 @@ def _build_parser() -> argparse.ArgumentParser:
     step_p.add_argument("--config-llm", type=Path, default=None)
     step_p.add_argument("--provider-key", type=str, default=None)
     step_p.add_argument("--no-persist", action="store_true")
+    step_p.add_argument(
+        "--output-language",
+        type=str,
+        default=None,
+        help="LLM prompt 输出语言（默认 zh-CN）",
+    )
+    step_p.add_argument(
+        "--prompt-history-size",
+        type=int,
+        default=None,
+        help="D-016：prompt 注入最近决策条数（0-10，默认 3）",
+    )
     step_p.set_defaults(func=cmd_step)
 
     # ---- replay

@@ -250,15 +250,32 @@ class AnalysisResult(BaseModel):
     )
 
     # ---- Phase C LLM 增强字段（Phase A 默认不填） ----
+    world_overview: str | None = Field(
+        default=None,
+        description=(
+            "LLM 生成的世界概览（Phase C 填）：用自然语言解释本次仿真的初始世界——"
+            "包含哪些实体、各自的角色与初始属性含义、实体间关系含义、场景目标。"
+            "为不熟悉 world.yaml / scenario.yaml 的读者提供背景。"
+        ),
+    )
     narrative_summary: str | None = Field(
         default=None,
-        description="LLM 生成的自然语言总览（Phase C 填；对应 MVP 10.3 #4 前半）",
+        description=(
+            "LLM 生成的自然语言总览（Phase C 填；对应 MVP 10.3 #4 前半）。"
+            "应援引具体 tick / 属性变化作证据。"
+        ),
     )
     situation_judgement: str | None = Field(
         default=None,
-        description="LLM 生成的局势判断（Phase C 填；对应 MVP 10.3 #4 后半）",
+        description=(
+            "LLM 生成的局势判断（Phase C 填；对应 MVP 10.3 #4 后半）。"
+            "应援引 turning_points / entity_comparisons 中的具体数值变化作证据。"
+        ),
     )
     next_action_suggestions: list[str] | None = Field(
         default=None,
-        description="LLM 生成的面向用户建议条目（Phase C 填；对应 MVP 10.3 #5）",
+        description=(
+            "LLM 生成的面向用户建议条目（Phase C 填；对应 MVP 10.3 #5）。"
+            "每条应在文本内嵌入支撑证据（具体 tick / 数值 / 实体）。"
+        ),
     )
