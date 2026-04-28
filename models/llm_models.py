@@ -70,8 +70,9 @@ class PromptContext(BaseModel):
     # ── A. 角色与身份 ──
     system_role: str | None = Field(
         default=None,
-        description='可选的 system 角色描述。例如 "You are entity \'company_a\' '
-        'of type \'company\'"。rules.enrich_prompt 可替换为更场景化的角色描述。'
+        description="可选的 system 角色描述。例如 "
+        "\"You are entity '<entity_id>' of type '<entity_type>'\"。"
+        "rules.enrich_prompt 可替换为更场景化的角色描述。"
         "为 None 时 render 不输出此段。",
     )
 

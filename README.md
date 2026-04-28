@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-599%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-670%20passing-brightgreen.svg)](#testing)
 [![Architecture](https://img.shields.io/badge/architecture-6%20layers-informational.svg)](#architecture)
 
 ---
@@ -31,7 +31,7 @@ Built for narrative simulations of **markets, negotiations, opinion dynamics, or
 - 📜 **YAML-defined worlds** with full schema validation (JSON Schema + Pydantic + cross-layer semantic checks)
 - ⏸ **Pause / resume / intervene** at any tick—force actions, inject messages, modify entity attributes mid-run
 - 📊 **Dual-track analysis**: deterministic statistics (always on) + optional LLM-narrated summary
-- 🧪 **599 passing tests**, including end-to-end CLI tests for two production-ready scenarios
+- 🧪 **670 passing tests**, including end-to-end CLI tests for two production-ready scenarios
 - 🛠 **Extensible by design**: bring your own rules module, your own LLM provider, your own analysis enhancers
 
 ## Quick start
@@ -156,7 +156,7 @@ Polisim/
 ├── rules/                  Rules modules (BaseRules + 2 concrete impls)
 ├── schemas/                JSON schemas (single source of truth)
 ├── scenarios/              YAML scenarios (minimal_market + three_party_negotiation)
-├── tests/                  599 tests across all layers
+├── tests/                  670 tests across all layers
 └── docs/                   Design docs / requirements / pitfalls / progress
 ```
 
@@ -181,7 +181,7 @@ All design and process documentation is in `docs/`:
 pytest tests/ -q
 ```
 
-Currently **599 tests passing** in ~12 seconds, covering:
+Currently **670 tests passing** in ~12 seconds, covering:
 
 - All Pydantic models (world / scenario / runtime / config / analysis)
 - All loaders (definition / scenario / rules) with three-tier validation

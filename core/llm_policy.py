@@ -153,8 +153,9 @@ def build_prompt_context(
     }
 
     # D-016 第 3 步：补 actor 涉及的关系子集（outgoing/incoming）。
-    # 空时省略字段——保 actor 不涉及关系的场景（如 minimal_market 的 company_a）
-    # 仍输出与 D-014 时代字节级等价的 prompt，向后兼容承诺持续成立。
+    # 空时省略字段——保 actor 不涉及关系的场景（即 scenario.relations 为空，
+    # 或 actor 不出现在任何 relation 的 source/target 端）仍输出与
+    # D-014 时代字节级等价的 prompt，向后兼容承诺持续成立。
     relations_view = _extract_actor_relations(state, entity_id)
     if relations_view["outgoing"] or relations_view["incoming"]:
         actor_view["relations"] = relations_view

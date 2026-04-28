@@ -351,7 +351,7 @@ _ANALYSIS_SYSTEM_PROMPT = (
     "CRITICAL: situation_judgement and each next_action_suggestions item "
     "MUST cite concrete evidence by referencing specific tick numbers, "
     "attribute changes, or entity ids drawn from the analysis JSON "
-    "(for example: 'at tick 3, company_a.cash dropped from 100 to 80'). "
+    "(for example: 'at tick <N>, <actor_id>.<attribute> changed from <X> to <Y>'). "
     "Your response MUST be a valid JSON object with EXACTLY four keys: "
     '{"world_overview", "narrative_summary", "situation_judgement", '
     '"next_action_suggestions"}. '
