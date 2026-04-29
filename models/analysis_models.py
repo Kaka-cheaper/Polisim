@@ -4,14 +4,17 @@
 `docs/01-requirements/MVP场景定义.md` 10.3 节"最终输出"条款。
 
 **本模块只负责数据结构定义**——Phase A 的聚合、渲染逻辑与 Phase C 的 LLM
-增强都在 `core/analysis.py`（后者通过 `enhance_with_llm` 公开 API 填充三个
-叙事字段）。
+增强都在 `core/analysis.py`（后者通过 `enhance_with_llm` 公开 API 填充四个
+叙事字段：world_overview / narrative_summary / situation_judgement /
+next_action_suggestions）。
 
 **分层约束**：
 
 - 本文件**不**依赖 `core/*`——仅依赖 Pydantic 与 stdlib
-- `AnalysisResult` 顶层三个可选字段（`narrative_summary` / `situation_judgement` /
-  `next_action_suggestions`）预留给 Phase C；Phase A 渲染时发现为 None 会省略对应段
+- `AnalysisResult` 顶层四个可选字段（`world_overview` / `narrative_summary` /
+  `situation_judgement` / `next_action_suggestions`）预留给 Phase C；Phase A 渲染
+  时发现为 None 会省略对应段。``world_overview`` 是 session 26 LLM 增强升级新增的
+  段，让读者先理解初始世界、再读后续判断（详见 `core/analysis._ANALYSIS_SYSTEM_PROMPT`）
 - 所有字段使用 `extra="forbid"`——对齐其他 models 模块的严格纪律
 
 **JSON 往返设计**：
@@ -220,10 +223,13 @@ class TrajectorySummary(BaseModel):
 class AnalysisResult(BaseModel):
     """分析层的顶层产物——一次 `analyze_run` 调用的完整结果。
 
-    **分层**：
-    - 前五个字段是 Phase A 纯规则核心填——100% 确定性
-    - 后三个字段（`narrative_summary` / `situation_judgement` /
-      `next_action_suggestions`）是 Phase C LLM 增强层填；Phase A 默认 None
+    **分层**（session 26 LLM 增强升级后）：
+    - 前六个字段是 Phase A 纯规则核心填——100% 确定性：
+      ``version`` / ``run_id`` / ``summary`` / ``turning_points`` /
+      ``entity_comparisons`` / ``environment_trajectory``
+    - 后四个字段是 Phase C LLM 增强层填；Phase A 默认 None：
+      ``world_overview`` / ``narrative_summary`` / ``situation_judgement`` /
+      ``next_action_suggestions``
     - 渲染 markdown 时 Phase A 产物总有，LLM 增强段发现 None 会省略对应 section
     """
 

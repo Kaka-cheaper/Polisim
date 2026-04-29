@@ -40,6 +40,48 @@
 
 ## 五、踩坑清单
 
+### [P2] 2026-04-29 in-memory run（persist=False）跑完不推 run_finished 事件（session 33 审查发现）
+
+- **现象**：`RunService._broadcast_tick` 中 `reached_total_ticks=True` 分支检查 `runtime.run_dir is not None` 才推 `RunFinishedEvent`——**内存模式 run 跑完后前端 WebSocket 收不到 finished 事件**，仅靠 `close_run(None sentinel)` 关闭连接，前端无从知道是"正常完结"还是"server 挂了"。
+- **根因**：`RunFinishedEvent.data` 是 `AnalysisResult`，Phase A 分析 `analyze_run(run_dir)` 必须走磁盘——`run_dir is None` 时没法生成 AnalysisResult。设计简化期跳过推送，但语义不完整。
+- **影响范围**：
+  - v0.2 当前路径**不命中**——`RunService.create_run` 强制 `persist=True`，所有通过 server 创建的 run 都有 run_dir
+  - 边缘场景：未来若加 "in-memory mode" 配置（`POST /runs {persist: false}`）会触发
+  - 测试场景：单测 fixture 用 `persist=True`，所以也不显形
+- **解法**（暂缓）：v0.2 不修。两种潜在思路：
+  1. 用空 AnalysisResult（all 字段默认值）—— 但 AnalysisResult 含 `run_id` 等必填字段，构造负担
+  2. 改 `RunFinishedEvent.data: AnalysisResult | None`—— 破坏类型契约
+  3. 加新事件 `RunFinishedNoAnalysisEvent`—— schema 复杂度↑
+- **相关文件**：`server/services/run_service.py:240-251`（`_broadcast_tick` reached_total_ticks 分支）、`server/api/v1/ws_events.py:RunFinishedEvent`
+- **防再犯**：v0.3+ 若加 in-memory mode 配置，必须同步修复此分支；当前 docstring 已标注"v0.2 强制 persist=True 自然规避"
+
+### [P2] 2026-04-29 server lifespan shutdown 时 WebSocket 订阅者收不到 run_finished（session 33 审查发现）
+
+- **现象**：`server/app.py` lifespan 关闭顺序是 `registry.shutdown_all()` 后 `stream_service.detach()`。但 `shutdown_all` 仅 close 各 Runtime 的 EventLog——**不**调 `stream_service.close_run()` 通知订阅者；随后 `detach()` 直接清空 `_subscribers` + `_loop=None`。结果：仍连着的 ws 客户端**永远不会**收到 run_finished / 任何关闭信号——它们靠 starlette 在 shutdown 阶段强制 close ASGI 连接才结束。
+- **根因**：v0.2 单进程 + Ctrl+C 终止——starlette/uvicorn 的强制关闭兜底了"挂死"问题，但语义上"server 优雅关闭"应该向客户端发 close(1001) 或 RunFinishedEvent。当前实施没做。
+- **影响范围**：
+  - 用户主动 Ctrl+C 时——客户端收到不明的连接断开（HTTPException 或 1006），不知是 server 关闭还是网络抖动
+  - 部署到生产时——若有反向代理（nginx）做 graceful shutdown，可能转发不正确的 close code
+- **解法**（暂缓）：v0.2 不修。三种潜在思路：
+  1. lifespan finally 顺序调整：先 `for run_id in active_runs: stream_service.close_run(run_id)` 再 `registry.shutdown_all` 再 `detach`
+  2. 加专门的 `ServerShutdownEvent` ws 事件——但 schema 复杂度↑
+  3. detach 内部主动遍历订阅者发 None sentinel——StreamService 单点处理
+- **相关文件**：`server/app.py:_lifespan` finally 块、`server/services/stream_service.py:detach`、`server/runtime_registry.py:shutdown_all`
+- **防再犯**：v0.3+ 加生产部署时优先修方案 3——StreamService 自治更干净。生产环境 deployment guide 写明"客户端应处理 1006 close code 重连"
+
+### [P3] 2026-04-28 server 测试连发 POST /runs 触发 EventLog.generate_run_id 秒级冲突（session 31）
+
+- **现象**：`tests/test_server_runs.py::test_create_max_concurrent_returns_503` 早期版本——测试 max_concurrent=3 时连续 3 次 POST /runs 不传 run_id；第 2 次起报 400 (`INVALID_REQUEST`) 而非预期 201/503。错误来自 `RuntimeRegistry.register("..." 已注册)`——run_id 重复。
+- **根因**：`core/events.generate_run_id()` 用 `<timestamp_秒级>_<scenario_id>` 形态；mock provider + tmp_path 下 Runtime 构造非常快（<100ms），同一秒内多次调用产生**相同** run_id。CLI 单跑场景从不命中（人手隔几秒），但 server 端 TestClient 高速连发就显形。
+- **影响范围**：
+  - 测试场景：连续 POST /runs 不传 run_id——必命中。已通过测试中显式 run_id 规避
+  - 生产场景：人类用户从画廊点 [▶ 开始] 再点下一个，间隔通常 >1s，**不会命中**
+  - 边缘场景：未来批量脚本调用 server，必须显式传 run_id 或在 client 加节流
+- **解法**（已落地）：v0.2 不动 v1 内核——测试用 explicit run_id 规避；CLI 实际行为不受影响
+- **解法**（未来）：若服务端要支持高频创建，让 `generate_run_id` 加微秒或 uuid4 后缀（v1 行为契约不变，只是更精细）。当前不开 D-xxx，等真有用户反馈再做。
+- **相关文件**：`core/events.py:generate_run_id`、`server/runtime_registry.py:register`（防御式校验）、`tests/test_server_runs.py::TestCreateRun::test_create_max_concurrent_returns_503`
+- **防再犯**：server 路由 / 测试文档明确"高频创建场景必须显式 run_id"——v0.2 不主动改 v1 内核
+
 ### [P2] 2026-04-25 `random` decision_mode 对带参动作不友好（v1 限制）
 
 - **现象**：session 21 落地三人谈判场景时发现，charlie（`decision_mode=random`）从 4 个动作（propose / accept / reject / do_nothing）中均匀采样，**75% 概率选到带参动作**——但 `Runtime._decide_via_random` 给出的 `params={}` 是空 dict，必填参数缺失立即被 `BaseRules.validate_action` 判 `decision_rejected` → 走 fallback。结果是 random mode 实际上**只能稳定执行无参动作**。
@@ -102,6 +144,30 @@
 - **解法**（暂缓）：未来可加一条 `decision_forced` EventKind，在 _make_decision 走 forced_actions 路径时写入。短期可用 `decision_proposed.payload` 加 `forced_by_intervention: bool` 字段兼容。
 - **相关文件**：`core/runtime.py:487-500`（_make_decision force_actions 分支）、`core/runtime.py:432-477`（intervene）、`models/runtime_models.py:50-63`（EventKind Literal）
 - **防再犯**：UI 不要只看 `decision_mode=rule` 就假定"这是常规规则决策"——需要额外看 `raw_reasoning_summary` 是否含 `"intervention"` 前缀。本条记录是 UI 对接时的提醒。
+
+### [P3 历史样本] 2026-04-28 D-015 全量版释放实体生命周期 + 动作链能力（session 28）
+
+- **背景**：v0.1.1 收官时 D-015 缩限版仅做了 `AttributeEffect.new_value`（结清下条 P2 第 105 行）；推迟到 v0.2.x 的"全量版"含 3 个新 Effect 类型——session 28 用户决定"先把引擎做扎实"，提前实施
+- **释放能力**：
+  - **`EntityCreateEffect`**——动态创建实体（公司分裂 / 谈判第三方加入 / 信息节点衍生 / 群体新成员）；含 `initial_attributes` 与 `initial_relations` 一并构造；新实体下一 tick 才激活（spec 第 150 行）
+  - **`EntityDestroyEffect`**——按 `cascade=all/preserve_relations/preserve_messages` 三策略删除（公司破产 / 组织解散 / 节点失效）
+  - **`ChainedActionEffect`**——规则触发动作链（连锁反应 / 责任传递 / 信息扩散 / DSL-like 复合规则）；同 tick 立即递归 + 跨 tick 延后两路；防递归走 `RuntimeConfig.max_chain_depth`（默认 3，超限抛 `RulesError`）
+- **设计要点**（与 spec 一致）：
+  - chained 子动作不走 LLM——rules 直接构造 `ActionProposal`（节省 token）
+  - chained 子动作仍走 `validate_action`——D-014 强约束兜底，rules bug 会写 `decision_rejected` 而非崩
+  - chained 链中事件的 payload 加 `source="chained_action"`——审计与 LLM 决策事件区分
+  - 跨 tick 链每 tick 重置 depth=0——不计入同 tick 链上限（spec 第 91 行）
+  - `EntityCreate` 重复 id / 未声明 type → `RulesError`（rules 设计错构造期就抓）
+  - `EntityDestroy` 不存在 entity → warning 不抛错（与 `_apply_attribute_effect` 防御式风格一致）
+- **新启用的异常类**：`core/errors.RulesError`（session 27 标"v1 未使用；保留供未来"——session 28 D-015 全量版正式启用为链深度超限异常）
+- **影响面**（10 个修改 + 2 个新建）：
+  - 修改：`models/runtime_models.py`（+3 Effect + 3 EventKind + Effect Union 扩充）/ `models/config_models.py`（+max_chain_depth 字段）/ `core/runtime.py`（_apply_effects 加 depth 参数 + 3 helper + _execute_chained_action + _process_delayed_chained_actions + step 主循环加步 2.5）/ `core/errors.py`（RulesError docstring 升级）/ `tests/test_runtime_models.py`（+15 模型校验）
+  - 新建：`tests/test_runtime_d015.py`（14 项端到端：4 EntityCreate + 3 EntityDestroy + 2 ChainedAction immediate + 1 ChainedAction delayed + 4 防递归与 max_chain_depth 配置）
+- **测试增量**：671 → 700（净 +29；0 回归；Pytest 8.22s）
+- **未来工作（推迟）**：spec 第 30 行的 `BatchEffect`（事务语义）—— spec 第 152 行决议**不做**（事务由 EventLog append-only 提供天然原子性）；若未来需要更细的同 tick 内 effect 应用顺序控制，再开 D-xxx
+- **相关文件**：`docs/02-design/decisions/D-015-effect系统扩充.md`（spec）、`models/runtime_models.py:367-556` (3 新 Effect)、`core/runtime.py:813-1109`（5 个新 helper）
+
+---
 
 ### [P2] 2026-04-24 AttributeEffect 只支持 numeric delta，non-numeric 属性改不动
 

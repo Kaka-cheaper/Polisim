@@ -15,8 +15,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "polisim"
-version = "0.1.0-dev"
-description = "分层驱动的通用多实体仿真引擎（Polisim），第一版最小骨架"
+version = "0.1.1"
+description = "分层驱动的通用多实体仿真引擎（Polisim）—— v0.1.1 引擎严谨化 + LLM 增强分析"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -28,22 +28,27 @@ keywords = ["simulation", "multi-agent", "llm", "tick-based"]
 # 运行时依赖。保持最小——凡是 AGENTS.md 允许范围内用到的库都列在这里。
 # 版本约束策略：锁定主版本上限，允许次版本与补丁升级。
 # 依据：
-#   pydantic 2.x —— ConfigDict、model_validator(mode="after") 依赖 v2 API
-#   pyyaml    —— YAML 文件加载
-#   jsonschema —— world / scenario 的 JSON Schema 校验
+#   pydantic 2.x  —— ConfigDict、model_validator(mode="after") 依赖 v2 API
+#   pyyaml        —— YAML 文件加载
+#   jsonschema    —— world / scenario 的 JSON Schema 校验
+#   openai 1.50+  —— Phase B.2 真实 LLM provider；response_format/parse 稳定
+#   fastapi 0.110+ + uvicorn[standard] 0.27+ —— v0.2 server (D-017)；
+#                    自动 OpenAPI、Pydantic 直接做 response_model、async ws 支持
 dependencies = [
   "pydantic>=2.0,<3.0",
   "pyyaml>=6.0,<7.0",
   "jsonschema>=4.0,<5.0",
-  # OpenAI Python SDK——Phase B.2 接入真实 LLM provider
-  # 1.50+ 起 response_format={"type":"json_object"} 与 beta.chat.completions.parse 稳定
   "openai>=1.50,<2.0",
+  "fastapi>=0.110,<1.0",
+  "uvicorn[standard]>=0.27,<1.0",
 ]
 
 [project.optional-dependencies]
 # 开发 / 测试依赖。`pip install -e .[dev]` 可一次装齐。
+# httpx —— FastAPI TestClient 依赖；用于 server 路由测试（D-017 第九节）
 dev = [
   "pytest>=7.0,<9.0",
+  "httpx>=0.27,<1.0",
 ]
 
 [project.urls]
@@ -58,6 +63,13 @@ packages = [
   "core.providers",
   "models",
   "rules",
+  # v0.2 server 层（D-017）
+  "server",
+  "server.api",
+  "server.api.v1",
+  "server.api.v1.middlewares",
+  "server.api.v1.routes",
+  "server.services",
 ]
 
 [tool.pytest.ini_options]

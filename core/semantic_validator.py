@@ -147,27 +147,54 @@ def _check_fallback_action(
     world: WorldDefinition,
     handled: set[str],
 ) -> list[SemanticIssue]:
-    """检查 ``world.defaults.fallback_action`` 必须 ∈ ``handled``。
+    """检查 Runtime 实际会用的兜底动作必须 ∈ ``handled``。
 
-    若 ``defaults`` 或 ``fallback_action`` 未配置，跳过——它是可选字段，
-    Runtime 在没有 fallback 时会用其他兜底策略，不强求声明。
+    **F11（session 27 架构审查）**：原版逻辑是"若 ``world.defaults.fallback_action``
+    未配置就跳过校验"——但 ``Runtime._fallback_proposal`` 在 fallback_action=None
+    时会**默认用 "do_nothing"** 作为兜底名（见 `core/runtime.py:_fallback_proposal`）。
+    所以"未配置"不等于"无 fallback"——而是"用隐式默认 do_nothing"。原逻辑会让
+    rules 不处理 do_nothing 的边界场景在 D-013 静默放行，运行期 fallback 一触发就崩。
+
+    本版本计算 ``effective_fallback``——与 Runtime 同语义：
+
+    - ``world.defaults`` 为 None 或 ``fallback_action`` 为 None → ``"do_nothing"``
+    - 否则 → ``world.defaults.fallback_action``
+
+    然后检查 ``effective_fallback ∈ handled``。
+
+    场景影响：当前两个产线 rules（minimal_market / three_party_negotiation）均
+    在 ``actions_handled`` 中声明了 ``"do_nothing"``，故现存场景**不受影响**。
+    本检查保护的是**未来用户上传的新场景**——若忘了在 rules 里处理 do_nothing
+    且 world 也没显式声明 fallback_action，构造期就被拦截而非运行期才崩。
     """
-    if world.defaults is None:
+    if world.defaults is None or world.defaults.fallback_action is None:
+        effective_fallback = "do_nothing"
+        is_explicit = False
+    else:
+        effective_fallback = world.defaults.fallback_action
+        is_explicit = True
+
+    if effective_fallback in handled:
         return []
-    fallback = world.defaults.fallback_action
-    if fallback is None:
-        return []
-    if fallback in handled:
-        return []
+
+    if is_explicit:
+        detail = (
+            f"fallback_action='{effective_fallback}' 不在 rules 声明的 "
+            f"actions_handled={sorted(handled)} 内；首次 fallback "
+            f"触发时将崩在运行期（pitfalls.md P1 典型样本）"
+        )
+    else:
+        detail = (
+            f"world.defaults.fallback_action 未显式配置——Runtime 将默认用 "
+            f"'do_nothing' 兜底（见 Runtime._fallback_proposal），但 rules "
+            f"actions_handled={sorted(handled)} 不含 'do_nothing'。"
+            f"请在 world.defaults 显式声明 fallback_action 或让 rules 处理 do_nothing"
+        )
     return [
         SemanticIssue(
             field_path="world.defaults.fallback_action",
             kind="fallback_action_not_handled",
-            detail=(
-                f"fallback_action='{fallback}' 不在 rules 声明的 "
-                f"actions_handled={sorted(handled)} 内；首次 fallback "
-                f"触发时将崩在运行期（pitfalls.md P1 典型样本）"
-            ),
+            detail=detail,
         )
     ]
 

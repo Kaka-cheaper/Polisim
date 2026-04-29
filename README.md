@@ -79,10 +79,17 @@ python -m cli run scenarios/three_party_negotiation/scenario.yaml `
 
 ```bash
 python -m cli run scenarios/minimal_market/scenario.yaml `
-    --llm-enhance --output-language zh-CN
+    --llm-enhance --output-language zh-CN --prompt-history-size 3
 ```
 
-The final report at `runs/<run_id>/analysis/final.md` will include a narrative summary, situation judgment, and action suggestions in Chinese (or any configured language).
+The final report at `runs/<run_id>/analysis/final.md` will include four LLM-generated sections in the configured language:
+
+- **World overview** — plain-language explanation of the initial entities, attributes, relations and scenario goal
+- **Narrative summary** — trajectory described in natural language with tick references
+- **Situation judgement** — final state assessment with cited evidence (specific tick + attribute change)
+- **Next action suggestions** — actionable suggestions, each embedding supporting evidence
+
+`--prompt-history-size N` controls how many recent decisions (D-016) are injected into each LLM prompt's `actor_view.recent_decisions` (default 3, range 0-10).
 
 ## Architecture
 
@@ -196,12 +203,12 @@ Plus a real-OpenAI smoke test at `scripts/smoke_openai.py` for end-to-end verifi
 
 ## Roadmap
 
-v1 minimum viable engine is **complete**. Next directions, by priority:
+v0.1.1 engine rigorization is **complete** (D-014 strong action params + D-015 (scoped) AttributeEffect.new_value + D-016 PromptContext / enrich_prompt hook + LLM analysis upgrade with `world_overview` + evidence citation). Next directions, by priority:
 
-- **Phase 2**: LLM-assisted modeling—`core/modeling_loop.py` + guided Q&A frontend (see [`LLM辅助建模方案.md`](docs/00-overview/LLM辅助建模方案.md))
-- **D-012**: DSL form decision—keep YAML or invent higher-level abstraction
-- **Phase B.3**: Protocol-level retry with exponential backoff (currently relying on OpenAI SDK's built-in retries)
-- **Walkthrough expansion**: extend the existing markdown walkthrough to cover multi-entity / breakpoints / interventions in detail
+- **v0.2 web UI**: single-repo monorepo addition—FastAPI WebSocket backend + React real-time situation panel consuming `decision_proposed.payload.prompt_context` (D-016 enables this)
+- **D-015 full**: `EntityCreate` / `EntityDestroy` / `ChainedAction` effect types (deferred from v0.1.1)
+- **Phase B.3**: protocol-level retry with exponential backoff (currently relying on OpenAI SDK's built-in retries)
+- **Phase 2 LLM-assisted modeling**: `core/modeling_loop.py` + guided Q&A frontend (D-013 semantic validator already provides the "self-repair loop" infrastructure; see [`LLM辅助建模方案.md`](docs/00-overview/LLM辅助建模方案.md))
 - **More scenarios**: information cascade, opinion dynamics, organizational decision-making
 
 See [`progress.md`](docs/00-overview/progress.md) section "下一步该做什么" for the live priority list.

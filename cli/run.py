@@ -714,6 +714,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     replay_p.set_defaults(func=cmd_replay)
 
+    # ---- serve（v0.2 server，D-017）
+    # 延迟 import：当用户没装 fastapi/uvicorn 时，前 3 个子命令仍可工作
+    from cli.serve import add_serve_subparser  # noqa: PLC0415
+
+    add_serve_subparser(subparsers)
+
     return parser
 
 

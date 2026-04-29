@@ -148,19 +148,51 @@ class TestFallbackActionCheck:
         assert "do_nothing" in fb_issue.detail
         assert fb_issue.field_path == "world.defaults.fallback_action"
 
-    def test_fallback_unset_skips_check(
+    def test_fallback_unset_falls_back_to_do_nothing_check(
         self, mm_world, mm_scenario
     ) -> None:
-        """world.defaults.fallback_action=None 时不应触发本项检查。"""
+        """**F11（session 27 架构审查）**：world.defaults.fallback_action=None
+        时不应静默放行——Runtime 默认用 'do_nothing' 兜底（见
+        `Runtime._fallback_proposal`），所以 D-013 必须把 'do_nothing' 当作
+        effective fallback 来检查。
+
+        原行为（session 22 落地版）：fallback=None 时整段跳过——会让 rules 不
+        含 do_nothing 的场景在构造期静默放行、首次 fallback 才崩在运行期。
+        """
         # 用 model_copy 制造 fallback=None 的副本
         defaults_copy = mm_world.defaults.model_copy(
             update={"fallback_action": None}
         )
         world_copy = mm_world.model_copy(update={"defaults": defaults_copy})
         rules = _StubRules(handled={"promote"})  # 故意不含 do_nothing
-        # fallback_action=None 时本项检查被跳过；handled ⊆ world.action_types
-        # 仍然成立（promote 在 world.action_types 中），所以整体通过
-        validate_semantics(world_copy, mm_scenario, rules)
+        with pytest.raises(SemanticValidationError) as exc_info:
+            validate_semantics(world_copy, mm_scenario, rules)
+        kinds = {i.kind for i in exc_info.value.issues}
+        assert "fallback_action_not_handled" in kinds
+        # detail 必须解释隐式默认 do_nothing 的来源（让用户知道为什么报错）
+        fb_issue = next(
+            i
+            for i in exc_info.value.issues
+            if i.kind == "fallback_action_not_handled"
+        )
+        assert "do_nothing" in fb_issue.detail
+        assert "未显式配置" in fb_issue.detail or "Runtime" in fb_issue.detail
+
+    def test_fallback_unset_with_do_nothing_handled_passes(
+        self, mm_world, mm_scenario
+    ) -> None:
+        """**F11**：fallback_action 未配置但 rules 处理 do_nothing 时仍通过。
+
+        这是常见配置——开发者依赖 Runtime 的隐式 do_nothing 兜底，世界文件
+        不必显式声明 fallback_action。两个产线 rules 均符合此形态。
+        """
+        defaults_copy = mm_world.defaults.model_copy(
+            update={"fallback_action": None}
+        )
+        world_copy = mm_world.model_copy(update={"defaults": defaults_copy})
+        # rules 含 do_nothing → 隐式默认兜底有人接，正常通过
+        rules = _StubRules(handled={"promote", "do_nothing"})
+        validate_semantics(world_copy, mm_scenario, rules)  # 不抛
 
 
 class TestRulesActionsInWorldCheck:

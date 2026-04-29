@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.errors import LLMProtocolError, ProviderError
 from core.events import EventLog
@@ -45,6 +45,12 @@ from models.llm_models import LLMDecisionResult, PromptContext
 from models.runtime_models import ActionProposal, WorldState
 from models.scenario_models import Scenario
 from models.world_models import WorldDefinition
+
+if TYPE_CHECKING:
+    # F8（session 27）：``rules`` 参数的真实类型是 `BaseRules`，但仅在静态类型
+    # 检查时需要——运行时通过 duck typing 调用 `rules.enrich_prompt(...)`。
+    # 用 TYPE_CHECKING 守护保 IDE / mypy 看到精确类型，运行期不引入 rules 包。
+    from rules.base import BaseRules
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +70,7 @@ def build_prompt(
     language: str = "zh-CN",
     event_log: EventLog | None = None,
     history_size: int = 0,
-    rules: Any | None = None,
+    rules: "BaseRules | None" = None,
 ) -> str:
     """把 Runtime 当前上下文打成 LLM 可消费的 prompt 文本。
 
@@ -84,8 +90,8 @@ def build_prompt(
         history_size: 注入多少条历史决策。``0`` 完全关闭（默认）；
             ``RuntimeConfig.prompt_history_size`` 是其在 Runtime 编排层的来源
         rules: D-016 第 5 步——若提供，构造 ctx 后调 ``rules.enrich_prompt``
-            注入场景特化段。类型用 ``Any`` 以避免循环导入（实际为
-            :class:`rules.base.BaseRules`）
+            注入场景特化段。类型为 :class:`rules.base.BaseRules`；F8（session 27）
+            后使用 TYPE_CHECKING 守护进口以避免运行期引入 rules 包
 
     Raises:
         KeyError: ``entity_id`` 未注册或实体类型未在 world 中声明（这些本应由
@@ -115,7 +121,7 @@ def build_prompt_context(
     language: str = "zh-CN",
     event_log: EventLog | None = None,
     history_size: int = 0,
-    rules: Any | None = None,
+    rules: "BaseRules | None" = None,
 ) -> PromptContext:
     """构造结构化 :class:`PromptContext`（D-016）。
 
@@ -132,8 +138,9 @@ def build_prompt_context(
         event_log: 可选事件日志。提供且 ``history_size > 0`` 时，从中抽 actor
             最近 N 条 ``decision_proposed`` 事件注入 ``actor_view.recent_decisions``
         history_size: 历史决策注入条数（0 表示关闭——保持 D-014 时代行为）
-        rules: D-016 第 5 步——可选规则模块，提供时构造完毕后调
-            ``rules.enrich_prompt(ctx, ...)`` 让场景注入 system_role / custom_segments
+        rules: D-016 第 5 步——可选 :class:`rules.base.BaseRules` 实例，提供时
+            构造完毕后调 ``rules.enrich_prompt(ctx, ...)`` 让场景注入
+            system_role / custom_segments
 
     Raises:
         KeyError: ``entity_id`` 未注册或实体类型未在 world 中声明
@@ -415,7 +422,7 @@ def decide(
     *,
     config: RuntimeConfig,
     event_log: EventLog | None = None,
-    rules: Any | None = None,
+    rules: "BaseRules | None" = None,
 ) -> LLMDecisionResult:
     """调 provider → 解析 → 校验 → 返回 :class:`LLMDecisionResult`。
 
@@ -435,8 +442,9 @@ def decide(
 
     Args:
         event_log: D-016 第 4 步——可选事件日志；提供时启用历史决策注入
-        rules: D-016 第 5 步——可选规则模块；提供时启用 enrich_prompt 钩子。
-            类型用 ``Any`` 以避免循环导入（实际为 :class:`rules.base.BaseRules`）
+        rules: D-016 第 5 步——可选 :class:`rules.base.BaseRules` 实例；提供时启用
+            enrich_prompt 钩子。F8（session 27）后使用 TYPE_CHECKING 守护
+            避免运行期引入 rules 包
 
     Returns:
         LLMDecisionResult: 含 ``proposal`` 与 ``prompt_context`` 两个字段

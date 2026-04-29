@@ -169,7 +169,14 @@ def _summarize_events(events: list[EventRecord]) -> TrajectorySummary:
 
 
 def _is_numeric(value: Any) -> bool:
-    """与 `core/runtime.py._is_numeric` 语义一致：int/float 算数值，bool 不算。"""
+    """与 `core/runtime.py._is_numeric` 语义一致：int/float 算数值，bool 不算。
+
+    .. note::
+        本函数与 ``core/runtime.py:_is_numeric`` 是**有意保留**的双份实现。
+        本模块顶层 docstring 明确"零 runtime 依赖"——不能 ``from core.runtime
+        import _is_numeric``。项目也不开 ``utils/`` 共享层（AGENTS.md 4.3）。
+        于是接受双存。修改本函数时请同步修改 ``core/runtime.py:_is_numeric``。
+    """
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
