@@ -22,6 +22,12 @@
       "description": "可选；规则模块的 Python 导入路径，格式 'module.path:ClassName'（D-010）。由 core/rules_loader.py 解析。未声明时 Runtime 需由调用方显式传入 rules 实例。",
       "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*$"
     },
+    "ui_layout": {
+      "type": "string",
+      "enum": ["entity_card", "relation_graph", "event_stream"],
+      "default": "entity_card",
+      "description": "v0.2 前端跑中主区 layout 风格选择（D-017 反向校验产物，详见 docs/02-design/v0.2-前端-UI-mockup.md 第 7 节）。entity_card：实体卡片为主（关系少的场景，如 minimal_market）；relation_graph：力导向关系图为主（关系密集，如 three_party_negotiation）；event_stream：事件流瀑布为主（教学/阅读体验）。可选——未显式声明时按 entity_card 处理。"
+    },
     "scenario": {
       "type": "object",
       "required": ["id", "name"],

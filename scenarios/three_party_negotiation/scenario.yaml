@@ -10,6 +10,10 @@ world_id: three-party-negotiation
 
 rules_module: "rules.three_party_negotiation:NegotiationRules"
 
+# D-017 反向校验产物（v0.2 前端）：跑中主区 layout 风格
+# relation_graph：力导向关系图为主——本场景 6 条双向 trust 关系是核心剧情
+ui_layout: "relation_graph"
+
 scenario:
   id: walkthrough-three-party
   name: 三人谈判 Walkthrough

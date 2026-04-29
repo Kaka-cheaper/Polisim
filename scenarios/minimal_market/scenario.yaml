@@ -11,6 +11,10 @@ world_id: minimal-market
 # 由 `core/rules_loader.load_rules_class` 解析为 BaseRules 子类
 rules_module: "rules.minimal_market:MinimalMarketRules"
 
+# D-017 反向校验产物（v0.2 前端）：跑中主区 layout 风格
+# entity_card：实体卡片为主——本场景 2 公司 + 1 监管方关系少，适合此 layout
+ui_layout: "entity_card"
+
 scenario:
   id: walkthrough-min
   name: Walkthrough 最小示例

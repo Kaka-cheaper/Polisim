@@ -194,6 +194,18 @@ class Scenario(BaseModel):
             "注：pattern 与 `schemas/scenario.schema.json` 保持同步。"
         ),
     )
+    ui_layout: Literal["entity_card", "relation_graph", "event_stream"] = Field(
+        default="entity_card",
+        description=(
+            "v0.2 前端跑中主区 layout 风格选择（D-017 反向校验产物）。"
+            "entity_card：实体卡片为主（minimal_market 默认）；"
+            "relation_graph：力导向关系图为主（three_party_negotiation 默认）；"
+            "event_stream：事件流瀑布为主（教学/阅读）。"
+            "未显式声明时按 entity_card 处理。"
+            "注：枚举值与 `schemas/scenario.schema.json` 保持同步。"
+            "详见 `docs/02-design/v0.2-前端-UI-mockup.md` 第 7 节。"
+        ),
+    )
     scenario: ScenarioInfo = Field(..., description="场景元信息")
     entities: list[EntityInstance] = Field(
         ..., min_length=1, description="实体实例列表，至少包含一个（D-003）"

@@ -7,18 +7,21 @@
 
 你正在协助开发 **Polisim**——一个分层驱动的通用多实体仿真引擎。
 
-项目当前处于**v0.1.1 收官后主路径全通**（截至 session 26）：
+项目当前处于**v0.1.1 全部交付 + 架构审查清债 + D-015 全量版完成**（截至 session 28）：
 
 - Phase A：分析层纯规则核心（已完成）
 - Phase B：接入真实 LLM 协议（B.0 / B.1 / B.2 / B.4 / B.6 已完成；B.3 协议级重试可选延后）
 - Phase C：分析层 LLM 增强（已完成；session 26 加入世界概览 + 证据援引）
-- v0.1.1 严谨化：D-011 / D-013 / D-014 / D-015 缩限版 / D-016 均已交付
+- v0.1.1 严谨化：D-011 / D-013 / D-014 / D-015 全量版 / D-016 均已交付
+- 架构审查（session 27）：F1-F11 清债全量修复
 
-剩余可选分支：B.3 重试 / D-015 全量版 / walkthrough 扩章 / v0.2 前端。**先读 `progress.md` 顶部"当前位置"段获取最新状态再行动**。
+**v0.2 阶段已启动**（session 29 起草 D-017 spec）：单仓库 + FastAPI WebSocket 后端 + React 实时态势前端。**读 `docs/02-design/decisions/D-017-v0.2-API契约与Server架构.md` 了解详细架构**。
+
+剩余可选分支：B.3 重试 / walkthrough 扩章 / 新场景 / 第二阶段 LLM 辅助建模 PoC。**先读 `progress.md` 顶部“当前位置”段获取最新状态再行动**。
 
 一句话说清项目本质：
 
-> 用 **World Definition + Scenario + Rules + Runtime + Event Log + Analysis** 6 层架构，让用户通过配置文件定义可推演的复杂世界，由 LLM 参与实体决策，全程可暂停、可干预、可解释。
+> 用 **World Definition + Scenario + Rules + Runtime + Event Log + Analysis** 6 层架构（v0.2 补 **Server + Web** 两层变 8 层），让用户通过配置文件定义可推演的复杂世界，由 LLM 参与实体决策，全程可暂停、可干预、可解释。
 
 ## 二、每次进入项目，先做 3 件事
 
@@ -57,6 +60,8 @@
 
 新建代码文件前，先查 `docs/02-design/实现映射设计.md` 第四节，确认落点：
 
+**v0.1 内核层**（不变）：
+
 - World Definition → `schemas/` + `models/world_models.py` + `core/definition_loader.py`
 - Scenario → `schemas/` + `models/scenario_models.py` + `core/scenario_loader.py`
 - Rules → `rules/base.py` + `rules/minimal_market.py`
@@ -66,6 +71,23 @@
 - Analysis → `core/analysis.py`
 - 系统配置 → `config/*.yaml` + `models/config_models.py`
 - 运行入口 → `cli/run.py`
+
+**v0.2 Server + Web 层**（D-017，session 30+ 实施）：
+
+- API routes → `server/api/v1/routes/*.py`（routes / services / registry 三层抽象）
+- API errors → `server/api/v1/errors.py`（`SimEngineError` → HTTP 状态码映射）
+- WebSocket 事件 → `server/api/v1/ws_events.py`（typed 消息 schema）
+- 业务服务层 → `server/services/*.py`
+- Runtime 注册表 → `server/runtime_registry.py`
+- FastAPI 应用 → `server/app.py`
+- CLI serve 子命令 → `cli/serve.py`
+- 前端 → `web/`（Vite + React + TS + Tailwind）
+
+**v0.2 数据 schema 复用纪律**：
+
+- response_model 直接用 `models/*` 中的 Pydantic（`EventRecord` / `Snapshot` / `TickResult` / `AnalysisResult` / `PromptContext` / `Intervention`）
+- **不新建** `server/api/schemas.py` 翻译层——避免同步成本（session 27 F3 漂移教训）
+- **v0.2 新增平台专有 schema** （CreateRunRequest / ErrorResponse / WSEvent 等）落点在 `server/api/v1/`——不侵入 `models/`
 
 不要自己新发明目录。
 
@@ -80,7 +102,17 @@
 5. ~~接入 LLM 决策协议~~ ✅（含 Phase B 子项 B.0/B.1/B.2/B.4/B.6；B.3 重试可选）
 6. ~~分析层~~ ✅（含 Phase A 纯规则 + Phase C LLM 增强）
 
-**全 6 步主路径已通 + v0.1.1 严谨化全部交付**——剩余工作（B.3 / D-015 全量版 / walkthrough 扩章 / 更多场景 / v0.2 前端）属于可选分支，由用户按需指派。除非用户明确要求跳步或开支线，否则不要主动启动新工作。
+**全 6 步主路径已通 + v0.1.1 严谨化全部交付 + D-015 全量版完成**。
+
+**v0.2 阶段项目**（D-017 起草中，session 30+ 实施）按以下 5 步推进：
+
+7. **API contract spec 起草** ✅（session 29：`docs/02-design/decisions/D-017-v0.2-API契约与Server架构.md`）
+8. **UI mockup**（session 30：文字 wireframe + 反向校验 D-017 完整性）
+9. **Server 骨架 + 路由 + service + error map**（session 31：不含 WebSocket）
+10. **WebSocket + stream service + 多并发 registry**（session 32）
+11. **React 前端**（session 33+：预计 3-5 session）
+
+**剩余可选分支**（不介入 v0.2 主路径）：B.3 重试 / walkthrough 扩章 / 更多场景 / 第二阶段 LLM 辅助建模 PoC。除非用户明确要求跳步或开支线，否则不要主动启动新工作。
 
 ### 3.5 每次完成一项实现，必须给验收证据
 
@@ -129,16 +161,17 @@
 - ❌ 回滚型事件溯源
 - ❌ 自动建模助手 / 一句话生成 YAML（见 `LLM辅助建模方案.md`：第一版只做引导式）
 - ❌ 语义增强层 / 知识图谱（属于第三阶段）
-- ❌ UI、可视化大屏
+- ~~❌ UI、可视化大屏~~——v0.2 阶段已解禁，按 D-017 设计实现 React 实时态势面板
 - ❌ 多场景模板库
 - ❌ 参数搜索 / 批量实验框架
 
 ### 4.3 禁止造新文件/目录的情况
 
 - ❌ 在 `models/` 里新建 `*_schema.py`——schema 走 JSON Schema 文件，Pydantic 模型走 `*_models.py`
-- ❌ 新建顶层目录——所有新增落点必须对应 `实现映射设计.md` 第三节的结构
+- ❌ 新建顶层目录——所有新增落点必须对应 `实现映射设计.md` 第三节的结构（v0.2 已预留 `server/` + `web/`）
 - ❌ 新建 `utils/` 之类的垃圾桶目录
 - ❌ 在没看过对应设计文档前，新建 `core/` 下的新模块
+- ❌ 在 v0.2 server 层新建 `server/api/schemas.py` 翻译层（D-017 明确反模式）——直接复用 `models/*` 作为 response_model
 
 ### 4.4 禁止的验收方式
 
