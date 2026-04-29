@@ -1,0 +1,320 @@
+/* ============================================================================
+ * Polisim Design Tokens
+ * ============================================================================
+ *
+ * 来源：基于 linear.app 公开主页的 CSS variables 抓取（2026-04-29 session 34）
+ *   - 抓取工具：dembrandt (npx extract-design-system)
+ *   - 原始产物：.extract-design-system/raw.json（36 个 CSS vars + 22 种字号 + 7 档 radius）
+ *   - 注：dembrandt 默认 normalize 阶段过滤过严（仅推 2 色），本文件直接读 raw.json 的
+ *     `cssVariables` / `borderRadius` / `typography` 字段——值均为 linear 显式声明，
+ *     非推断、非无中生有。
+ *
+ * 设计原则：
+ *   1. **三层结构**：reference（值）→ primitives（linear 原生命名）→ semantic（Polisim 用法）
+ *   2. **Dark-mode 主导**：与 linear 实际产品（非营销页 hero）一致
+ *   3. **可扩展**：未来加 light mode 仅需新建 [data-theme="light"] 块覆盖 semantic 层
+ *   4. **业务层只用 semantic**：组件代码不直接用 primitives 层，避免迁移痛
+ *
+ * 与 Polisim 项目的关系：
+ *   - 本文件最终落点是 web/src/styles/tokens.css（Vite 项目启动 session 33+ 实施）
+ *   - 当前阶段（session 34 mockup 阶段）：design-system/tokens.css 作为 wireframe
+ *     文档的视觉基准——区块描述里写「bg=var(--bg-canvas)」即指向本文件
+ *
+ * Safety boundaries（遵循 extract-design-system SKILL.md）：
+ *   - ✅ 所有原始值都来自 linear.app 显式声明（cssVariables / borderRadius）
+ *   - ✅ Semantic 层命名是 Polisim 自有，但每条都映射到 linear primitive
+ *   - ❌ 未抓到的 token（如 box-shadow elevation 完整 scale）已在文档里标注「自定」
+ *   - 详见 docs/02-design/v0.2-前端-UI-mockup.md 第 8.4 节
+ * ========================================================================= */
+
+:root {
+  /* ──────────────────────────────────────────────────────────────────────
+   * 1. PRIMITIVES（linear 原生命名，直接来自 raw.json cssVariables）
+   * ────────────────────────────────────────────────────────────────────── */
+
+  /* === Linear · 背景层（深色基底 5 档） === */
+  --color-bg-marketing: #010102; /* 最深，营销页全黑 */
+  --color-bg-primary: #08090a; /* dashboard 主画布（最常用底色）*/
+  --color-bg-panel: #0f1011; /* 面板 / sidebar */
+  --color-bg-level-3: #191a1b; /* 浮起一级 */
+  --color-bg-secondary: #1c1c1f; /* 卡片 */
+  --color-bg-tertiary: #232326; /* 卡片悬停 */
+  --color-bg-quaternary: #28282c; /* 卡片浮起 */
+  --color-bg-quinary: #282828; /* 深色填充 chip */
+  --color-overlay-primary: rgba(0, 0, 0, 0.85);
+  --color-header-bg: rgba(11, 11, 11, 0.8); /* 顶栏半透明（backdrop-filter 用）*/
+
+  /* === Linear · 边框 / 分隔线 === */
+  --color-border-primary: #23252a;
+  --color-border-secondary: #34343a;
+  --color-border-tertiary: #3e3e44;
+  --color-line-tint: #141516;
+  --color-line-quaternary: #141515;
+  --color-line-tertiary: #18191a;
+  --color-line-secondary: #202122;
+  --color-line-primary: #37393a;
+
+  /* === Linear · 文字（亮色文字 _raw 实际命中频率排序）=== */
+  --color-text-primary: #f7f8f8; /* 主文字 */
+  --color-text-secondary: #d0d6e0; /* 次要文字 */
+  --color-text-tertiary: #8a8f98; /* 描述 / 元信息 */
+  --color-text-muted: #62666d; /* 失活 / 占位 */
+
+  /* === Linear · Accent（紫色品牌色 + focus ring）=== */
+  --color-accent: #7170ff; /* 主 accent（按钮 / 高亮）*/
+  --color-accent-hover: #828fff;
+  --color-accent-tint: #18182f; /* accent 暗 tint（背景型，如选中态卡片）*/
+  --color-brand-bg: #5e6ad2;
+  --color-focus-ring: #5e69d1;
+
+  /* === Linear · Status colors（语义保留）=== */
+  --color-green: #27a644;
+  --color-red: #eb5757;
+  --color-yellow: #f0bf00;
+  --color-orange: #fc7840;
+  --color-blue: #4ea7fc;
+  --color-teal: #00b8cc;
+
+  /* === Linear · 专用色（Plan/Build/Security 三类标签色）=== */
+  --color-linear-plan: #68cc58;
+  --color-linear-build: #d4b144;
+  --color-linear-security: #7a7fad;
+
+  /* === 黑白原色 === */
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * 2. SEMANTIC（Polisim 业务层用，组件代码只引用此层）
+   * ────────────────────────────────────────────────────────────────────── */
+
+  /* === 背景 === */
+  --bg-canvas: var(--color-bg-primary); /* 顶级画布（body）*/
+  --bg-surface: var(--color-bg-secondary); /* 卡片 / 区块 */
+  --bg-surface-hover: var(--color-bg-tertiary); /* 卡片悬停 */
+  --bg-surface-active: var(--color-bg-quaternary); /* 卡片激活 / 选中 */
+  --bg-panel: var(--color-bg-panel); /* sidebar / 顶栏底色 */
+  --bg-overlay: var(--color-overlay-primary); /* modal 遮罩 */
+  --bg-header: var(--color-header-bg); /* 顶栏（含 backdrop-filter）*/
+  --bg-input: rgba(255, 255, 255, 0.03); /* 输入框（linear 实际值）*/
+  --bg-input-hover: rgba(255, 255, 255, 0.05);
+
+  /* === 文字 === */
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-tertiary: var(--color-text-tertiary);
+  --text-muted: var(--color-text-muted);
+  --text-on-accent: var(--color-text-primary); /* accent 上的文字 */
+  --text-link: var(--color-accent);
+  --text-link-hover: var(--color-accent-hover);
+
+  /* === 边框（语义化等级，从淡到深）=== */
+  --border-subtle: var(--color-border-primary); /* 最淡，区块边界 */
+  --border-default: var(--color-border-secondary); /* 默认边框 */
+  --border-strong: var(--color-border-tertiary); /* 强调边框 */
+  --border-divider: rgba(255, 255, 255, 0.05); /* 分隔线（linear 实际值）*/
+  --border-divider-strong: rgba(255, 255, 255, 0.08);
+  --border-focus: var(--color-focus-ring);
+
+  /* === Accent === */
+  --accent: var(--color-accent);
+  --accent-hover: var(--color-accent-hover);
+  --accent-tint: var(--color-accent-tint);
+  --accent-brand: var(--color-brand-bg);
+
+  /* === Status（业务用：成功/失败/警告/信息）=== */
+  --status-success: var(--color-green);
+  --status-danger: var(--color-red);
+  --status-warning: var(--color-yellow);
+  --status-info: var(--color-blue);
+  --status-accent: var(--color-teal); /* 第 5 种状态用 */
+
+  /* === Polisim 业务专属语义（v0.2 阶段定义）=== */
+  --polisim-tick-active: var(--color-accent); /* 当前 tick 高亮 */
+  --polisim-llm-bubble: var(--color-bg-tertiary); /* LLM 决策气泡背景 */
+  --polisim-rule-bubble: var(--color-bg-secondary); /* rule 决策气泡背景 */
+  --polisim-paused: var(--color-yellow); /* 暂停状态 */
+  --polisim-breakpoint: var(--color-orange); /* 断点触发 */
+  --polisim-relation-positive: var(--color-green); /* 关系正向（信任 ↑）*/
+  --polisim-relation-negative: var(--color-red); /* 关系负向（信任 ↓）*/
+  --polisim-environment: var(--color-blue); /* 环境变量 */
+  --polisim-intervention: var(--color-orange); /* 干预标记 */
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * 3. TYPOGRAPHY（字体 + 字号 scale，来自 raw.json typography.styles）
+   * ────────────────────────────────────────────────────────────────────── */
+
+  /* === Font families === */
+  --font-sans:
+    "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue",
+    sans-serif;
+  /* monospace: JetBrains Mono 优先（免费开源 + Polisim §9.4 决策）+ Berkeley Mono fallback（linear 实际值，商业字体）+ 系统 monospace 兜底 */
+  --font-mono:
+    "JetBrains Mono", "Berkeley Mono", ui-monospace, "SF Mono", "Cascadia Mono",
+    Menlo, Consolas, monospace;
+
+  /* === Font feature settings（linear 启用 cv01 + ss03 alt glyph 提升观感）=== */
+  --font-features: "cv01", "ss03";
+
+  /* === Font sizes（10/11/12/13/14/15/16/17/18/20/24/32/48/64/72px）=== */
+  --text-xs: 0.625rem; /* 10px - tag / micro caption */
+  --text-2xs: 0.6875rem; /* 11px - micro caption */
+  --text-sm: 0.75rem; /* 12px - small caption */
+  --text-base: 0.8125rem; /* 13px - body small */
+  --text-md: 0.875rem; /* 14px - body / button */
+  --text-lg: 0.9375rem; /* 15px - emphasized body */
+  --text-xl: 1rem; /* 16px - body main / link */
+  --text-2xl: 1.0625rem; /* 17px - h6 */
+  --text-3xl: 1.125rem; /* 18px - h5 */
+  --text-4xl: 1.25rem; /* 20px - h4 */
+  --text-5xl: 1.5rem; /* 24px - h3 */
+  --text-6xl: 2rem; /* 32px - h2 */
+  --text-7xl: 3rem; /* 48px - h1 */
+  --text-8xl: 4rem; /* 64px - hero */
+  --text-9xl: 4.5rem; /* 72px - 大 hero */
+
+  /* === Font weights（linear 实际命中：300/400/510/590）=== */
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 510;
+  --weight-semibold: 590;
+
+  /* === Line heights === */
+  --leading-tight: 1.0; /* heading-1 大字 */
+  --leading-snug: 1.13; /* h2 */
+  --leading-normal: 1.4; /* caption */
+  --leading-relaxed: 1.5; /* body 主 */
+  --leading-loose: 1.6; /* link / 长文 */
+
+  /* === Letter spacing（linear 大字负 spacing 基准）=== */
+  --tracking-tight: -0.022em; /* 大 heading */
+  --tracking-normal: 0;
+  --tracking-wide: 0.025em; /* uppercase 标签 */
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * 4. SPACING（来自 raw.json spacing.commonValues，归整到 4px 网格）
+   * 注：linear 实际有 19/19.2031/22/35 等非整数值，本 scale 已归整
+   * ────────────────────────────────────────────────────────────────────── */
+
+  --space-0: 0;
+  --space-px: 1px;
+  --space-1: 0.25rem; /* 4px - 极小 padding */
+  --space-1-5: 0.375rem; /* 6px - chip 内边距 */
+  --space-2: 0.5rem; /* 8px - 主流 padding 单位（linear count=45）*/
+  --space-3: 0.75rem; /* 12px - 中等间距（count=23）*/
+  --space-4: 1rem; /* 16px - 标准 gap */
+  --space-5: 1.25rem; /* 20px */
+  --space-6: 1.5rem; /* 24px - 卡片间距 */
+  --space-7: 1.75rem; /* 28px */
+  --space-8: 2rem; /* 32px - 区块间距 */
+  --space-10: 2.5rem; /* 40px */
+  --space-12: 3rem; /* 48px - 大区块 */
+  --space-14: 3.5rem; /* 56px */
+  --space-16: 4rem; /* 64px */
+  --space-20: 5rem; /* 80px */
+  --space-24: 6rem; /* 96px - 大留白 */
+  --space-32: 8rem; /* 128px - hero 高度 */
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * 5. RADIUS（来自 raw.json borderRadius，high confidence 值）
+   * ────────────────────────────────────────────────────────────────────── */
+
+  --radius-none: 0;
+  --radius-xs: 2px; /* tag / micro chip（count=48 最高频）*/
+  --radius-sm: 4px; /* button / code（count=26）*/
+  --radius-md: 6px; /* 主卡片 / 主按钮（count=45 与 xs 并列高频）*/
+  --radius-lg: 8px; /* 中型卡片（count=15）*/
+  --radius-xl: 12px; /* 大卡片 / panel header（count=12）*/
+  --radius-2xl: 16px; /* 自定，linear 抓到 16px 但 confidence low；保留扩展点 */
+  --radius-full: 9999px; /* pill button（count=17）*/
+  --radius-circle: 50%; /* 圆形头像 / status dot（count=38）*/
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * 6. SHADOWS（来自 raw.json 提取的 component box-shadow 值 + Polisim elevation 扩展）
+   * 注：linear 营销页 component layer 抓到 3 种典型 shadow，其余为依据 linear 视觉
+   *     惯例自定（depth 0/1/2/3/4 elevation 体系），明确标注。
+   * ────────────────────────────────────────────────────────────────────── */
+
+  --shadow-none: none;
+  /* 来自 raw.json line 1533: ".chip" 的微阴影 */
+  --shadow-xs: 0 1.2px 0 0 rgba(0, 0, 0, 0.03);
+  /* 来自 raw.json line 1581: ".dropdown" 的边框型阴影 */
+  --shadow-sm: 0 0 0 1px rgba(0, 0, 0, 0.33);
+  /* 来自 raw.json line 1609: ".panel" 的边框型阴影 */
+  --shadow-md: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  /* 自定 elevations（linear 风格典型层叠：低对比 + 单色无晕染）*/
+  --shadow-lg:
+    0 4px 12px -2px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-xl:
+    0 12px 32px -4px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-2xl:
+    0 24px 64px -8px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+
+  /* === Focus ring（linear 实际 outline 模式：3px 偏移 + accent 半透明）=== */
+  --shadow-focus: 0 0 0 3px rgba(94, 105, 209, 0.4); /* --color-focus-ring 40% */
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * 7. MOTION（自定，linear 风格典型值：cubic-bezier 高内省感）
+   * 注：raw.json 未抓到 transition / animation 字段，本节为 Polisim 自定。
+   * ────────────────────────────────────────────────────────────────────── */
+
+  --motion-duration-instant: 50ms;
+  --motion-duration-fast: 100ms;
+  --motion-duration-normal: 200ms;
+  --motion-duration-slow: 320ms;
+  --motion-duration-slower: 480ms;
+
+  --motion-ease-linear: linear;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* linear 风格 */
+  --motion-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --motion-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --motion-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * 8. Z-INDEX（自定，分层管理）
+   * ────────────────────────────────────────────────────────────────────── */
+
+  --z-base: 0;
+  --z-elevated: 10;
+  --z-sticky: 100;
+  --z-overlay: 1000;
+  --z-modal: 1100;
+  --z-toast: 1200;
+  --z-tooltip: 1300;
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * 9. LAYOUT（Polisim 演示场景特有，桌面 1280+ / 平板 1024+ 双断点）
+   * ────────────────────────────────────────────────────────────────────── */
+
+  --layout-max-width: 1440px; /* 最宽内容容器 */
+  --layout-sidebar-width: 280px; /* 侧栏宽度（mockup 4.4 节）*/
+  --layout-header-height: 56px; /* 顶栏高度 */
+  --layout-control-bar-height: 64px; /* 跑中控制条高度 */
+  --layout-gallery-card-min: 280px; /* 场景画廊卡片最小宽 */
+
+  /* ──────────────────────────────────────────────────────────────────────
+   * 10. BREAKPOINTS（仅用于 @custom-media，CSS var 不能直接用于 @media）
+   * 桌面 1280+ / 平板 1024+ / 手机推迟 v0.3
+   * ────────────────────────────────────────────────────────────────────── */
+
+  --bp-tablet: 1024px;
+  --bp-desktop: 1280px;
+  --bp-wide: 1536px;
+}
+
+/* ============================================================================
+ * Future hook：Light theme（v0.3+ 实施）
+ * 当用户切换主题时，[data-theme="light"] 覆盖 semantic 层
+ * ============================================================================
+ *
+ * [data-theme="light"] {
+ *   --bg-canvas: #ffffff;
+ *   --bg-surface: #f7f8f8;
+ *   --text-primary: #08090a;
+ *   ... (映射 linear 营销页的亮色 palette: f3f4f5/d0d6e0/8a8f98/62666d)
+ * }
+ */

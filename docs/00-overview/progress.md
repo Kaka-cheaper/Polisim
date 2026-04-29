@@ -6,9 +6,9 @@
 
 ## 一、当前位置
 
-**阶段**：**v0.1 minimum viable engine 已上线 GitHub** 🎉 ——`https://github.com/Kaka-cheaper/Polisim`（session 22 末，2026-04-26）
+**阶段**：**v0.2 前端 mockup 第二阶段配套（design tokens + API 反向校验 + React 组件清单）完成**（session 34 末，2026-04-29）——`https://github.com/Kaka-cheaper/Polisim`
 
-**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 缩限版 / D-016 + LLM 增强分析升级**已落地；**改名 SimEngine → Polisim**；**670 tests passing**（633 起点 + D-016 +29 + LLM 增强升级 +8）
+**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 全量版 / D-016 + LLM 增强分析升级**已落地；**改名 SimEngine → Polisim**；**810 tests passing**（本 session 仅文档 + design-system，0 测试变动）；**v0.2 阶段：D-017 spec（session 29）+ UI mockup v1（session 30）+ Server REST（session 31）+ WebSocket（session 32）+ 架构审查保健清债 F1-F10（session 33）+ **mockup 第二阶段配套：`design-system/tokens.css` + §10 API 反向校验 + §11 React 组件清单 + §8.4 token 化**（session 34）**
 
 > 路线：**A → B → C 三段式**（session 18 user 选定）→ 已全部完成 → v1 上线 ✅
 >
@@ -20,7 +20,23 @@
 >
 > **session 25 已交付**：D-016 全 8 步实施完成——v0.1.1 引擎严谨化收官 ✅。详见第 54 条目。
 >
-> **session 26 已交付**：LLM 增强分析升级（world_overview 段 + 证据援引 + 章节重排）+ CLI `--output-language` / `--prompt-history-size` 参数。详见第 55 条目。**v0.1.1 全部目标达成 + LLM 增强体验改进，准备进入 v0.2 前端阶段**。
+> **session 26 已交付**：LLM 增强分析升级（world_overview 段 + 证据援引 + 章节重排）+ CLI `--output-language` / `--prompt-history-size` 参数。详见第 55 条目。
+>
+> **session 27 已交付**：架构审查 + 保健清债——F1-F11 全量修复（2 P1 / 3 P2 / 5 P3 / 1 latent gap），含 smoke_openai.py 修复 D-016 + session 26 双破坏性 API 变更下游遗漏（F1+F2+F10）+ pyproject 0.1.1 + README v0.1.1 收官内容。详见第 56 条目。**671 passed / 0 回归 / 净 +1 测试**。
+>
+> **session 28 已交付**：D-015 全量版实施——EntityCreate / EntityDestroy / ChainedAction 三类新 Effect + max_chain_depth 防递归 + RulesError 启用为链深度超限异常。详见第 57 条目。**700 passed / +29 净新 / 0 回归**。
+>
+> **session 29 已交付**：v0.2 启动——D-017 v0.2 API 契约与 Server 架构 spec 完整起草（约 730 行 11 节）+ AGENTS.md / 实现映射设计.md / 需求分析.md 三份既有设计文档同步反映 v0.2 阶段。详见第 58 条目。**Spec 阶段 0 代码改动 0 测试改动**。
+>
+> **session 30 已交付**：v0.2 前端 UI mockup 起草——`docs/02-design/v0.2-前端-UI-mockup.md`（约 1120 行 9 节）+ 8 项核心决策（用户对话产物）+ 5 用户故事 + 11 区块详细设计（场景画廊 / 跑前 / 跑中三种 layout / 跑中共用控件 / 跑完）+ 三段式 Layout / 中英切换 / 5 步典型用户流程 / 8 段技术约定 / 10 项未决问题。**反向校验产物**：补 D-017 第 3.5 节 `Scenario.ui_layout` 字段（Literal 三选一）+ 联动改动清单。详见第 59 条目。**Spec 阶段 0 代码改动 0 测试改动**。
+>
+> **session 31 已交付**：v0.2 server 骨架实施——`server/` 完整骨架（8 个路径 18 个文件：app.py / runtime_registry.py / api/deps.py / api/v1/{errors,schemas,middlewares/auth} / api/v1/routes/{runs,interventions,analysis,meta} / services/{run,intervention,analysis}_service）+ 16 业务 endpoint + 3 服务层 + ERROR_MAP（10 异常 → HTTP 状态码）+ Runtime registry（并发上限、生命周期、状态查询）+ `cli/serve.py` 与 cli/run.py 集成。**D-017 反向校验产物同 session 携带落地**：schemas/scenario.schema.json + models/scenario_models.py + 2 scenario.yaml 加 `ui_layout` 字段。**6 测试文件 99 项新增**：test_server_errors / registry / meta / runs / interventions / analysis。详见第 60 条目。**799 passed / +99 净新 / 0 回归**。
+>
+> **session 32 已交付**：WebSocket 实时推送实施——新建 4 文件：`server/api/v1/ws_events.py`（6 个 typed 事件）+ `server/services/stream_service.py`（StreamService 订阅广播、线程安全、反压丢弃）+ `server/api/v1/routes/ws.py`（WS 路由、关闭码 1000/4004/4500）+ `tests/test_server_ws.py`（10 项）。**RunService.step / pause 增加推送逻辑**：step 后推 tick_advanced；auto-pause/breakpoint 推 paused；reached_total_ticks 跑 Phase A 分析 + 推 run_finished + close。`server/app.py` lifespan 集成 StreamService.attach_loop。**v1 内核完全不动**——纯 server 层组合。详见第 61 条目。**809 passed / +10 净新 / 0 回归**。
+>
+> **session 33 已交付**：server 全面架构审查 + 保健清债——发现 10 项问题 F1-F10（8 修复 + 2 pitfalls 记录）。全路径详见第 62 条目。交付亮点：取消 3 处 `runtime._private` 访问——为 Runtime 加 `runtime_config` / `provider` 两个只读 @property；StreamService.broadcast 加顶层 try/except 防序列化失败阻断 step；清理 dead import 与 不必要 type:ignore；D-017 spec ScenarioSummary 补 world_id 字段；ws_events 三个事件 docstring 标注 v0.2 未触发；补 breakpoint 触发 paused 事件测试 + 2 项 P2 pitfalls（in-memory run finished + lifespan 不优雅 ws shutdown）。**810 passed / +1 净新 / 0 回归**。
+>
+> **session 34 已交付**：v0.2 前端 mockup 第二阶段配套——三件套：(A) `design-system/tokens.css` 基于 linear.app 抽取的 design tokens（316 行三层结构：24 primitives + 30+ semantic + 9 个 polisim-* 业务专属 + 8 类基础 token）；(B1) mockup §10 「第二轮 API 反向校验」——对照 session 31-33 实施的 server，识别 2 🔴 + 5 🟡 + 5 🟢 + 23 ✅ 共 35 项偏差；(B3) mockup §11 「React 组件清单 + props API」——4 routes + 3 layouts + 12 共用 + 12 基础 + 11 hooks + 1 store + 数据流图 + 5 PR 实施顺序；(B2) §8.4 颜色主题节重写为 token 引用 + §4.3.2 关系图 token 化。**810 passed / 0 代码变动 / 0 测试变动**（纯文档 + design-system 产出）。详见第 63 条目。
 
 **已完成**：
 
@@ -251,10 +267,349 @@
     - **API 破坏性变更**：`core.analysis.enhance_with_llm` 必填 `world` + `scenario` kwargs；调用方（CLI 已改）需要传入完整 World Definition + Scenario 对象
     - **向后兼容**：`AnalysisResult.world_overview` 默认 None；纯 Phase A 模式（不调 enhance_with_llm）输出与升级前**等效**——只是去掉了章节"一二三四"编号
     - **session 27+ 入口任务**：用户重跑 OpenAI smoke 验收新版 final.md 的 4 段 LLM 内容；之后按 session 25 末"v0.2 前端启动 / D-015 全量版 / B.3 重试 / walkthrough 扩章 / 新场景"五选项指派
+56. **架构审查 + 保健清债 F1-F11 全量修复**（session 27，2026-04-28）：
+    - **触发**：用户在 v0.1.1 收官 + LLM 增强升级（session 26）后发起一次"全面架构审查 + 保健"，与 session 21 同等级别；通读全部 8000+ 行代码 + 测试索引 + 文档后整理观察清单
+    - **观察清单总览**：**2 P1 / 3 P2 / 5 P3 / 1 latent gap** 共 11 项，关键发现是 `scripts/smoke_openai.py` **同时积累两次破坏性 API 变更下游遗漏**——`progress.md` 第 253 行 "session 27+ 入口任务：用户重跑 OpenAI smoke 验收"承诺 smoke 可跑、但实际**两段 smoke 一跑就碎**
+    - **用户决策**：选 **全量 F1-F11**——session 27 入口任务的"硬基础"补好 + 同等于 session 21 的彻底清账
+    - **F1（P1，session 25 D-016 第 6 步未同步）**：`scripts/smoke_openai.py` _phase_b_smoke 调用 `llm_policy.decide()` 后访问 `.action_type / .params / .raw_reasoning_summary`——但 D-016 把返回类型升为 `LLMDecisionResult`（封装 `proposal + prompt_context`）→ AttributeError 立崩。修：`result = decide(...); proposal = result.proposal`
+    - **F2（P1，session 26 升级未同步）**：`scripts/smoke_openai.py` _phase_c_smoke 调 `enhance_with_llm()` 缺必填 kwargs `world / scenario`（session 26 加 world_overview 段时把签名升为 5 参数）→ TypeError 立崩。修：补 `world=world, scenario=scenario` kwargs
+    - **F10（P3 升级，与 F2 同 session 携带）**：原版用空骨架 `AnalysisResult` 让 LLM "没数据可说"——升级为**真跑 minimal_market 3 ticks → analyze_run → enhance_with_llm**，让 LLM 看到真实 turning_points / entity_comparisons / environment_trajectory 后再 enhance；4 段叙事终于有具体证据可援引
+    - **F3（P2 文档漂移）**：`models/analysis_models.py` 顶层与 `AnalysisResult.__doc__` 把 Phase C 字段数描述为"三个"（实际四个，session 26 加 world_overview 后未同步）；前 Phase A 字段写"前五个"（实际六个）。两处文档同步修正
+    - **F4（P2 死代码）**：`core/errors.py:RulesError` 自定义但**全仓库未被任何 raise / except 实际使用**——只 `tests/test_errors.py` parametrize 注册保它存活；docstring 仍写"v1 占位；尚未替换现有 RuntimeError"但 rules 层根本不抛 RuntimeError。改 docstring 为"v1 未使用；保留供未来扩展点"——保留类不删（避免破坏 tests 注册）
+    - **F5（P2 文档漂移）**：`core/errors.py` 顶层 docstring 说"渐进迁移... 不做全量"——session 21 已完成 Runtime 5 处全量迁移，docstring 同步更新；连带异常树注释里 InvalidStateError / PausedError / TerminatedError 三个的"v1 占位"标记同步更新为"session 21 落地"
+    - **F6（P3 一致性）**：`core/runtime.py:_is_numeric` 与 `core/analysis.py:_is_numeric` 双份实现——`runtime` docstring 说"集中处理此陷阱供 Runtime 多处统一复用"但 `analysis` 又重复一份。两份 docstring 互相 cross-reference 加 note 段说明：双存来自分层纪律（`analysis` 不能 `from core.runtime import`），AGENTS.md 4.3 也不允许 `utils/` 共享层；修改任一份请同步另一份
+    - **F7（P3 cosmetic）**：`runtime.step()` docstring 列 12 步骤但代码内 comment 用 11 编号——校准 docstring 改为"步 0-11"与 comment 一一对应
+    - **F8（P3 类型安全）**：`core/llm_policy.py` 三处 `rules: Any | None` 注释"避免循环导入"但实际无真实循环——改用 `TYPE_CHECKING + 守护 import + 字符串前向引用` 提升 IDE / mypy 类型安全；`core/runtime.py:_random_param_value(schema: Any)` 改为 `schema: ActionParamSchema`（runtime.py 已从 world_models 导入）
+    - **F9（P3 版本同步）**：`pyproject.toml` version 0.1.0-dev → **0.1.1**（v0.1.1 收官后 bump）+ description 加"引擎严谨化 + LLM 增强分析"；`README.md` Roadmap 段重写——v0.1.1 收官状态 + v0.2 前端为下一阶段优先；CLI 段加 `--prompt-history-size` 演示 + Phase C 段补 4 段说明（含 world_overview）
+    - **F11（latent gap）**：`core/semantic_validator.py:_check_fallback_action` 在 `world.defaults.fallback_action=None` 时**静默跳过**校验——但 `Runtime._fallback_proposal` 实际用字面 `"do_nothing"` 兜底；rules 不处理 do_nothing 时构造期放行、运行期 fallback 一触发崩。改：计算 `effective_fallback`（与 Runtime 同语义——None 时取 `"do_nothing"`），然后检查 `effective_fallback ∈ handled`。两个产线 rules 均处理 do_nothing，无现存影响；保护**未来用户上传新场景**
+    - **测试影响**：F11 改造 `tests/test_semantic_validator.py` —— 重写 `test_fallback_unset_skips_check` 为 `test_fallback_unset_falls_back_to_do_nothing_check`（新行为：要求 do_nothing 在 handled）+ 加 `test_fallback_unset_with_do_nothing_handled_passes` 验证正路径。**净 +1 测试**
+    - **影响面文件**（10 个修改 + 0 新建）：
+      - 修改：`scripts/smoke_openai.py` / `models/analysis_models.py` / `core/errors.py` / `core/runtime.py` / `core/analysis.py` / `core/llm_policy.py` / `core/semantic_validator.py` / `pyproject.toml` / `README.md` / `tests/test_semantic_validator.py`
+    - 全部测试：**671 passed**（670 → 671；+1 净新测试 from F11；0 回归；Pytest 9.12s）
+
+**验收证据**（对应 `验收标准.md` 第 18 节自检：内审与债清）：
+
+```text
+验收对象：架构审查 + 保健（F1-F11 全量清债）
+对应验收项：内部健康度——session 25/26 双破坏性 API 变更下游遗漏修复 / 文档与代码漂移消解 / D-013 fallback gap 封堵 / 类型安全提升
+输入：
+  - 10 文件修改：smoke_openai.py / analysis_models.py / errors.py / runtime.py /
+    analysis.py / llm_policy.py / semantic_validator.py / pyproject.toml /
+    README.md / tests/test_semantic_validator.py
+  - 0 新建文件（严守 AGENTS.md "不创建自娱自乐 .md"）
+  - 1 测试改造（rename + 加正路径）+ 1 测试新增 = +1 净测试
+执行方式：
+  python -m pytest tests/ --tb=short -q
+实际输出：
+  671 passed in 9.12s（670 → 671；+1 净新；0 回归）
+是否通过：通过
+备注：
+  - F1+F2+F10 是核心修复——session 27+ 入口任务"OpenAI smoke 用户验收"现在能真正跑起来
+  - F11 是 latent gap 封堵——为 v0.2 前端用户上传新场景做防御
+  - F4 RulesError 死代码处理为"保留类 + 改 docstring"，避免破坏 tests/test_errors.py 注册
+  - README lint warnings (MD060/MD032) 是原有结构问题，不属本次范畴
+  - smoke_openai.py 不进 CI——本次改后需用户重跑验收（与 session 27+ 入口任务一致）
+```
+
+57. **D-015 全量版实施——实体生命周期 + 动作链能力释放**（session 28，2026-04-28）：
+    - **触发**：session 27 入口任务 OpenAI smoke 验收成功（用户跑通 4 段 LLM 叙事）→ 用户决策"先把引擎做扎实，开始 D-015"。Cascade 解释 D-015 全量版释放的能力（EntityCreate / EntityDestroy / ChainedAction）+ 工量评估（5-7 天 / 2-3 session）后用户拍板
+    - **spec 全实施**（按 `docs/02-design/decisions/D-015-effect系统扩充.md` 第二节）：
+      1. **`models/runtime_models.py`** 加 3 个新 Effect 类（`EntityCreateEffect` / `EntityDestroyEffect` / `ChainedActionEffect`）+ 3 个新 EventKind（`entity_created` / `entity_destroyed` / `chained_action_triggered`）+ Effect Union 别名扩充至 7 类
+      2. **`models/config_models.RuntimeConfig`** 加 `max_chain_depth: int = 3`（ge=1, le=20）—— 防 chained 链无限递归
+      3. **`core/runtime.py`**：
+         - `_apply_effects(effects, tick, depth=0)` 改造——加 depth 参数，dispatch 三类新 effect
+         - 新建 5 个 helper：`_apply_entity_create_effect` / `_apply_entity_destroy_effect` / `_apply_chained_action_effect` / `_execute_chained_action` / `_process_delayed_chained_actions`
+         - `step()` 主循环加步 2.5（fire 跨 tick 延后链）
+         - `__init__` 加 `_delayed_chained_actions: list[tuple[int, ChainedActionEffect]]` 队列容器
+      4. **`core/errors.RulesError`** 启用为链深度超限异常（session 27 标"v1 未使用；保留供未来"——session 28 D-015 全量版正式启用，docstring 大幅扩展）
+    - **关键设计决策**（与 spec 第六节未决问题逐条对齐）：
+      - **chained 子动作不走 LLM**——`_execute_chained_action` 直接构造 `ActionProposal(decision_mode="rule", raw_reasoning_summary=f"chained_action depth={N+1}")`，绕过 `_decide_via_llm`
+      - **chained 仍走 validate_action**——D-014 强约束兜底；rules bug 时写 `decision_rejected` 事件不崩
+      - **chained 不走 conflict_resolution**——chained 是规则主动设计的连锁，rules 应自己保证不冲突
+      - **EntityCreate 新实体下一 tick 才激活**——避免同 tick 内的顺序敏感 bug；本 tick `active_ids` 已在 `_apply_effects` 之前定（spec 第 150 行）
+      - **EntityDestroy cascade 三策略**：`all`（含 outbox + forced_actions + ctx 全清）/ `preserve_relations` / `preserve_messages`
+      - **跨 tick 链每 tick 重置 depth=0**——不计入同 tick 链上限（spec 第 91 行）
+      - **EntityCreate 重复 id / 未声明 type → RulesError**（构造期就抓，不等运行期崩）
+      - **EntityDestroy 不存在 entity → warning 不抛错**（与 `_apply_attribute_effect` 防御式风格一致）
+    - **测试增量：+29 项**（671 → 700 passed，0 回归；Pytest 8.22s）：
+      - `tests/test_runtime_models.py` +15（D-015 模型校验：EntityCreate 5 + EntityDestroy 5 + ChainedAction 5，覆盖最小构造 / 完整字段 / extra='forbid' / Literal 边界 / min_length / ge）
+      - `tests/test_runtime_d015.py` +14 端到端（**新建文件**）：
+        - **EntityCreate 4 项**：创建 + 关系建立 / 下一 tick 激活 / 重复 id 抛 RulesError / 未声明 type 抛 RulesError
+        - **EntityDestroy 3 项**：cascade=all 清理 / preserve_relations 保留 / 不存在 entity warning 不崩
+        - **ChainedAction immediate 2 项**：report → manager.acknowledge 同 tick 链 / chained_action_triggered 事件 depth=1
+        - **ChainedAction delayed 1 项**：delay_ticks=2 在 tick=3 fire（manager.approvals tick 1/2 不变 / tick 3 +1）
+        - **防递归 4 项**：recursive_chain 默认 max=3 抛 RulesError / max=1 配合 recursive 在 depth=1 抛 / 单层链不抛 / **跨 tick 链不计入深度上限**（max=1 + delay 也通过）
+    - **影响面文件**（10 个修改 + 2 个新建）：
+      - 修改：`models/runtime_models.py` / `models/config_models.py` / `core/runtime.py` / `core/errors.py` / `tests/test_runtime_models.py`（细节见 pitfalls.md 顶条）
+      - 新建：`tests/test_runtime_d015.py`（460 行，14 项）+ `tests/test_runtime_d015.py` 的内嵌 `_D015TestRules` 测试 rules 子类（按 action_type 产出 D-015 各类 effect）+ 程序化构造的 D-015 测试 world（Worker / Manager 实体类型 + 9 演示动作 + reports_to 关系 + 默认 fallback do_nothing）
+    - **未来可选**（本次未做，spec 第 30 / 152 行）：
+      - `BatchEffect`（事务语义）——spec 决议**不做**：事务由 EventLog append-only 提供天然原子性
+      - 数值形 `new_value` 的 clamp——`BaseRules._clamp_attribute` 当前透传不裁剪；需要时在该 helper 内追加分支即可
+    - **session 29+ 入口任务**：v0.1.1 全部 + 架构审查 + D-015 全量版 = 引擎严谨化彻底完成。下一阶段五选项（v0.2 前端 / B.3 重试 / walkthrough 扩章 / 新场景 / 第二阶段 LLM 辅助建模 PoC）由用户指派
+
+**验收证据**（对应 `验收标准.md` 第 18 节自检：D-015 全量版实施）：
+
+```text
+验收对象：D-015 全量版（EntityCreate / EntityDestroy / ChainedAction 三类新 Effect + max_chain_depth 防递归）
+对应验收项：spec 第二节定义 + 第五节测试设计（最小测试列表全覆盖）
+输入：
+  - 5 文件修改：models/runtime_models.py / models/config_models.py /
+    core/runtime.py / core/errors.py / tests/test_runtime_models.py
+  - 1 文件新建：tests/test_runtime_d015.py（14 端到端测试）
+执行方式：
+  python -m pytest tests/ --tb=short -q
+实际输出：
+  700 passed in 8.22s（671 → 700；+29 净新；0 回归）
+是否通过：通过
+备注：
+  - spec 第五节"最小测试列表"6 项全覆盖：
+    1. AttributeEffect.new_value 与 delta 互斥 + 类型兼容（D-015 缩限版已覆盖；保留）
+    2. EntityCreateEffect 创建后属性按 schema 走默认值 + clamp（默认值 ✅；clamp 透传未做但 spec 标注"留 v0.2.x"）
+    3. EntityDestroyEffect 级联删除关系 / 邮箱 / inbox（cascade=all 测试覆盖）
+    4. ChainedActionEffect 单 tick 内链深度 ≤ max_chain_depth（recursive_chain 测试覆盖）
+    5. ChainedActionEffect 跨 tick（delay_ticks > 0）正确进入 scheduled_events 队列（delayed 测试覆盖；用专门的 _delayed_chained_actions 队列而非 scheduled_events——更精准的语义）
+    6. 防无限递归：A → B → A 触发时立即抛 RulesError（recursive_chain 测试覆盖）
+  - 用户对话明确"先把引擎做扎实"——D-015 全量版完成后引擎严谨化彻底收尾
+```
+
+58. **D-017 v0.2 API 契约与 Server 架构 spec 起草**（session 29，2026-04-28）：
+    - **触发**：session 28 D-015 全量版完成后，用户问"前端开发顺序"（先 UI 还是先 API）。Cascade 初次回答倾向"复用 models/ 不抽 api 模块"——用户**反驳**"v0.1 → v0.2 是关键迭代节点，必须考虑后续扩展和维护"。Cascade 承认偏激 + 修正立场——抽 server/api/ 工程化模块（routes / services / registry / errors / ws_events）但**不**抽 schema 翻译层；用户拍板 + 要求"判断 v0.1 → v0.2 过渡是否需要写进相关设计文档"
+    - **核心决策**（D-017 spec 第二节）：
+      - **三层抽象**：routes（HTTP 协议）/ services（业务逻辑，可被 CLI / mobile / 第三方复用）/ registry（多并发 Runtime 内存生命周期）
+      - **数据 schema 复用**：response_model 直接用 `models/*` Pydantic 模型——不新建 `server/api/schemas.py` 翻译层（避免 session 27 F3 漂移教训重演）
+      - **API 版本化**：所有 endpoint `/api/v1/` 前缀；v0.3 加 v2 不冲突
+      - **错误标准化**：`SimEngineError` 子类→HTTP 状态码完整映射表 + 统一 `ErrorResponse` 格式
+      - **平台专有 schema 落点**：CreateRunRequest / RunSummary / ErrorResponse / WSEvent 等新模型在 `server/api/v1/`，**不侵入** `models/`
+      - **WebSocket typed**：每种事件类型独立 Pydantic 模型（TickAdvancedEvent / PausedEvent / RunFinishedEvent / ErrorEvent / Ping/Pong）；server → client 单向，控制走 REST
+      - **鉴权策略**：v0.2 不鉴权（本地）/ v0.3 token / v0.4 OAuth；路由结构预留 `middlewares/auth.py` 占位
+    - **D-017 spec 产物**：`docs/02-design/decisions/D-017-v0.2-API契约与Server架构.md`（约 730 行 11 节）：
+      1. 决策背景（v0.1 → v0.2 迭代节点 + v1 沉淀的契约证据）
+      2. 架构决策（三层抽象 + 复用纪律 + 版本化 + 错误标准 + 鉴权）
+      3. REST endpoints 完整清单（约 14 个 endpoint，每个标注 response_model + service 方法 + 错误映射）
+      4. WebSocket 协议（路径 / typed events / 服务端推送时机 / 关闭码）
+      5. 错误处理标准（ErrorResponse schema + ERROR_MAP + 全局异常处理器）
+      6. Service 层设计（RunService / InterventionService / StreamService / AnalysisService）
+      7. Runtime Registry 设计（v0.2 内存版 + v0.3+ 演进路径）
+      8. 影响面文件清单（13 新建 + 9 修改既有文档）
+      9. 测试设计（约 45-50 项；金字塔结构）
+      10. 未决问题（10 项，含倾向方案 + 决策时机）
+      11. 与 v0.1 → v0.2 过渡的整体定位（5 层 → 7 层架构 + 反规模复杂度检查）
+    - **设计文档同步**（session 29 携带，吸取 session 27 F3-F5 漂移教训）：
+      - **`AGENTS.md`** 第一节状态描述（v0.1.1 全交付 + 架构审查 + D-015 全量版完成 + v0.2 启动）；3.3 节落点（v0.1 内核保留 + v0.2 server/web 新加 + 数据 schema 复用纪律）；3.4 节实施顺序（6 步主路径全通 + v0.2 阶段 5 步推进 7-11）；4.2 节解禁 UI；4.3 节加 D-017 反模式
+      - **`docs/02-design/实现映射设计.md`** 第三节代码结构加 server/ + web/ 树形展开（约 30 行新增）；新加 4.10 节（API 服务层 D-017 落点 + 数据 schema 复用纪律 + 与 v1 内核的关系）+ 4.11 节（前端层 + 与 server 的关系 + GitHub Pages 静态 demo 分叉）
+      - **`docs/01-requirements/需求分析.md`** 第 11 节"非功能要求"按 v0.1/v0.2 拆分：11.1 v0.1 已完成、11.2 v0.1 不追求（含 UI 不做但 UI-ready）、11.3 v0.2 引入两层（API + 前端）+ 4 项设计纪律、11.4 v0.2 仍不追求（分布式 / 鉴权 / 多用户 / 自动建模）
+    - **未同步文档**（推迟到 v0.2 实施 session 携带）：开发流程.md / 验收标准.md / 如何使用这套文档与配置体系.md
+    - **session 30+ 入口任务**：起草 v0.2 前端 UI mockup（文字 wireframe）—— 反向校验 D-017 spec 完整性（发现缺字段时回头补 spec）。之后按 D-017 第三节 5 步推进顺序实施
+
+59. **v0.2 前端 UI mockup 起草 + D-017 反向校验**（session 30，2026-04-28）：
+    - **背景**：D-017 spec 已完整起草（session 29）；进入 v0.2 5 步推进路径的第 2 步——UI mockup 起草反向校验 D-017 完整性
+    - **方法论**：先用 6 个连续问答与用户对话锁定 UI 走向（不直接画 mockup），避免后期推倒重来
+    - **8 项核心决策**（session 30 用户对话产物，按问答顺序）：
+      1. **目标用户**：演示/教学（非技术观众）—— 非 debug 用、非研究用
+      2. **核心看点**：剧情 / LLM 决策 / 系统演化 / 最终报告 4 类全要
+      3. **整体 Layout**：展览馆三段式（跑前 → 跑中 → 跑完）跟随仿真生命周期
+      4. **节奏**：默认自动跑 + 可暂停 + 实时干预 + 干预后恢复
+      5. **干预交互**：**点击实体卡片直接操作**式（非表单式选实体）—— UX 关键修正
+      6. **场景范围**：画廊页 + 2 现有 + 2-3 即将到来 + LLM 自动生成入口（v0.3+ 占位）
+      7. **跑中 Layout 风格**：混合——`scenario.ui_layout` 字段三选一（entity_card / relation_graph / event_stream）
+      8. **覆盖范围**：桌面 1280+ + 平板 1024+ + 中英切换；手机推迟 v0.3
+    - **mockup 文档产物**：`docs/02-design/v0.2-前端-UI-mockup.md`（约 1120 行 9 节）：
+      1. 决策来源（8 项决策表）
+      2. 5 个核心用户故事（按演示/教学定位）
+      3. UI 区块全清单（11 区块 × 出现阶段 × 数据源）
+      4. 各区块详细设计——4.1 场景画廊 / 4.2 跑前 / 4.3 跑中三种 layout（实体卡片 + 关系图 + 事件流，每种含完整 ASCII + 数据 + 交互 + 状态）/ 4.4 共用控件（控制条 + mini dashboard + 干预面板含两层选项 + LLM 决策 modal）/ 4.5 跑完阶段（4 段 LLM 报告 + tabs）
+      5. 总体 Layout（桌面 / 平板 / 中英切换）
+      6. 典型用户流程（5 步走通 minimal_market）
+      7. **D-017 反向校验**（10 项发现 → 1 必加 + 1 可选 + 5 客户端处理 + 3 已覆盖）
+      8. 技术约定（13 项 React 技术栈 + 目录结构 + OpenAPI 自动 type 生成 + 颜色主题 + 与 v0.1 内核边界）
+      9. 未决问题（10 项含倾向方案 + 决策时机）
+    - **D-017 反向校验产物**（session 30 同 session 携带改动）：
+      - **D-017 第 3.5 节**：`ScenarioSummary` 加 `ui_layout: Literal["entity_card", "relation_graph", "event_stream"] = "entity_card"` 字段 + v1 模型联动改动清单（schemas / scenario_models / scenario_loader / 两个 minimal/three_party scenario.yaml）
+      - **触发原因**：决策 7（混合 layout）让前端依据此字段切换跑中主区风格——D-017 起草时未发现此需求
+    - **未同步文档**（推迟到 v0.2 实施 session 31 携带）：
+      - `schemas/scenario.schema.json` / `models/scenario_models.py` / 两个 scenario.yaml 的 ui_layout 字段——属于 v1 模型扩展，应该在 server 实施 session 一并落地（避免 spec 阶段触动代码）
+    - **session 31 入口任务**：v0.2 5 步推进路径第 3 步——Server 骨架 + REST routes + service 抽象 + error map（不含 WebSocket）；同时落地 D-017 反向校验产物（ui_layout 字段 + 两个 scenario.yaml 改动）
+    - **设计纪律**：
+      - **不动代码**——session 30 仍是 spec 阶段，0 代码改动 0 测试改动
+      - **反向校验先于实施**——发现 D-017 缺字段必须回头补 D-017，而不是在 server 实施时偷偷加（避免 mockup 与 spec 不一致）
+      - **mockup 不是决策号**——独立文档（不进 `decisions/`），决策号专属决策性文档
+    - **过程笔记**：
+      - 用户最初问"先设计 UI 还是先抽 API"——澄清 "server 是抽 API 接口" 后用户希望"考虑后续扩展和维护"——D-017 spec 应运而生（session 29）
+      - mockup 起草前的 6 个连续 ask_user_question 是关键——避免做"通用 UI"而是定位"演示/教学"，避免做"完整产品"而是"v0.2 演示场景"
+      - 用户在第 5 问期间提出关键修正："干预面板应该是用户可以手动点击实体的图像"——这是 UX 突破式修正，把表单式干预改为直接操作式，提升演示沉浸感
+      - 用户提出"自定义场景可以改为 LLM 自动生成的引导流程"——巧妙将"LLM 辅助建模 PoC"（v0.3+）的入口在 v0.2 mockup 里预留，未来不破坏 UI 框架
+
+60. **v0.2 server 骨架实施**（session 31，2026-04-28）：
+    - **背景**：D-017 spec（session 29）+ UI mockup（session 30）双交付完成；进入 v0.2 5 步推进路径第 3 步——Server 骨架实施（不含 WebSocket，WebSocket 在 session 32）
+    - **交付范围**：
+      - **D-017 反向校验产物落地**（4 个文件）：
+        - `schemas/scenario.schema.json`：加 `ui_layout` 枚举字段（默认 entity_card）
+        - `models/scenario_models.py Scenario`：加 `ui_layout: Literal[...] = "entity_card"`字段
+        - `scenarios/minimal_market/scenario.yaml`：显式声明 `ui_layout: "entity_card"`
+        - `scenarios/three_party_negotiation/scenario.yaml`：显式声明 `ui_layout: "relation_graph"`
+      - **依赖**加 fastapi>=0.110 + uvicorn[standard]>=0.27 + httpx>=0.27；pyproject packages 加 5 个 server 子包
+      - **server/ 完整骨架**（18 个新建文件）：
+        - `server/__init__.py` + `server/api/__init__.py` + `server/api/v1/__init__.py` + `server/api/v1/routes/__init__.py` + `server/api/v1/middlewares/__init__.py` + `server/services/__init__.py`（6 个命名空间包 + 职责边界 docstring）
+        - `server/api/v1/errors.py`：`ErrorBody` / `ErrorResponse` / `ErrorIssue` Pydantic + ERROR_MAP（10 异常 → (status, code) 二元组）+ 3 个全局异常 handler
+        - `server/api/v1/schemas.py`：平台专有 7 个 Pydantic（CreateRunRequest / RunSummary / RunDetail / EventListResponse / SnapshotsListResponse / ScenarioSummary / HealthResponse / PauseResumeResponse / AnalyzeRequest）
+        - `server/runtime_registry.py`：`RuntimeRegistry` 多并发管理 + threading.Lock + max_concurrent + RegistryFullError→503
+        - `server/services/run_service.py`：`RunService` 11 个方法完整 lifecycle（CRUD + step/pause/resume + state/snapshot/events 查询）+ provider 工厂
+        - `server/services/intervention_service.py` + `analysis_service.py`：包装 Runtime.intervene + analyze_run/enhance_with_llm
+        - `server/api/deps.py`：FastAPI Depends 注入入口（registry / 3 services）
+        - `server/api/v1/middlewares/auth.py`：v0.2 no-op 占位，为 v0.3+ 鉴权预留位置
+        - `server/api/v1/routes/runs.py`：11 个 /runs 路由（CRUD + 控制 + 状态查询 + 事件查询）
+        - `server/api/v1/routes/interventions.py`：1 个 /intervene 路由
+        - `server/api/v1/routes/analysis.py`：GET /analysis + POST /analyze
+        - `server/api/v1/routes/meta.py`：GET /scenarios + /health
+        - `server/app.py`：FastAPI 应用工厂 + AppConfig dataclass + lifespan + CORS + handler 注册 + 4 router 挂载（`/api/v1` 前缀）
+      - **CLI 集成**：`cli/serve.py`（独立模块）+ `cli/run.py` 添加 `serve` 子命令（延迟 import 避免未装 fastapi 时三个子命令仕仍可用）
+      - **最小 v1 内核调整**：`core/runtime.py` 加 3 个只读 @property（`world` / `scenario` / `event_log`）供 server 上层读元信息；**不动语义**，纯读只暴露。原 “world_id” 走 `scenario.world_id`（字符串引用，避免访问嵌套 `world.world.id`）。
+    - **6 测试文件 99 项新增**：
+      - `tests/test_server_errors.py`（8 表项 + 10 参数化 + 10 handler 集成 = 28）——覆盖 ERROR_MAP 全表 + handler 返回状态码 + issues 字段透传 + traceback 不泄露
+      - `tests/test_server_registry.py`（16）——register/get/shutdown/active_count/list_summaries + max_concurrent→503 + close 失败容忍
+      - `tests/test_server_meta.py`（8）——/scenarios 掃描 + ui_layout 透传 + /health + openapi.json
+      - `tests/test_server_runs.py`（33）——完整 lifecycle：POST/GET/DELETE /runs + step/pause/resume + state/snapshot 查询 + events 过滤分页 + max_concurrent 上限 + paused/terminated 状态 主要 4xx 路径
+      - `tests/test_server_interventions.py`（8）——三类 kind交互 + Runtime lenient 行为记录
+      - `tests/test_server_analysis.py`（6）——GET / POST + Phase A 字段透传
+    - **总测试**：700 → 799 (+99净新 / 0 回归 / pytest 13.20s)
+    - **技术决策亮点**：
+      - **复用 models/* 不抽翻译层**（D-017 第 2.2 节）——response_model 直接用 `Snapshot` / `TickResult` / `WorldState` / `EventRecord` / `AnalysisResult` / `Intervention`；v0.2 server 专有 schema 只在 `server/api/v1/schemas.py` 新建
+      - **routes / services / registry 三层分离**（D-017 第 2.1 节）——services 不接 Request 对象，为未来 mobile / SDK 复用预留
+      - **并发 registry 线程安全**——`threading.Lock` 保护 dict；跨同步 / 异步 都能用
+      - **错误响应统一 envelope**（D-017 第 2.4 节）——`{error: {code, message, issues?}}` 响应体不励traceback泄露
+      - **API 版本化**——所有 endpoint 加 `/api/v1` 前缀；v0.3+ 可加 `/api/v2` 不冲突
+      - **CORS 默认开启**（v0.2 本机使用）——前端开发友好
+    - **发现的潜在限制记录**（补充到 pitfalls.md）：EventLog.generate_run_id 同一秒可能冲突——测试中采用显式 run_id 避免；生产不会同一秒 3 次创建不成问题
+    - **session 32 入口任务**：v0.2 5 步推进路径第 4 步——WebSocket 推送：`server/api/v1/ws_events.py` typed 事件 + `server/api/v1/routes/ws.py` WS 路由 + `server/services/stream_service.py` 订阅广播 + `tests/test_server_ws.py`。Runtime.step() 后调 stream_service.broadcast 推 tick_advanced 事件。
+    - **设计纪律**：
+      - **D-017 spec 驱动实施**——所有路由、服务、 schema 都对齐 D-017 第三到六节
+      - **实现不漂移 spec**——发现 ”`runtime.world` 使用不事“ 则加 @property 只读暴露，不走访问私有属性 / 不保全词法
+      - **澕机交付 0 回归**——每阶段跑一次完整 pytest 验证；不动 v1 内核 700 项机制
+
+61. **v0.2 WebSocket 实时推送实施**（session 32，2026-04-29）：
+    - **背景**：session 31 交付 server REST 骨架；本 session 补齐 D-017 第四节 + 第 6.3 节设计——让前端能实时收到 tick_advanced / paused / run_finished事件。
+    - **交付范围**（4 文件新建 + 2 文件修改）：
+      - **新建**：
+        - `server/api/v1/ws_events.py`：6 个 typed 事件（`WSEventBase` 基类 + `TickAdvancedEvent` / `PausedEvent` + `PausedPayload` + `RunFinishedEvent` / `ErrorEvent` / `PingEvent` / `PongEvent`）；discriminator 指 `event` 字段 Literal；data 复用 `TickResult` / `AnalysisResult` / `ErrorBody`。提供 `WSServerEvent` 与 `WSClientEvent` 联合类型。
+        - `server/services/stream_service.py`：`StreamService` 类——`subscribe`/`unsubscribe`（async）+ `broadcast`/`close_run`（sync）+ `attach_loop`/`detach`（lifespan）。每连接独立 `asyncio.Queue(maxsize=100)`；跨线程用 `loop.call_soon_threadsafe`；满队列静默丢弃（反压）。锁保护订阅者集合。
+        - `server/api/v1/routes/ws.py`：WebSocket 路由 GET /api/v1/runs/{run_id}/stream。连接后检查 run 存在→404则 close(4004)。起 `_send_loop`（queue 消费） + `_receive_loop`（检测断开 + v0.2 接受任意客户端消息不验证）；`asyncio.wait` FIRST_COMPLETED 并发调度；`finally` 必取消订阅 + close。关闭码：1000（正常） / 4004（run 不存在） / 4500（内部错）。
+        - `tests/test_server_ws.py`（8 测试类 10 项）——连接lifecycle / step 推 tick_advanced / multi-step 顺序 / manual pause 推 paused / 重复 pause 不 duplicate / run finished 推 finished + close / 多订阅者 fan-out / subscriber_count 随断开下降 / 无订阅者时 step 不阻塞
+      - **修改**：
+        - `server/services/run_service.py`：`RunService.__init__` 可选参数 `stream_service`；`step` 后调 `_broadcast_tick`：永远推 tick_advanced；`reached_total_ticks=True` 跑 `analyze_run` + 推 `RunFinishedEvent` + `close_run`；`paused_after=True` 推 `PausedEvent`（breakpoint/every_tick）。`pause` 不重复推送。
+        - `server/app.py`：lifespan 加 `StreamService` 构造 + `attach_loop(asyncio.get_running_loop())` + RunService 注入；关闭调 `detach()`；`include_router(ws_routes.router, prefix="/api/v1")`。
+    - **总路由**：HTTP 16 + WS 1 + FastAPI 自带 docs/redoc/openapi = **20 个**。
+    - **总测试**：799 → 809 (+10净新 / 0 回归 / pytest 13.25s)
+    - **技术决策亮点**：
+      - **v1 内核完全不动**——不加 callback / observer；RunService.step 闭环后面调 stream_service.broadcast，v1 Runtime.step 原封不动
+      - **线程安全 sync/async 跨界**——`broadcast` 是 sync（FastAPI sync 路由可调）；内部 `loop.call_soon_threadsafe(_safe_put, queue, message)` 安全跨线程投递
+      - **反压丢弃**——每 queue 100 上限，满静默丢弃；保证慢客户端不拖垄 server
+      - **typed 事件 + discriminated union**——前端可以强类型化处理；事件 schema 与 REST response 完全复用同一套 Pydantic——不需记两套格式
+      - **质量关闭码**——1000/4004/4500 清晰表达语义；前端根据码分支决定是否重连 / 跳起 toast 提示
+      - **TestClient.websocket_connect 与 sync test 協作**——全部 10 项一次性跑过，论证 starlette 后台 anyio.from_thread 处理干净足够退点
+    - **session 33+ 入口任务**：v0.2 5 步推进路径第 5 步——React 前端实现（预计 3-5 session）。按 mockup 中 11 区块详细设计逐步起场：web/ 项目初始化（Vite + TS + shadcn）→ routes/ 4 页骨架 → layouts/ 3 种实现 → components/ 共用 → hooks/ （useRun / useRunStream / useScenarios）→ i18n + 主题 → e2e。OpenAPI 自动 type 生成（`openapi-typescript`）保证与 server Pydantic 同步。
+    - **设计纪律**：
+      - **不动 v1 内核**——session 31 加了 3 个 `@property` 只读暴露；session 32 v1 零改动。“WebSocket 推送” 定位为“server 层组合 v1 产出”，不是“v1 报告事件给 server”
+      - **D-017 spec 为唯一权威**——ws_events / stream_service / routes/ws 三个文件的设计都对齐 spec 第 4.1-4.5 与 6.3
+      - **完整测试驱动 0 回归**——实施后一次跑通全部 ws 测试；v1 700 项 + REST 99 项 + WS 10 项三部分都保持绿色
+
+62. **server 全面架构审查 + 保健清债**（session 33，2026-04-29）：
+    - **背景**：session 31 + 32 实施了 22 个 server 文件 + 众多测试。用户要求"全面架构、代码审查和保健"——参考 session 27 架构审查 F1-F11 成功模式。
+    - **审查维度**（A-G 7 个）：A 架构边界 · B WebSocket 关键路径 · C RunService 关键路径 · D 测试覆盖盲点 · E 配置与 lifespan · F spec 与实施漂移 · G 代码质量
+    - **发现 10 项**（友好分级）：
+      - 🟡 **F1 P2**：RunService / AnalysisService 3 处 `runtime._private` 访问（`_runtime_config` ×2 + `_provider` ×1）——违反封装
+      - 🟡 **F2 P2**：`StreamService.broadcast` 序列化无顶层守护——万一 Pydantic dump 报错会阻断 step 主路径
+      - 🟢 **F3 P3**：breakpoint 触发的 paused 事件没测试覆盖——重要路径盲点
+      - 🟢 **F4 P3**：`run_service.py` import `EventLog` 但未使用——dead import
+      - 🟢 **F5 P3**：3 处不必要 `# type:ignore[arg-type]` + 1 处 `Any` 占位类型应为 `Literal`
+      - 🟢 **F6 P3**：D-017 第 3.5 节 `ScenarioSummary` spec 漏列 `world_id` 字段——session 31 实施时补上但未同步 spec
+      - 🟢 **F7 P3**：ws_events 的 `ErrorEvent` / `PingEvent` / `PongEvent` v0.2 未触发但 docstring 未标注——可能误导读者以为已实施
+      - 🟡 **F8 P2**：in-memory run 跑完不推 run_finished——v0.2 强制 persist=True 自然规避，但语义缺失
+      - 🟡 **F9 P2**：server lifespan shutdown 不通知 ws 订阅者——依赖 starlette 强制 close 兼底
+      - 🟢 **F10 P3**：ping/pong 未实施但 schema 预留——需 docstring 标明
+    - **修复范围**（8 项代码修改 + 2 项 pitfalls 记录 + 1 项测试补齐）：
+      - **F1**：`core/runtime.py` 加 `runtime_config` / `provider` 两个只读 @property（同 session 31 `world` / `scenario` / `event_log` pattern，**不动语义**纯只读暴露）+ RunService.get_run / AnalysisService.analyze 去掉 noqa SLF001
+      - **F2**：`server/services/stream_service.py:broadcast` 包 try/except——任何序列化报错只 log warning + return，不拖垄 step 调用者
+      - **F3**：`tests/test_server_ws.py` 加 `test_breakpoint_pause_includes_breakpoint_ids`——用 three_party_negotiation + override_attribute alice.max_trust=90 触发 alice_high_trust 断点；验证 ws 推 paused (reason="breakpoint", breakpoint_ids=["alice_high_trust"])；同时补 manual pause 的 breakpoint_ids=[] 验证
+      - **F4**：`server/services/run_service.py` 删 `from core.events import EventLog` (line 29) + 删 `from typing import Any` (line 25, F5 后不再需要)
+      - **F5**：`server/runtime_registry.py` `status` 用 `Literal["active", "paused", "finished"]` 局部变量注解 + `server/services/run_service.py` `_build_run_detail` 同 pattern + `_broadcast_tick` 里 `reason` 同 pattern——去掉 3 处 `# type:ignore[arg-type]`（仅保留 EventLog.get_events 的 kind 参数 ignore——该参数跨 EventKind Literal 与 str 边界，该 ignore 是有说服力的）
+      - **F6**：`docs/02-design/decisions/D-017-v0.2-API契约与Server架构.md` 第 3.5 节 ScenarioSummary 加 `world_id: str` 字段与实施同步
+      - **F7 + F10**：`server/api/v1/ws_events.py` 为 `ErrorEvent` / `PingEvent` / `PongEvent` 加 "v0.2 未触发" docstring 标注，同时说明 v0.3+ 启用场景
+      - **F8 + F9**：`docs/03-implementation/pitfalls.md` 补 2 条 P2：(1) in-memory run 跑完不推 run_finished + (2) lifespan shutdown 不通知 ws 订阅者——含现象/根因/3 种修复思路/v0.3+ 防再犯
+    - **总代码改动范围**：5 个 server 文件 + 1 个 v1 内核文件（core/runtime.py +12 行）+ 1 个文档 + 1 个测试
+    - **总测试**：809 → 810 (+1净新，来自 F3 补测 / 0 回归 / pytest 13.64s)
+    - **架构审查原则**：
+      - **v1 内核只可增加 @property 只读暴露**——不动语义，不添加 callback / observer，不增加额外状态
+      - **守护主路径**——推送、存储、附加服务都不能拖垄 step 主调用，all 顶层 try/except + log warning
+      - **设计反向驱动 spec 修补**——实施发现的字段补充 (F6) 走 D-017 须同步原则，不能只改代码不同步设计文档
+      - **未触发 schema 明示标记**——v0.2 未触发的事件要 docstring 标清阅读期望，避免误导以为已实施
+      - **pitfalls 记警**——发现的边界问题 (F8/F9) v0.2 不修但记录为 P2 供 v0.3+ 只需取出修补
+    - **补充**：D-017 spec 补 ScenarioSummary.world_id 是本 session 唯一设计文档同步产物；其他全是实施代码 + 测试代码 + pitfalls 修改。
+    - **设计纪律补充**：
+      - **架构审查选点列表**（代码仓库 grep + spec 对照 + 测试覆盖检查）——可复用模式：session 27 (F1-F11) · session 33 (F1-F10) 都遵守
+      - **友好分级**——P0/P1/P2/P3 明于决策几项必修、几项记录、几项可推迟。P2 表示“不是阅读預期，有发现价值但不重造”
+      - **全量 pytest 验证**——每个修复后跑一次；最后跑一次确认 +1净新/0 回归
+    - **session 34+ 入口任务**：React 前端实现 (v0.2 5 步推进路径第 5 步)——预计 3-5 session。起点：创建 `web/` 目录 (Vite + TS + Tailwind + shadcn/ui) + OpenAPI type 生成 + 项目骨架。
+
+63. **v0.2 前端 mockup 第二阶段配套**（session 34，2026-04-29）：
+    - **背景**：session 30 已起草 mockup v1（1120 行 ASCII wireframe）；session 31-33 已交付 server REST + WebSocket + 架构审查。本 session 补齐 mockup 三项缺口：(1) 视觉 token 系统（为 React 实施准备）；(2) 以 server 实际实施为底对 mockup 的二轮校准；(3) React 组件粒度拆解。**目标**：让 session 35+ 启动 Vite 项目时按本 session 产出 1:1 落地，避免边写边发明。
+    - **交付范围**（3 工作流 + 4 产出文件）：
+      - **工作流 A：风格定锚 + tokens.css**——
+        - 用 `extract-design-system` skill：`npx playwright install chromium`（179 MiB）+ `npx -y extract-design-system https://linear.app` 抓取 linear.app
+        - dembrandt normalize 阶段过滤太严（仅推 2 色）；从 raw.json 直接读 `cssVariables` / `borderRadius` / `typography` 字段——值均为 linear 显式声明
+        - 重写 `design-system/tokens.css` 316 行三层结构：
+          - **Reference / Primitives 层（24 个）**：linear 原生命名——5 档背景（`--color-bg-primary: #08090a` / `bg-secondary` / `bg-panel` 等）+ 4 档边框 + 4 档文字 + 5 个 accent（`--color-accent: #7170ff` linear 紫）+ 6 个 status colors（green/red/yellow/orange/blue/teal）+ linear 专用色（plan/build/security）
+          - **Semantic 层（30+ 个）**：Polisim 业务命名——`--bg-canvas` / `--bg-surface` / `--text-primary` / `--accent` / `--status-success` 等，每条都映射到 linear primitive
+          - **9 个 polisim-* 业务专属**：`polisim-tick-active` / `polisim-llm-bubble` / `polisim-rule-bubble` / `polisim-paused` / `polisim-breakpoint` / `polisim-relation-positive` / `polisim-relation-negative` / `polisim-environment` / `polisim-intervention`
+          - **8 类基础 token**：Typography（Inter Variable + Berkeley Mono 后置，15 档字号 + 4 档字重 + 5 档行高 + 3 档字间距）/ Spacing（4px 网格 16 档）/ Radius（7 档含 pill / circle）/ Shadow（6 档含 focus ring）/ Motion（5 档 duration + 5 档 easing）/ Z-index（7 层）/ Layout（顶栏 / 侧栏 / 控制条高度）/ Breakpoints（tablet 1024 / desktop 1280 / wide 1536）
+          - 预留 `[data-theme="light"]` hook，v0.3+ 加 light mode
+        - **透明度声明**：所有色值 / 字号 / radius 来自 linear.app 显式 CSS variables；Semantic 命名是 Polisim 自有；Shadow elevation 体系（lg/xl/2xl）+ Motion duration 是基于 linear 视觉惯例自定（明确标注）
+        - 更新 `.gitignore`：追加 `.extract-design-system/`（dembrandt 临时产物 57KB）+ `node_modules/` + `web/dist/` + `playwright-report/` 等
+      - **工作流 B1：第二轮 API 反向校验**（mockup §10 新章节）——
+        - 扫 8 个 server 文件（`server/api/v1/routes/{runs,meta,analysis,interventions,ws}.py` + `schemas.py` + `ws_events.py` + `services/run_service.py`）对照 mockup 11 区块「数据来源」段
+        - **🔴 必改 2 项**：(M1) 跑完页 4 段 LLM 报告流程错位——`RunFinishedEvent.data` 是 Phase A 不含 LLM 增强，必须异步调 `GET /analysis?enhance=true`；(M2) `[📥 下载 events.jsonl]` 是客户端纯 JS 实现（多次分页 + Blob），不依赖 server
+        - **🟡 应补 5 项**：(M3) PausedEvent ws 监听；(M4) 干预"自动暂停"是前端 UX 而非 server 约束；(M5) `[🚪 退出]` 激活 DELETE；(M6) 画廊卡片显示 ui_layout 图标；(M7) 数据来源 `WorldState.relations` 校准为 `Snapshot.relation_state_summary`
+        - **🟢 自然规避 5 项**：ErrorEvent / Ping/Pong / run_finished 后主动 close ws / diff 客户端计算 / OpenAPI type 生成
+        - **✅ 已对齐 23 项**——核心架构假设全部成立；本轮偏差**全部是细节层**
+        - **结论**：第一轮校验（session 30）完整覆盖 spec 缺口；React 实施时按 §10.5 / §10.6 修订项落地即可
+      - **工作流 B3：React 组件清单 + props API**（mockup §11 新章节）——
+        - **4 页 routes**：Gallery / PreRun / Running / Finished + 路由 path 定义
+        - **3 layouts**（按 `scenario.ui_layout` 三选一）：EntityCardLayout / RelationGraphLayout / EventStreamLayout + dispatch 逻辑
+        - **12 共用组件**（跑中 5 + 跑完 7）：TopBar / ControlBar / MiniDashboard / InterventionDrawer / PromptContextModal / NarrativeReport / FinishedSidePanel / AttributeChart / FinalRelationGraph / EventDistributionChart / RawDataView / ReplayPlayer
+        - **12 基础组件**：ScenarioCard / ScenarioIntroPanel / AdvancedOptionsPanel / EntityCard / EntityMiniCard / LLMThoughtBubble / EventStreamLog / ParamSchemaFormField / AttributeFormField / LanguageSwitch / ErrorBoundary / LoadingSkeleton
+        - **11 hooks**：useScenarios / useRun / useCreateRun / **useRunStream**（核心：管 ws 生命周期 + 累积 events / snapshots + 处理 PausedEvent / RunFinishedEvent + diff 计算）/ useIntervention / useStep+pause+resume+delete / useFinishedRun（含 §10.5 M1 异步 enhance 流程）/ useEvents / useSnapshot / useDownloadEventsJsonl（§10.5 M2 客户端纯 JS）/ useI18n
+        - **1 zustand uiStore**：speed / sidePanelCollapsed / locale（持久化）+ prevSnapshotByRunId（diff 用）
+        - **数据流图**：跑中 ws tick_advanced → useRunStream → 组件 re-render；干预流程（点击 EntityCard → POST /pause → InterventionDrawer → POST /intervene → POST /resume）
+        - **7 项 v0.2 不实施**：ErrorEvent handler / Ping-Pong / ReplayPlayer 完整 / 多 run 对比 / 工具模式 / GitHub Pages / 移动端响应式
+        - **5 PR 实施顺序**：PR1 骨架 → PR2 hooks → PR3 画廊+跑前 → PR4 跑中 → PR5 跑完
+      - **工作流 B2：mockup 视觉描述 token 化**——
+        - mockup §8.4「颜色主题」整节重写：保留原 Indigo 主题作"历史"+ 新增「实际采用：linear-inspired tokens」含 4 张表（背景 / 文字 / accent+status / Polisim 业务专属）每条标注出现区块 + light-mode hook
+        - mockup §4.3.2 关系图 layout 数据来源段：节点颜色（llm 蓝 → `var(--status-info)` / rule 灰 → `var(--text-tertiary)` / random 紫 → `var(--accent)`）+ 边颜色（≥7 → `var(--polisim-relation-positive)` / 40-69 → `var(--status-warning)` / ≤4 → `var(--polisim-relation-negative)`）+ 字段名校准 `WorldState.relations` → `Snapshot.relation_state_summary`（同步 §10.6 M7）
+        - 修正 mockup §11.5 表格列数（5→6 加"依赖 / 备注"列）+ §11.8 store 表格去 inline `<br>` 改纵向布局
+    - **总产出**：4 文件——`design-system/tokens.css`（新建 316 行）+ `docs/02-design/v0.2-前端-UI-mockup.md`（+460 行：§10 新增 + §11 新增 + §8.4 重写 + §4.3.2 token 化）+ `.gitignore`（追加前端 ignore 块）+ 文档历史 session 34 条目
+    - **总测试**：810 passed / 0 代码变动 / 0 测试变动（纯文档 + design-system 产出）
+    - **技术决策亮点**：
+      - **风格锚定 linear.app**——选定理由：与 Polisim「实时仿真态势盘 + 高信息密度 + 演示/教学」气质强匹配；linear.app 的「冷静 + 深色基底 + 紫色 accent + 微过渡」风格优于原 Indigo 浅色主题
+      - **dembrandt normalize 绕过**——工具默认输出过滤太严，直接读 raw.json `cssVariables` 字段拿到完整 36 个 design token；不无中生有，所有值都来自 linear 显式声明
+      - **三层 token 结构**——Reference / Primitives / Semantic 严格分层；组件代码只能用 semantic 层，不能直接用 primitives，让未来主题切换 / 维护漂移成本低
+      - **mockup 两轮校验**——session 30 spec 阶段 + session 34 实施后两轮校验；每轮发现的偏差类型不同（前者发现 spec 缺口、后者发现细节漂移），印证 D-017 spec 阶段做反向校验的价值
+      - **组件清单 1:1 落地导向**——每组件含 props API + 数据来源 + 引用区块；React 实施 session 不需要"边写边发明"，只需查表实现
+      - **5 PR 切片清晰**——PR1-2 端到端连不上 server 但 type 跑通；PR3-5 累积可演示完整 5 步用户流程（mockup §6）
+    - **§9 关键问题已拍板**（session 34 末追加，与用户对话产物，落地到 mockup §9.2/§9.4/§9.6/§9.8）：
+      - **§9.2 关系图库**：✅ **B `cytoscape.js`** + `react-cytoscapejs` + `cytoscape-cose-bilkent`——**重评决策**（原倾向 react-force-graph-2d）。理由：mockup §1 画廊已预告 v0.3+ 信息级联（D-015 EntityCreate）+ 组织决策（D-015 ChainedAction）需要 hierarchical / dagre layout——react-force-graph-2d 不能胜任，未来必须重写 RelationGraphLayout。cytoscape 多 layout 引擎一次到位，未来 0 迁移成本；包大小 +100KB lazy load 不影响首屏。**v0.3+ 扩展**装 `cytoscape-dagre` + `cytoscape-popper` + 算法 extensions。
+      - **§9.4 字体**：✅ **B + C 组合**——`--font-sans = "Inter Variable" + 系统 fallback`（中文走 PingFang/Microsoft YaHei 系统 fallback，不预加载思源黑体）；`--font-mono = "JetBrains Mono"`（免费开源）+ `"Berkeley Mono"`（linear 实际值，商业字体 fallback）+ ui-monospace 系统 fallback。**已修改** `design-system/tokens.css` 的 `--font-mono` 值。**v0.2 不预加载 Web Font**——依赖用户本地已装；v0.3+ 可加 `<link rel="preload">`。
+      - **§9.6 4 段 LLM 报告渲染**：✅ **B Markdown** ——装 `react-markdown`；tick 引用写为 `[tick 3](#tick-3)` 点击副区高亮。为何不选 C（自动跳转）：B 零额外代价、C 需 NarrativeReport 与 FinishedSidePanel 互通 state，推 v0.3+ 再试。
+      - **§9.8 错误处理 UI**：✅ **C 分级处理**——4xx → toast（sonner / shadcn Toaster）；5xx → modal（shadcn Dialog）需用户点 “重试” 或 “关闭”；ws 断开 → 顶部 banner + 自动重连计数。`ErrorBoundary` 负责 React 未捕获异常。实施点：PR2 hooks + ErrorBoundary 同 session。
+      - **其他 6 项 §9 保持"倾向"未决**（9.1 默认速度 / 9.3 GitHub Pages / 9.5 实体图标 / 9.7 重播模式 / 9.9 演示vs工具 / 9.10 多 run 对比）——可"边做边定"或推迟。
+    - **session 35+ 入口任务**：v0.2 React 前端实现起点——按 mockup §11 PR1 实施：创建 `web/` 目录 + Vite + TS + Tailwind + 引入 `design-system/tokens.css` + react-router 4 个空 route + react-i18next + zustand uiStore + openapi-typescript 生成 types.gen.ts。**关键依赖**：server `/openapi.json` 已暴露（FastAPI 自动），可直接 `npm run gen:types`。**4 项 §9 决策已拍板**——PR1-PR5 实施时无需再决策这 4 项。
+    - **设计纪律**：
+      - **mockup 是 React 实施的唯一权威**——按 §11 PR 顺序、按各组件 props 定义、按各 token 引用、按 §9 已决策项 1:1 落地
+      - **不动 v1 内核**——本 session 0 代码变动；后续 React 实施同样不应推动 v1 内核改动（如需新字段，先走 D-017 spec 再实施）
+      - **transparent token 来源**——design-system/tokens.css 顶部 docstring 明确标注「来自 linear.app raw.json + 哪些是自定义」；尊重 extract-design-system skill 的 Safety Boundaries
+      - **未来场景视角驱动决策**——§9.2 重评 react-force-graph → cytoscape 是「考虑 v0.3+ 复杂场景」的决策范式：v0.2 不需要 dagre，但 v0.3+ 必需，**用户明确指出"通用场景怎么办"才看清这点**
 
 **进行中**：
 
-- v0.1.1 全部目标达成 + LLM 增强分析升级。**session 27+ 入口任务**：用户重跑 OpenAI smoke 验收新版 final.md，之后按需指派下一阶段
+- v0.2 前端 mockup 第二阶段配套完成 + §9 4 项关键决策拍板。**session 35+ 入口任务**：React 前端实现 PR1——`web/` 目录初始化（Vite + TS + Tailwind + 引入 `design-system/tokens.css`）+ react-router 4 个空 route + react-i18next + zustand uiStore + openapi-typescript 生成 `types.gen.ts`。**装包清单**：cytoscape + react-cytoscapejs + cytoscape-cose-bilkent（PR4.5 用）/ react-markdown（PR5 用）/ sonner（toast）/ 其他基础包按 mockup §8.1 表。预计 3-5 session 走完 PR1-PR5。详见 `@d:\桌面\github_project\Polisim\docs\02-design\v0.2-前端-UI-mockup.md` §11。
 
 **阻塞中**：
 

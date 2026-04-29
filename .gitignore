@@ -49,3 +49,19 @@ runs/
 # 临时文件
 *.log
 *.tmp
+
+# ==========================================
+# 前端开发产物（v0.2 阶段）
+# ==========================================
+
+# extract-design-system 抓取的临时 raw 数据（57KB+，每次抓取重新生成）
+.extract-design-system/
+
+# Node.js 依赖（仅当 web/ 项目启动后生效）
+node_modules/
+web/dist/
+web/.vite/
+
+# Playwright 浏览器缓存（系统级，但保险起见）
+playwright-report/
+test-results/
