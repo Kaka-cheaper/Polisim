@@ -155,6 +155,20 @@ class RuntimeConfig(BaseModel):
             "至于让 LLM 失忆，又不至于让历史段挤占 LLM 推理 token。"
         ),
     )
+    max_chain_depth: int = Field(
+        default=3,
+        ge=1,
+        le=20,
+        description=(
+            "D-015 全量版（session 28）：单 tick 内 ChainedActionEffect 链的"
+            "**最大深度**。深度 = 同 tick 内一条原始动作产生的 chained 效果递归"
+            "应用次数。链超此上限时 Runtime 抛 `RulesError` 防止无限递归"
+            "（典型场景：rules 写错让 A → B → A 循环触发）。"
+            "上限 20——足够覆盖任何合理规则链；下限 1——完全关闭同 tick 链"
+            "（仍允许 delay_ticks>0 的跨 tick 链，跨 tick 链不计入此深度）。"
+            "默认 3——足够大多数场景的合理链长。"
+        ),
+    )
 
 
 # =============================================================================

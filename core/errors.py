@@ -1,17 +1,21 @@
-"""Polisim 统一异常体系（D-011 部分落地）。
+"""Polisim 统一异常体系（D-011 全量落地）。
 
-对应 session 16 架构审阅产出的 D-011 决策——Runtime / Rules / EventLog / Providers
-早期只有 `ProviderError` 一个自定义异常，其余分支裸用 `RuntimeError` / `ValueError`，
-上层 ``except RuntimeError`` 容易漏抓真正的 bug。本模块给出统一的继承根
-`SimEngineError`，所有业务型异常**都应继承**它，方便上层用一条 ``except
-SimEngineError`` 精确拦截。
+对应 session 19 Phase B 启动时产出的 D-011 决策——Runtime / Rules / EventLog /
+Providers 早期只有 `ProviderError` 一个自定义异常，其余分支裸用 `RuntimeError`
+/ `ValueError`，上层 ``except RuntimeError`` 容易漏抓真正的 bug。本模块给出统一
+的继承根 `SimEngineError`，所有业务型异常**都应继承**它，方便上层用一条
+``except SimEngineError`` 精确拦截。
 
-**D-011 决议细节**（见 `docs/00-overview/progress.md` 待决策区）：
+**D-011 决议细节**（见 `docs/00-overview/progress.md` D-011 条目）：
 
 - 决策日期：2026-04-24 session 19（Phase B 启动时触发）
-- 采用方案 A：新建 `core/errors.py` + `SimEngineError` 基类 + 四条支
-- **渐进迁移**：本模块**只**建基础设施；不做全量 `RuntimeError → SimEngineError`
-  迁移（那是独立 session 的工作），避免 Phase B 范围失控
+- 采用方案 A：新建 `core/errors.py` + `SimEngineError` 基类 + 7 条支
+- **session 19 落地**：基础设施 + ProviderError re-export
+- **session 21 完成全量迁移**：Runtime 5 处裸用 `RuntimeError` / `ValueError` 全部换
+  为 `PausedError` / `TerminatedError` / `InvalidStateError`；RulesLoadError 入树；
+  实地 scope 只 5 处，原估 30~50 处是高估。其余 `ValueError` / `FileNotFoundError`
+  （mock 构造参数错 / IO 错 / 用户输入错）按 Python 惯例**保留**，不属 D-011 范畴
+- **session 22 加 SemanticValidationError**（D-013 跨层语义校验）为本树第 7 个子类
 - `ProviderError` 从 `core/providers/base.py` 迁入本文件作为权威定义，原文件做
   re-export 保向后兼容——**既有 ``from core.providers.base import ProviderError``
   的代码无需任何改动**
@@ -21,13 +25,13 @@ SimEngineError`` 精确拦截。
 ``SimEngineError``
 ├── `ProviderError`——Provider 传输层失败（网络 / 鉴权 / 429 / 5xx / 超时）
 ├── `LLMProtocolError`——协议层失败（JSON 不合法 / 动作不在白名单 / 重试耗尽）
-├── `RulesError`——规则层校验或 resolve 失败（v1 占位；尚未替换现有 RuntimeError）
+├── `RulesError`——规则层错误（v1 未使用；保留供未来扩展点）
 ├── `RulesLoadError`——rules_module 解析失败（定义在 `core/rules_loader.py`，
 │                     避免本文件反向依赖 rules 加载逻辑；构造期错误，
 │                     CLI ``except SimEngineError`` 兜住后给友好提示）
-├── `InvalidStateError`——Runtime 内部状态不一致（v1 占位）
-├── `PausedError`——在 paused=True 时调用 step() 的违约（v1 占位）
-├── `TerminatedError`——在 reached_total_ticks 后再调 step() 的违约（v1 占位）
+├── `InvalidStateError`——Runtime 内部状态不一致（session 21 落地于 Runtime 3 处）
+├── `PausedError`——在 paused=True 时调用 step() 的违约（session 21 落地）
+├── `TerminatedError`——在 reached_total_ticks 后再调 step() 的违约（session 21 落地）
 └── `SemanticValidationError`——D-013 跨层语义校验失败
                                  （fallback_action 与 rules 不一致、
                                   rules 声明 resolve 了未在 world 声明的 action 等）
@@ -89,10 +93,27 @@ class LLMProtocolError(SimEngineError):
 
 
 class RulesError(SimEngineError):
-    """规则层错误占位（v1 尚未替换）。
+    """规则层错误（D-015 全量版启用——chained action 链深度超限）。
 
-    未来 Rules 层的错误（如 `resolve_effects` 形状不合约、`apply_constraints`
-    crash）应升级为本类；当前暂时仍是 `RuntimeError`。
+    **触发场景**（session 28 D-015 全量版落地）：
+
+    - ``ChainedActionEffect`` 同 tick 内递归深度超过
+      ``RuntimeConfig.max_chain_depth``——典型场景是 rules 写错让 A → B → A
+      循环触发（无限递归）。Runtime 在 ``_apply_chained_action_effect`` 检测到
+      ``depth > max_chain_depth`` 时立即抛本类，由 CLI 顶层 ``except SimEngineError``
+      兜住 + 友好提示
+    - ``EntityCreateEffect`` 试图创建 ``state.entities`` 中已存在的 ``entity_id``——
+      rules 设计错（违反"全局唯一"约定）
+
+    **不**触发场景：
+
+    - `validate_action` 返 `ValidationResult(valid=False, errors=[...])`（不抛异常）
+    - `resolve_effects` 遭遇未知 action 返空列表（防御式）
+    - rules 装配失败走 `RulesLoadError`（定义在 `core/rules_loader.py`）
+
+    **未来扩展**：若 rules 层有更多业务异常需要分类（如公式崩溃 / Effect 形状
+    不合约），可继续继承本类或加细分子类。本类是 D-011 异常树为 rules 层留的
+    主入口。
     """
 
 

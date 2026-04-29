@@ -26,6 +26,9 @@ from pydantic import ValidationError
 from models.runtime_models import (
     ActionProposal,
     AttributeEffect,
+    ChainedActionEffect,
+    EntityCreateEffect,
+    EntityDestroyEffect,
     EntityRuntimeState,
     EnvironmentEffect,
     EventRecord,
@@ -783,3 +786,148 @@ def test_tick_result_rejects_zero_tick() -> None:
 def test_tick_result_rejects_extra_field() -> None:
     with pytest.raises(ValidationError):
         TickResult(tick=1, duration_ms=100)  # type: ignore[call-arg]
+
+
+# =============================================================================
+# D-015 全量版（session 28）：EntityCreateEffect / EntityDestroyEffect /
+# ChainedActionEffect 三个新 Effect 模型校验
+# =============================================================================
+
+
+# ---- EntityCreateEffect ----
+
+
+def test_entity_create_effect_minimal() -> None:
+    """最小构造：entity_id + entity_type 必填，其余字段默认空。"""
+    eff = EntityCreateEffect(entity_id="company_c", entity_type="Company")
+    assert eff.kind == "entity_create"
+    assert eff.entity_id == "company_c"
+    assert eff.entity_type == "Company"
+    assert eff.initial_attributes == {}
+    assert eff.initial_relations == []
+
+
+def test_entity_create_effect_with_attributes_and_relations() -> None:
+    """带初始属性 + 初始关系的完整构造。"""
+    rel = RelationEffect(
+        operation="add",
+        relation_type="subsidiary_of",
+        source="company_c",
+        target="company_a",
+        value=1.0,
+    )
+    eff = EntityCreateEffect(
+        entity_id="company_c",
+        entity_type="Company",
+        initial_attributes={"cash": 50, "reputation": 25},
+        initial_relations=[rel],
+    )
+    assert eff.initial_attributes["cash"] == 50
+    assert len(eff.initial_relations) == 1
+    assert eff.initial_relations[0].source == "company_c"
+
+
+def test_entity_create_effect_rejects_empty_id() -> None:
+    """entity_id 不能为空字符串（min_length=1）。"""
+    with pytest.raises(ValidationError):
+        EntityCreateEffect(entity_id="", entity_type="Company")
+
+
+def test_entity_create_effect_rejects_empty_type() -> None:
+    """entity_type 不能为空字符串（min_length=1）。"""
+    with pytest.raises(ValidationError):
+        EntityCreateEffect(entity_id="x", entity_type="")
+
+
+def test_entity_create_effect_rejects_extra_field() -> None:
+    """extra='forbid' 阻止未声明字段。"""
+    with pytest.raises(ValidationError):
+        EntityCreateEffect(  # type: ignore[call-arg]
+            entity_id="x",
+            entity_type="Company",
+            initial_messages=[],
+        )
+
+
+# ---- EntityDestroyEffect ----
+
+
+def test_entity_destroy_effect_minimal_default_cascade_all() -> None:
+    """cascade 默认 'all'（删关系 + 邮箱 + outbox + forced/ctx）。"""
+    eff = EntityDestroyEffect(entity_id="company_a")
+    assert eff.kind == "entity_destroy"
+    assert eff.cascade == "all"
+
+
+def test_entity_destroy_effect_preserve_relations() -> None:
+    eff = EntityDestroyEffect(
+        entity_id="x", cascade="preserve_relations"
+    )
+    assert eff.cascade == "preserve_relations"
+
+
+def test_entity_destroy_effect_preserve_messages() -> None:
+    eff = EntityDestroyEffect(entity_id="x", cascade="preserve_messages")
+    assert eff.cascade == "preserve_messages"
+
+
+def test_entity_destroy_effect_rejects_unknown_cascade() -> None:
+    """cascade 必须是三种 Literal 之一。"""
+    with pytest.raises(ValidationError):
+        EntityDestroyEffect(entity_id="x", cascade="full_cleanup")  # type: ignore[arg-type]
+
+
+def test_entity_destroy_effect_rejects_empty_id() -> None:
+    with pytest.raises(ValidationError):
+        EntityDestroyEffect(entity_id="")
+
+
+# ---- ChainedActionEffect ----
+
+
+def test_chained_action_effect_minimal() -> None:
+    """最小构造：actor_id + action_type 必填，delay_ticks 默认 0。"""
+    eff = ChainedActionEffect(
+        actor_id="bob", action_type="acknowledge"
+    )
+    assert eff.kind == "chained_action"
+    assert eff.actor_id == "bob"
+    assert eff.action_type == "acknowledge"
+    assert eff.params == {}
+    assert eff.delay_ticks == 0
+
+
+def test_chained_action_effect_with_params_and_delay() -> None:
+    """带 params + delay_ticks 的完整构造。"""
+    eff = ChainedActionEffect(
+        actor_id="alice",
+        action_type="counterattack",
+        params={"target_id": "bob", "intensity": 5},
+        delay_ticks=2,
+    )
+    assert eff.params["target_id"] == "bob"
+    assert eff.delay_ticks == 2
+
+
+def test_chained_action_effect_rejects_negative_delay() -> None:
+    """delay_ticks 不能为负（ge=0）。"""
+    with pytest.raises(ValidationError):
+        ChainedActionEffect(
+            actor_id="a", action_type="x", delay_ticks=-1
+        )
+
+
+def test_chained_action_effect_rejects_empty_actor_or_action() -> None:
+    with pytest.raises(ValidationError):
+        ChainedActionEffect(actor_id="", action_type="x")
+    with pytest.raises(ValidationError):
+        ChainedActionEffect(actor_id="a", action_type="")
+
+
+def test_chained_action_effect_rejects_extra_field() -> None:
+    with pytest.raises(ValidationError):
+        ChainedActionEffect(  # type: ignore[call-arg]
+            actor_id="a",
+            action_type="x",
+            priority=1,
+        )

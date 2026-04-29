@@ -60,10 +60,21 @@ EventKind = Literal[
     "intervention_applied",
     "breakpoint_triggered",
     "snapshot_saved",
+    # ── D-015 全量版（session 28）：实体生命周期 + 动作链 ──
+    "entity_created",
+    "entity_destroyed",
+    "chained_action_triggered",
 ]
 """事件轨迹支持的事件类型。
 
 枚举值严格对齐 `运行时与事件轨迹设计.md` 第九节第一版事件清单；扩展需先更新设计文档。
+
+**D-015 全量版扩展**（session 28，2026-04-28）：
+
+- ``entity_created``——`EntityCreateEffect` 应用后写入；payload 含 entity_id / entity_type / initial_attributes
+- ``entity_destroyed``——`EntityDestroyEffect` 应用后写入；payload 含 entity_id / cascade 策略
+- ``chained_action_triggered``——`ChainedActionEffect` 应用瞬间写入（同 tick 立即 / 跨 tick 延后均会触发）；
+  payload 含 actor_id / action_type / depth / delay_ticks
 """
 
 
@@ -354,11 +365,194 @@ class EnvironmentEffect(BaseModel):
     delta: float = Field(..., description="数值增量")
 
 
-Effect = AttributeEffect | RelationEffect | MessageEffect | EnvironmentEffect
+# =============================================================================
+# D-015 全量版（session 28）：实体生命周期 + 动作链
+# =============================================================================
+
+
+class EntityCreateEffect(BaseModel):
+    """生成新实体（D-015 全量版）。
+
+    **典型应用场景**：
+
+    - 公司分裂 / 子公司成立
+    - 谈判中第三方调解人加入
+    - 信息级联场景中衍生消息节点
+    - 群体动力学的新成员（移民、新生代）
+
+    **语义约定**：
+
+    - ``entity_id`` 必须**全局唯一**——若已存在 ``state.entities[entity_id]``，
+      Runtime 应用时会抛 `RulesError`（rules 设计错）
+    - ``entity_type`` 必须在 ``world.entity_types`` 中已声明——Runtime 用其
+      ``attributes`` 默认值 + ``initial_attributes`` 覆盖合并出实体的初始属性
+    - ``initial_attributes`` 是**绝对值**赋值（与 D-015 缩限版的
+      `AttributeEffect.new_value` 同语义）；缺失字段由默认值回填
+    - ``initial_relations`` 中的 `RelationEffect` 必须是 ``operation="add"``——
+      其他操作（remove / update_value）在新建实体上无意义；Runtime 不强制
+      但 rules 设计应自律
+    - **激活语义**：新创建的实体**不参与同 tick 的激活**——下一 tick 才进入
+      决策流程（避免同 tick 内的顺序敏感 bug；spec 第六节决策）
+
+    **clamp 行为**：``initial_attributes`` 透传不裁剪（与 ``new_value`` 一致）；
+    若需要数值属性的 clamp，由 rules 模块自己保证。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["entity_create"] = Field(
+        default="entity_create", description="效果类别常量"
+    )
+    entity_id: str = Field(
+        ...,
+        min_length=1,
+        description="新实体 id；必须唯一，不能与 state.entities 现有 id 冲突",
+    )
+    entity_type: str = Field(
+        ...,
+        min_length=1,
+        description="实体类型名；必须在 world.entity_types 中声明",
+    )
+    initial_attributes: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "初始属性覆盖（绝对值，与 new_value 同语义）；"
+            "缺省字段由 Runtime 用 World Definition 默认值回填"
+        ),
+    )
+    initial_relations: list["RelationEffect"] = Field(
+        default_factory=list,
+        description=(
+            "同时建立的初始关系列表；其 source / target 必须是已存在或本 effect "
+            "创建的实体（rules 设计自律——v1 不强制校验）"
+        ),
+    )
+
+
+class EntityDestroyEffect(BaseModel):
+    """删除实体（D-015 全量版）。
+
+    **典型应用场景**：
+
+    - 公司破产 / 组织解散
+    - 谈判破裂时的退出
+    - 信息节点失效（消息源被屏蔽）
+    - 战争 / 淘汰类场景的"出局"
+
+    **cascade 策略**（决定连带数据怎么处理）：
+
+    - ``"all"``（默认）——同时删除：
+      - 该实体作为 source 或 target 的所有关系（``state.relations``）
+      - 该实体的邮箱（``state.mailboxes[entity_id]``）
+      - outbox 中 from_actor 是该实体的待发消息
+      - forced_actions 与 _last_llm_prompt_context 中的同 id 条目
+    - ``"preserve_relations"``——只删除实体本身 + 邮箱；保留关系（dangling
+      引用由场景设计决定）
+    - ``"preserve_messages"``——只删除实体本身 + 关系；保留邮箱与已 emit 消息
+
+    **语义约定**：
+
+    - ``entity_id`` 必须存在——否则 Runtime 应用时跳过并打 warning（不抛错；
+      与 v1 防御式风格一致）
+    - 同 tick 内被删除的实体**不再产生新事件**——若它在本 tick 已被激活并发出
+      ActionProposal，那次决策已记入 EventLog（不可撤销）；删除影响**下一 tick
+      及之后**的存在
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["entity_destroy"] = Field(
+        default="entity_destroy", description="效果类别常量"
+    )
+    entity_id: str = Field(
+        ...,
+        min_length=1,
+        description="目标实体 id；不存在时 Runtime 跳过（warning）",
+    )
+    cascade: Literal["all", "preserve_relations", "preserve_messages"] = Field(
+        default="all",
+        description=(
+            "级联策略：all=删除关系/邮箱/已发消息；"
+            "preserve_relations=保留关系；preserve_messages=保留邮箱"
+        ),
+    )
+
+
+class ChainedActionEffect(BaseModel):
+    """规则触发动作链（D-015 全量版）。
+
+    让 rules 在 ``resolve_effects`` 中**直接触发另一个动作**，绕过 LLM 决策层。
+
+    **典型应用场景**：
+
+    - **连锁反应**：A 攻击 B → B 自动反击
+    - **责任传递**：审批通过 → 自动分配下一审批人
+    - **信息扩散**：A 转发消息给 B → B 自动转发给 C
+    - **DSL-like 复合规则**：跳过 LLM 节省 token + 保证规则确定性
+
+    **语义约定**：
+
+    - ``actor_id`` 是链中**下一动作的执行者**（不一定是当前 actor）
+    - ``action_type`` 是下一动作的类型，必须在 ``world.action_types`` 声明且
+      ``actor`` 类型在该 action 的 ``actor_types`` 列表中（由 Runtime 走标准
+      `validate_action` 校验——chained 走的是规则触发但仍需合法性验收）
+    - ``params`` 必须满足下一动作的 ``ActionParamSchema`` 全部约束（D-014）
+    - ``decision_mode`` 在生成的 `ActionProposal` 中固定为 ``"rule"``——chained
+      明确不是 LLM 决策
+
+    **delay_ticks 与防递归**：
+
+    - ``delay_ticks=0``——**同 tick 内立即应用**：Runtime 构造 ActionProposal
+      → validate → resolve_effects → 递归 _apply_effects；递归深度受
+      ``RuntimeConfig.max_chain_depth`` 限制，超限抛 `RulesError`
+    - ``delay_ticks>0``——**跨 tick 延后**：Runtime 把 effect 加入延后队列，
+      在目标 tick 主循环开始时（步 2 与步 3 之间）取出并构造 ActionProposal；
+      跨 tick 链不计入 max_chain_depth（每 tick 重置深度）
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["chained_action"] = Field(
+        default="chained_action", description="效果类别常量"
+    )
+    actor_id: str = Field(
+        ...,
+        min_length=1,
+        description="链中下一动作的执行实体 id；必须存在于 state.entities",
+    )
+    action_type: str = Field(
+        ...,
+        min_length=1,
+        description="链中下一动作的类型；必须在 world.action_types 中声明",
+    )
+    params: dict[str, Any] = Field(
+        default_factory=dict,
+        description="下一动作的参数；须满足 ActionParamSchema 全部约束（D-014）",
+    )
+    delay_ticks: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "延后多少 tick 执行——0 表示同 tick 内立即（受 max_chain_depth "
+            "限制）；>0 加入延后队列，到目标 tick 时主循环取出"
+        ),
+    )
+
+
+Effect = (
+    AttributeEffect
+    | RelationEffect
+    | MessageEffect
+    | EnvironmentEffect
+    | EntityCreateEffect
+    | EntityDestroyEffect
+    | ChainedActionEffect
+)
 """规则层产出的一条具体效果。
 
-由 ``kind`` 字段做 discriminated union 分发；所有 4 个子类已对齐
-``ActionEffectSchema.kind`` 的 Literal 枚举。
+由 ``kind`` 字段做 discriminated union 分发；前 4 个子类对齐原始
+``ActionEffectSchema.kind`` 枚举，后 3 个为 D-015 全量版扩充
+（entity_create / entity_destroy / chained_action）。
 """
 
 

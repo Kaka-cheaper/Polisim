@@ -40,6 +40,7 @@ from core.errors import (
     LLMProtocolError,
     PausedError,
     ProviderError,
+    RulesError,
     TerminatedError,
 )
 from core.events import EventLog, generate_run_id
@@ -50,9 +51,12 @@ from models.config_models import RuntimeConfig, StorageConfig
 from models.runtime_models import (
     ActionProposal,
     AttributeEffect,
+    ChainedActionEffect,
     Effect,
-    EnvironmentEffect,
+    EntityCreateEffect,
+    EntityDestroyEffect,
     EntityRuntimeState,
+    EnvironmentEffect,
     EventKind,
     EventRecord,
     Intervention,
@@ -67,7 +71,7 @@ from models.runtime_models import (
 )
 from models.llm_models import PromptContext
 from models.scenario_models import Scenario
-from models.world_models import WorldDefinition
+from models.world_models import ActionParamSchema, WorldDefinition
 from rules.base import BaseRules
 
 logger = logging.getLogger(__name__)
@@ -80,6 +84,13 @@ def _is_numeric(value: Any) -> bool:
     会把 ``True`` 判为 number——这与 Effect / Environment 值的语义不符
     （数值型属性/环境不应包含 bool）。本工具函数集中处理此陷阱，
     供 Runtime 多处统一复用。
+
+    .. note::
+        ``core/analysis.py`` 中有一份语义完全一致的 `_is_numeric` 实现。
+        两份双存是**分层纪律**的后果：``analysis`` 遵守「零 runtime 依赖」
+        （见 `core/analysis` 顶层 docstring），不能 `from core.runtime import _is_numeric`。
+        项目也不开 `utils/` 垃圾桶目录（AGENTS.md 4.3）——于是接受双存。
+        修改本函数时请同步修改 ``core/analysis.py:_is_numeric``，保语义一致。
     """
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
@@ -162,6 +173,13 @@ class Runtime:
         # 主循环写 decision_proposed 事件时从此 dict 弹出并塞入 payload。
         # 仅 LLM 决策路径会写入；rule / random / fallback 模式跳过。
         self._last_llm_prompt_context: dict[str, PromptContext] = {}
+
+        # D-015 全量版（session 28）：跨 tick 延后的 chained_action 队列
+        # 每项 (target_tick, ChainedActionEffect)；step 主循环步 2.5 在 next_tick
+        # 等于 target_tick 时取出 fire（depth 重置为 0——跨 tick 链不计入同
+        # tick 链深度）。延后链与 scenario.scheduled_events 概念上相似，但语义
+        # 不同：scheduled_events 是场景静态配置，延后链是规则在运行期动态产生。
+        self._delayed_chained_actions: list[tuple[int, ChainedActionEffect]] = []
 
         # 初始 tick=0 快照（供未来"从头回放"使用）
         self._event_log.save_snapshot(self._make_snapshot(tick=0))
@@ -263,6 +281,55 @@ class Runtime:
         """
         return self._event_log.run_dir
 
+    @property
+    def world(self) -> WorldDefinition:
+        """只读访问 World Definition（v0.2 server 接入需要）。
+
+        RuntimeRegistry / RunService 等上层需要读取 ``world.id`` /
+        ``world.entity_types`` 等元信息以构造响应模型。返回**同一引用**——
+        调用方不应修改返回值（WorldDefinition 是 Pydantic 模型且场景生命周期内不变）。
+        """
+        return self._world
+
+    @property
+    def scenario(self) -> Scenario:
+        """只读访问 Scenario（v0.2 server 接入需要）。
+
+        与 ``world`` property 对称——上层需要 ``scenario.config.total_ticks`` /
+        ``scenario.scenario.id`` / ``scenario.ui_layout`` 等。
+        """
+        return self._scenario
+
+    @property
+    def event_log(self) -> EventLog:
+        """只读访问 EventLog（v0.2 server 事件查询需要）。
+
+        RunService.query_events 需要调 ``event_log.get_events(...)`` 走过滤 + 分页。
+        v1 CLI 通过读 ``run_dir/events.jsonl`` 文件实现；server 直接走内存 EventLog
+        更高效。返回的引用调用方**不应** ``close()``——生命周期归 Runtime 管。
+        """
+        return self._event_log
+
+    @property
+    def runtime_config(self) -> RuntimeConfig:
+        """只读访问 RuntimeConfig（v0.2 server / 分析层需要）。
+
+        AnalysisService.enhance_with_llm 需要 ``runtime_config.output_language``
+        与 ``runtime_config.llm_request_timeout_sec`` 等字段；RunService 构造
+        RunDetail 响应时也需要把生效的 runtime_config 透传给前端。
+        """
+        return self._runtime_config
+
+    @property
+    def provider(self) -> LLMProvider:
+        """只读访问 LLMProvider 实例（v0.2 server 分析增强需要）。
+
+        AnalysisService.enhance_with_llm 复用 Runtime 自身的 provider 做 Phase C
+        分析增强——保持同一 run 的语境一致（同 mock / openai key）。返回的引用
+        调用方**不应**修改 provider 状态——它仍由 Runtime 持有 + 用于 LLM 决策。
+        """
+        return self._provider
+
     def current_tick(self) -> int:
         return self._state.tick
 
@@ -293,20 +360,22 @@ class Runtime:
     def step(self) -> TickResult:
         """推进一个 tick 并返回 `TickResult`。
 
-        **流程**（对齐 `运行时与事件轨迹设计.md` 三节，与代码实际顺序一致）：
+        **流程**（对齐 `运行时与事件轨迹设计.md` 三节，与下方代码 comment 编号一致）：
 
-        1. 防御：暂停则拒绝；已达 total_ticks 则拒绝
-        2. tick += 1；投递上一 tick 的 outbox 到 mailboxes
-        3. 处理本 tick 的 scheduled_events（触发消息 / 环境事件）
-        4. 激活实体（v1：全部）
-        5. 每个激活实体收集 ActionProposal
-        6. validate_action，失败走 fallback
-        7. resolve_effects → resolve_conflicts → apply_constraints
-        8. 应用效果（mutate state + outbox 入队消息）
-        9. 写 action_executed 事件
-        10. 检查断点（写 breakpoint_triggered 事件）
-        11. 暂停判定（every_tick / 断点命中 → paused_after）
-        12. 按 snapshot_mode 决定是否保存快照（依赖 paused_after）
+        - 步 0：防御——暂停则拒绝；已达 total_ticks 则拒绝；tick += 1
+        - 步 1：投递上一 tick 的 outbox 到 mailboxes
+        - 步 2：处理本 tick 的 scheduled_events（触发消息 / 环境事件）
+        - 步 2.5（D-015 全量版）：fire 跨 tick 延后的 chained_actions
+          （depth 重置为 0；与本 tick 实体决策并行存在）
+        - 步 3：激活实体（v1：全部，D-015 后排除本 tick 之前已 destroy 的）
+        - 步 4：每个激活实体收集 ActionProposal（写 decision_proposed 事件）
+        - 步 5：validate_action，失败走 fallback（写 decision_rejected / fallback_used 事件）
+        - 步 6：resolve_conflicts → apply_constraints（按 conflict_resolution 策略）
+        - 步 7：应用效果（mutate state + outbox 入队消息；D-015 后含 entity 生命周期 + chained 链）
+        - 步 8：写 action_executed 事件
+        - 步 9：检查断点（写 breakpoint_triggered 事件）
+        - 步 10：暂停判定（every_tick / 断点命中 → paused_after）
+        - 步 11：按 snapshot_mode 决定是否保存快照（依赖 paused_after）
         """
         if self._paused:
             raise PausedError("Runtime 处于暂停状态；请先调用 resume()")
@@ -325,6 +394,9 @@ class Runtime:
 
         # 2. scheduled_events
         tick_events.extend(self._process_scheduled_events(next_tick))
+
+        # 2.5. 跨 tick 延后 chained_actions fire（D-015 全量版）
+        tick_events.extend(self._process_delayed_chained_actions(next_tick))
 
         # 3. 激活实体（v1：全体）
         active_ids = list(self._state.entities.keys())
@@ -642,7 +714,7 @@ class Runtime:
             status="proposed",
         )
 
-    def _random_param_value(self, schema: Any) -> Any:
+    def _random_param_value(self, schema: ActionParamSchema) -> Any:
         """根据 ``ActionParamSchema`` 给参数采样一个合法值（D-014）。
 
         策略（按优先级）：
@@ -655,9 +727,9 @@ class Runtime:
            - ``entity_ref``：从 ``state.entities`` 选（按 ``entity_type_filter`` 过滤）；
              无候选时返回空串（让 validate_action 拦截，降级走 fallback）
 
-        返回值类型与 ``schema.type`` 对齐。
-        ``schema`` 类型注释为 ``Any`` 而非 ``ActionParamSchema``——避免 runtime.py
-        从 world_models 引入额外 import 链；调用者保证传入正确类型。
+        返回值类型与 ``schema.type`` 对齐。F8（session 27）：原版用 ``Any`` 类型
+        以"避免 import 链"，但 runtime.py 已从 world_models 导入 WorldDefinition，
+        加 ActionParamSchema 不引入新依赖——改回精确类型提升 IDE / mypy 体验。
         """
         if schema.default is not None:
             return schema.default
@@ -707,17 +779,27 @@ class Runtime:
     # ------------------------------------------------------------------
 
     def _apply_effects(
-        self, effects: list[Effect], tick: int
+        self, effects: list[Effect], tick: int, depth: int = 0
     ) -> list[EventRecord]:
         """把 Effect 列表逐个落到 state + 产生事件。
 
         - `AttributeEffect`：mutate state.entities[id].attributes[name]
-          （**D-015**：支持 ``delta`` 数值增量或 ``new_value`` 绝对值赋值二选一）
+          （**D-015 缩限版**：支持 ``delta`` 数值增量或 ``new_value`` 绝对值赋值二选一）
         - `EnvironmentEffect`：mutate state.environment + 写 ``environment_changed``
         - `RelationEffect`：改 state.relations + 写 ``relation_changed``
         - `MessageEffect`：envelope 入 outbox（下一 tick 投递）+ 写 ``message_emitted``
+        - **D-015 全量版**（session 28）三类新 effect：
+
+          - `EntityCreateEffect`：加 state.entities + 应用 initial_relations + 写 ``entity_created``
+          - `EntityDestroyEffect`：按 cascade 清理（关系/邮箱/outbox/forced）+ 写 ``entity_destroyed``
+          - `ChainedActionEffect`：同 tick 立即递归 / 跨 tick 入延后队列 + 写 ``chained_action_triggered``
 
         AttributeEffect 不产生独立事件——`action_executed` 已覆盖"谁做了什么"。
+
+        **depth 参数**（D-015 全量版）：递归调用计数。原始动作 effect 应用 depth=0；
+        chained 链中第 N 层的子 effect 应用 depth=N。同 tick 内链总深度若超过
+        ``RuntimeConfig.max_chain_depth``，抛 `RulesError` 防无限递归。
+        跨 tick 链每 tick 重置 depth=0，不计入此上限。
         """
         events: list[EventRecord] = []
         for effect in effects:
@@ -766,6 +848,313 @@ class Runtime:
                         },
                     )
                 )
+            # ── D-015 全量版（session 28）──
+            elif isinstance(effect, EntityCreateEffect):
+                events.extend(self._apply_entity_create_effect(effect))
+            elif isinstance(effect, EntityDestroyEffect):
+                events.extend(self._apply_entity_destroy_effect(effect))
+            elif isinstance(effect, ChainedActionEffect):
+                events.extend(
+                    self._apply_chained_action_effect(effect, tick, depth)
+                )
+        return events
+
+    def _apply_entity_create_effect(
+        self, effect: EntityCreateEffect
+    ) -> list[EventRecord]:
+        """应用 `EntityCreateEffect`——加 state.entities + 初始关系 + 写事件（D-015）。
+
+        - ``entity_id`` 必须唯一——已存在则抛 `RulesError`（rules 设计错）
+        - ``entity_type`` 必须在 ``world.entity_types`` 已声明——否则 `RulesError`
+        - ``initial_attributes`` 与 type schema 默认值合并（覆盖语义）
+        - ``initial_relations`` 中每条 RelationEffect 走标准 `_apply_relation_effect`
+          + 写 ``relation_changed`` 事件——保 audit 一致性
+        - 新实体**不参与同 tick 激活**——下一 tick 才进入决策流程（spec 第 150 行）
+
+        Returns:
+            含 1 条 ``entity_created`` 事件 + N 条 ``relation_changed`` 事件
+        """
+        if effect.entity_id in self._state.entities:
+            raise RulesError(
+                f"EntityCreateEffect: entity_id='{effect.entity_id}' 已存在；"
+                f"违反「全局唯一」约定。请检查 rules.resolve_effects 中是否对"
+                f"已存在实体重复触发了 EntityCreate。"
+            )
+        type_schema = self._world.entity_types.get(effect.entity_type)
+        if type_schema is None:
+            raise RulesError(
+                f"EntityCreateEffect: entity_type='{effect.entity_type}' "
+                f"未在 world.entity_types 中声明。可用类型："
+                f"{sorted(self._world.entity_types.keys())}"
+            )
+
+        # 合并默认值 + 覆盖值——与 _bootstrap_world_state 同语义
+        merged_attrs: dict[str, Any] = {
+            name: attr.default for name, attr in type_schema.attributes.items()
+        }
+        merged_attrs.update(effect.initial_attributes)
+
+        self._state.entities[effect.entity_id] = EntityRuntimeState(
+            id=effect.entity_id,
+            type=effect.entity_type,
+            attributes=merged_attrs,
+        )
+
+        events: list[EventRecord] = [
+            self._record_event(
+                "entity_created",
+                actor_id=effect.entity_id,
+                payload={
+                    "entity_id": effect.entity_id,
+                    "entity_type": effect.entity_type,
+                    "initial_attributes": dict(merged_attrs),
+                },
+            )
+        ]
+
+        # 应用初始关系——逐条走 _apply_relation_effect + 写 relation_changed
+        for rel_eff in effect.initial_relations:
+            self._apply_relation_effect(rel_eff)
+            events.append(
+                self._record_event(
+                    "relation_changed",
+                    actor_id=None,
+                    payload={
+                        "operation": rel_eff.operation,
+                        "relation_type": rel_eff.relation_type,
+                        "source": rel_eff.source,
+                        "target": rel_eff.target,
+                        "value": rel_eff.value,
+                        "source_effect": "entity_create",
+                    },
+                )
+            )
+
+        return events
+
+    def _apply_entity_destroy_effect(
+        self, effect: EntityDestroyEffect
+    ) -> list[EventRecord]:
+        """应用 `EntityDestroyEffect`——按 cascade 策略清理（D-015）。
+
+        三种 cascade（详见 `EntityDestroyEffect` docstring）：
+
+        - ``"all"``——删实体 + 关系 + 邮箱 + outbox 中其待发消息 + forced/ctx
+        - ``"preserve_relations"``——只删实体 + 邮箱（保留关系 dangling）
+        - ``"preserve_messages"``——只删实体 + 关系（保留邮箱与已 emit 消息）
+
+        实体不存在时跳过 + warning（与 `_apply_attribute_effect` 同风格）。
+
+        Returns:
+            含 1 条 ``entity_destroyed`` 事件
+        """
+        eid = effect.entity_id
+        if eid not in self._state.entities:
+            logger.warning(
+                "EntityDestroyEffect 目标实体 '%s' 不存在，跳过", eid
+            )
+            return []
+
+        # 删主实体（在所有 cascade 模式下都做）
+        del self._state.entities[eid]
+
+        # cascade 决定附属数据怎么处理
+        if effect.cascade in ("all", "preserve_messages"):
+            # 删关系——该实体作为 source 或 target 的所有关系
+            self._state.relations = [
+                r
+                for r in self._state.relations
+                if r.source != eid and r.target != eid
+            ]
+
+        if effect.cascade in ("all", "preserve_relations"):
+            # 删邮箱
+            self._state.mailboxes.pop(eid, None)
+
+        if effect.cascade == "all":
+            # outbox 中 from_actor 是该实体的待发消息
+            self._outbox = [env for env in self._outbox if env.from_actor != eid]
+            # forced_actions 与 _last_llm_prompt_context 中的同 id
+            self._forced_actions.pop(eid, None)
+            self._last_llm_prompt_context.pop(eid, None)
+
+        return [
+            self._record_event(
+                "entity_destroyed",
+                actor_id=eid,
+                payload={"entity_id": eid, "cascade": effect.cascade},
+            )
+        ]
+
+    def _apply_chained_action_effect(
+        self, effect: ChainedActionEffect, tick: int, depth: int
+    ) -> list[EventRecord]:
+        """应用 `ChainedActionEffect`——同 tick 立即递归 / 跨 tick 入队（D-015）。
+
+        - ``delay_ticks > 0``：加入 ``self._delayed_chained_actions`` 队列，
+          目标 tick 主循环步 2.5 取出 fire（depth 重置为 0）。本次只写
+          ``chained_action_triggered`` 事件标记声明瞬间
+        - ``delay_ticks == 0``：调用 `_execute_chained_action` 立即递归——
+          包含 validate + resolve + apply 完整链路，depth+1 计入
+
+        Returns:
+            含 ``chained_action_triggered`` 事件 + （同 tick 时）链中所有子事件
+        """
+        if effect.delay_ticks > 0:
+            target_tick = tick + effect.delay_ticks
+            self._delayed_chained_actions.append((target_tick, effect))
+            return [
+                self._record_event(
+                    "chained_action_triggered",
+                    actor_id=effect.actor_id,
+                    payload={
+                        "action_type": effect.action_type,
+                        "params": dict(effect.params),
+                        "depth": depth,
+                        "delay_ticks": effect.delay_ticks,
+                        "target_tick": target_tick,
+                        "delayed": True,
+                    },
+                )
+            ]
+
+        # 同 tick 立即——走完整执行链路
+        return self._execute_chained_action(
+            actor_id=effect.actor_id,
+            action_type=effect.action_type,
+            params=dict(effect.params),
+            tick=tick,
+            depth=depth,
+        )
+
+    def _execute_chained_action(
+        self,
+        *,
+        actor_id: str,
+        action_type: str,
+        params: dict[str, Any],
+        tick: int,
+        depth: int,
+    ) -> list[EventRecord]:
+        """构造 chained ActionProposal + validate + resolve + 递归应用（D-015）。
+
+        被两处调用：
+
+        1. `_apply_chained_action_effect` 当 ``delay_ticks=0`` 时（同 tick 链）
+        2. `_process_delayed_chained_actions` fire 跨 tick 延后链时（depth=0）
+
+        **流程**：
+
+        - 检查 ``depth >= max_chain_depth``——超限抛 `RulesError`
+        - 构造 ActionProposal（``decision_mode="rule"``，标 ``raw_reasoning_summary``）
+        - 写 ``chained_action_triggered`` 事件（含 depth + 1，表本次执行的层）
+        - 走 `validate_action`——失败写 ``decision_rejected`` 立即终止
+        - 走 ``resolve_effects + apply_constraints``
+        - 写 ``action_executed`` 事件（payload 加 ``source="chained_action"``）
+        - 递归调 ``_apply_effects(sub_effects, tick, depth=depth+1)``
+
+        **不**走主循环的 conflict_resolution——chained 是规则主动设计的连锁，
+        rules 应自己保证不冲突。
+        """
+        if depth >= self._runtime_config.max_chain_depth:
+            raise RulesError(
+                f"ChainedAction 链深度 {depth} 已达上限 max_chain_depth="
+                f"{self._runtime_config.max_chain_depth}；"
+                f"actor='{actor_id}' action='{action_type}'。"
+                f"通常是 rules 写错让 A→B→A 循环触发——检查 resolve_effects "
+                f"中的 ChainedActionEffect 逻辑或调高 RuntimeConfig.max_chain_depth"
+            )
+
+        proposal = ActionProposal(
+            tick=tick,
+            actor_id=actor_id,
+            action_type=action_type,
+            params=params,
+            decision_mode="rule",
+            raw_reasoning_summary=f"chained_action depth={depth + 1}",
+            status="proposed",
+        )
+
+        events: list[EventRecord] = [
+            self._record_event(
+                "chained_action_triggered",
+                actor_id=actor_id,
+                payload={
+                    "action_type": action_type,
+                    "params": dict(params),
+                    "depth": depth + 1,
+                    "delay_ticks": 0,
+                    "delayed": False,
+                },
+            )
+        ]
+
+        # validate_action——chained 仍走标准校验（D-014 强约束兜底）
+        validation = self._rules.validate_action(
+            self._world, self._state, proposal
+        )
+        if not validation.valid:
+            events.append(
+                self._record_event(
+                    "decision_rejected",
+                    actor_id=actor_id,
+                    payload={
+                        "action_type": action_type,
+                        "errors": validation.errors,
+                        "source": "chained_action",
+                    },
+                )
+            )
+            return events
+
+        sub_effects = self._rules.resolve_effects(
+            self._world, self._state, proposal
+        )
+        constrained = self._rules.apply_constraints(
+            self._world, self._state, sub_effects
+        )
+
+        events.append(
+            self._record_event(
+                "action_executed",
+                actor_id=actor_id,
+                payload={
+                    "action_type": action_type,
+                    "params": dict(params),
+                    "source": "chained_action",
+                },
+            )
+        )
+
+        # 递归——depth+1 计入
+        events.extend(self._apply_effects(constrained, tick, depth=depth + 1))
+        return events
+
+    def _process_delayed_chained_actions(
+        self, tick: int
+    ) -> list[EventRecord]:
+        """主循环步 2.5——fire 目标 tick 等于本 tick 的所有延后链（D-015）。
+
+        每个被 fire 的延后链 depth 重置为 0（spec 第 91 行：跨 tick 链每 tick
+        重置深度，不计入同 tick 链上限）。fire 后从 ``_delayed_chained_actions``
+        队列移除。
+        """
+        events: list[EventRecord] = []
+        remaining: list[tuple[int, ChainedActionEffect]] = []
+        for target_tick, effect in self._delayed_chained_actions:
+            if target_tick == tick:
+                events.extend(
+                    self._execute_chained_action(
+                        actor_id=effect.actor_id,
+                        action_type=effect.action_type,
+                        params=dict(effect.params),
+                        tick=tick,
+                        depth=0,  # 跨 tick 链每 tick 重置 depth
+                    )
+                )
+            else:
+                remaining.append((target_tick, effect))
+        self._delayed_chained_actions = remaining
         return events
 
     def _apply_attribute_effect(self, effect: AttributeEffect) -> None:
