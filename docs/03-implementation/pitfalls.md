@@ -40,6 +40,19 @@
 
 ## 五、踩坑清单
 
+### [P2] 2026-04-30 disabled 条件把"加载中"和"业务空值"合并，playwright 等不到 enable（session 42 PR5.5 踩坑）
+
+**✅ 已修**（session 42 E2E step 17 修复）：`@web/src/components/RawDataView.tsx:59` 第一版 `disabled={downloading || events.length === 0}` —— playwright step 17 点"📥 下载 events.jsonl"时等 10s 超时：按钮始终 disabled。根因：上层 `FinishedSidePanel` 传 `events = eventsResp?.events ?? []`，react-query loading 期间 `eventsResp` 是 `undefined` → events=`[]` → 按钮 disabled；但"真的空 run" 也是 `events=[]` → 永远不可点击。改 `disabled={downloading}` 即可——空 run 下触发下载会拉回空分页 + 生成 0 行 jsonl（合法产物），不影响语义。
+
+- **现象**：playwright `locator.click` 超时 10s，trace 看按钮始终 `disabled`；UI 肉眼也是灰色按钮不可点
+- **根因**：`events.length === 0` 条件在两种情形都成立——(a) react-query 还没加载完、(b) 加载完但实际 0 events；前者应显示 "downloading/loading"，后者应允许触发（下载空文件也是合法产物）。`?? []` 兜底使两种状态在 UI 层无法区分
+- **解法**：`disabled` 只依 `downloading`（真正的互斥锁状态）；空 events 也允许 click，让 `useDownloadEventsJsonl.trigger()` 自己分页拉（hook 拉空也会生成 `events_<runId>.jsonl` 空文件）
+- **相关文件**：`@web/src/components/RawDataView.tsx:59`、`@web/src/hooks/useDownloadEventsJsonl.ts`（hook 本身已正确处理 total=0 → 立即 progress=100 退出）
+- **防再犯**：
+  - 写 `disabled={loading || X}` 时**分清 loading vs X 的语义**——`loading` 期间 UI 本来就该显示 skeleton/spinner 不靠 disabled；`X` 应只反映真实业务互斥（如 mutation in-flight）
+  - `useQuery({ data }) ?? []` 兜底用于数据层方便（避免 undefined 判断），但**不应**让下游组件用 `.length === 0` 推断 loading 状态——需要 loading 信号就显式传 `isLoading` prop
+  - React 组件 props 设计：**一个 prop 不要承载两种语义**——loading + "真的空" 应当分开
+
 ### [P2] 2026-04-29 mockup 文档与 schema enum 漂移——event_templates EventKind 名按 mockup 文字写错 3 处（session 41 PR4.5 踩坑）
 
 **✅ 已修**（session 41 第 6 阶段）：`@web/src/components/event_templates.ts` 第一版按 mockup §4.3.3 文字写 `attribute_changed` / `relation_value_changed` / `environment_event` 三个 case，schema 真实 enum（`@web/src/api/types.gen.ts:997`）是 `relation_changed` / `environment_changed`（无 `attribute_changed`，属性变化通过 `action_executed` 体现）。tsc 立即报"类型不可与 EventKind 联合比较" 3 错；改 case 名 + 删 `attribute_changed` 通过。

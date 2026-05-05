@@ -268,7 +268,52 @@
       "world_overview": "World overview",
       "summary": "Full narrative",
       "judgement": "Situation judgement",
-      "suggestions": "Action suggestions"
+      "suggestions": "Action suggestions",
+      "enhance_failed": "LLM enhance failed; showing Phase A data only"
+    }
+  },
+  "finished_side_panel": {
+    "title": "📊 Full data",
+    "tabs": {
+      "attribute_chart": "📈 Attribute chart",
+      "final_relation_graph": "🕸 Relation graph",
+      "event_distribution": "📊 Event distribution",
+      "replay": "🎬 Replay",
+      "raw_data": "📋 Raw data"
+    },
+    "attribute_chart": {
+      "entity_filter": "Entity:",
+      "attribute_filter": "Attribute:",
+      "x_axis": "tick",
+      "loading": "Loading per-tick snapshots…",
+      "no_data": "No snapshot data"
+    },
+    "final_relation_graph": {
+      "time_axis": "Timeline:",
+      "tick_label": "tick {{tick}} / {{total}}",
+      "no_relations": "No relation defined in this scenario"
+    },
+    "event_distribution": {
+      "by_kind": "By event kind",
+      "by_actor": "By actor (action count)",
+      "switch_dim": "Switch dimension:",
+      "no_events": "No events"
+    },
+    "replay": {
+      "prev_tick": "◀ Prev tick",
+      "next_tick": "Next tick ▶",
+      "first_tick": "⏮",
+      "last_tick": "⏭",
+      "current_tick_events": "Tick {{tick}} events ({{count}})",
+      "no_events": "No events in this tick"
+    },
+    "raw_data": {
+      "download": "📥 Download events.jsonl",
+      "downloading": "Downloading…",
+      "progress": "Progress {{percent}}%",
+      "preview_title": "First {{n}} lines preview",
+      "summary": "Total: events={{total}} / ticks={{ticks}} / est. {{kb}} KB",
+      "error": "Download failed: {{msg}}"
     }
   }
 }

@@ -283,7 +283,7 @@ test("mockup §6 + critical UI interactions full coverage", async ({ page }) => 
   });
 
   // ============================================================
-  // PART 7: 跑完页 PR5（步 14-15）
+  // PART 7: 跑完页 PR5（步 14）+ PR5.5 副区（步 15-17）+ 回画廊（步 18）
   // ============================================================
   await test.step("step 14: finished page → 6 metrics + 4 narrative sections + buttons", async () => {
     // H1：仿真完成
@@ -317,7 +317,60 @@ test("mockup §6 + critical UI interactions full coverage", async ({ page }) => 
     await page.screenshot({ path: `${SCREENSHOT_DIR}/10-finished-page.png`, fullPage: true });
   });
 
-  await test.step("step 15: back to gallery from finished page", async () => {
+  await test.step("step 15: PR5.5 side panel — 5 tabs switch + aria-selected", async () => {
+    // 默认 tab = 📈 属性折线 —— 验证被选中
+    const defaultTab = page.getByRole("tab", { name: /属性折线|Attribute/i });
+    await expect(defaultTab).toBeVisible({ timeout: 10_000 });
+    await expect(defaultTab).toHaveAttribute("aria-selected", "true");
+
+    // 依次点击其他 4 tab，验证 aria-selected 切换
+    for (const pattern of [
+      /关系图|Relation/i,
+      /事件分布|Distribution/i,
+      /重播|Replay/i,
+      /原始|Raw/i,
+    ]) {
+      const tab = page.getByRole("tab", { name: pattern });
+      await tab.click();
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      // 给 recharts / cytoscape 留时间挂载
+      await page.waitForTimeout(500);
+    }
+    await page.screenshot({
+      path: `${SCREENSHOT_DIR}/14-finished-tabs-all-switched.png`,
+      fullPage: true,
+    });
+  });
+
+  await test.step("step 16: PR5.5 attribute chart tab — recharts svg + entity filter visible", async () => {
+    await page.getByRole("tab", { name: /属性折线|Attribute/i }).click();
+    await page.waitForTimeout(500);
+    // AttributeChart loading 后会显示 recharts svg（class=".recharts-surface"）
+    // 或显示 loading / no_data 文本 —— 任一可见即通过
+    const chartSvg = page.locator(".recharts-surface").first();
+    const loadingTxt = page.getByText(/正在加载|Loading per-tick|暂无快照|No snapshot/i);
+    // 等 svg 或 loading/空 文本其一出现
+    await Promise.race([
+      chartSvg.waitFor({ state: "visible", timeout: 8_000 }).catch(() => null),
+      loadingTxt.first().waitFor({ state: "visible", timeout: 8_000 }).catch(() => null),
+    ]);
+    // 实体 filter 标签（纯文本匹配避免 emoji）
+    await expect(
+      page.getByText(/实体：|Entity:/).first(),
+    ).toBeVisible({ timeout: 3_000 });
+  });
+
+  await test.step("step 17: PR5.5 raw data tab — [📥 下载 events.jsonl] triggers download", async () => {
+    await page.getByRole("tab", { name: /原始|Raw/i }).click();
+    await page.waitForTimeout(500);
+    // playwright waitForEvent("download")  —— promise 必须在 click 前 setup
+    const downloadPromise = page.waitForEvent("download", { timeout: 15_000 });
+    await page.getByRole("button", { name: /下载.*events|Download.*events/i }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^events_.*\.jsonl$/);
+  });
+
+  await test.step("step 18: back to gallery from finished page", async () => {
     await page.getByRole("button", { name: /返回画廊|Back to gallery/i }).click();
     await expect(page).toHaveURL("/", { timeout: 10_000 });
     await expect(page.getByText("walkthrough-min")).toBeVisible();

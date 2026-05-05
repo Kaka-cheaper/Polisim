@@ -268,7 +268,52 @@
       "world_overview": "世界概览",
       "summary": "全过程叙事",
       "judgement": "局势判断",
-      "suggestions": "行动建议"
+      "suggestions": "行动建议",
+      "enhance_failed": "LLM 增强失败，仅显示 Phase A 数据"
+    }
+  },
+  "finished_side_panel": {
+    "title": "📊 完整数据",
+    "tabs": {
+      "attribute_chart": "📈 属性折线",
+      "final_relation_graph": "🕸 关系图",
+      "event_distribution": "📊 事件分布",
+      "replay": "🎬 重播",
+      "raw_data": "📋 原始数据"
+    },
+    "attribute_chart": {
+      "entity_filter": "实体：",
+      "attribute_filter": "属性：",
+      "x_axis": "tick",
+      "loading": "正在加载各 tick 快照…",
+      "no_data": "暂无快照数据"
+    },
+    "final_relation_graph": {
+      "time_axis": "时间轴：",
+      "tick_label": "tick {{tick}} / {{total}}",
+      "no_relations": "此场景无 relation 定义"
+    },
+    "event_distribution": {
+      "by_kind": "按事件类型",
+      "by_actor": "按 actor（动作执行数）",
+      "switch_dim": "切换维度：",
+      "no_events": "无事件"
+    },
+    "replay": {
+      "prev_tick": "◀ 上一 tick",
+      "next_tick": "下一 tick ▶",
+      "first_tick": "⏮",
+      "last_tick": "⏭",
+      "current_tick_events": "tick {{tick}} 事件（{{count}} 条）",
+      "no_events": "该 tick 无事件记录"
+    },
+    "raw_data": {
+      "download": "📥 下载 events.jsonl",
+      "downloading": "下载中…",
+      "progress": "进度 {{percent}}%",
+      "preview_title": "前 {{n}} 行预览",
+      "summary": "总计：events={{total}} / tick={{ticks}} / 预估 {{kb}} KB",
+      "error": "下载失败：{{msg}}"
     }
   }
 }

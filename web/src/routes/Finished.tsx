@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { FinishedMetricsCard } from "../components/FinishedMetricsCard";
+import { FinishedSidePanel } from "../components/FinishedSidePanel";
 import { NarrativeReport } from "../components/NarrativeReport";
 import { useAnalysis } from "../hooks/useAnalysis";
 import { useCreateRun } from "../hooks/useCreateRun";
@@ -160,6 +161,17 @@ export default function Finished() {
           }
         />
       </div>
+
+      {/* PR5.5：副区 5 tabs（mockup §4.5）——runId 已由 useParams 保证存在；runDetail 未加载时不渲染 */}
+      {runId && runDetail && (
+        <div className="mt-10">
+          <FinishedSidePanel
+            runId={runId}
+            runDetail={runDetail}
+            result={phaseA}
+          />
+        </div>
+      )}
     </main>
   );
 }

@@ -6,7 +6,7 @@
 
 ## 一、当前位置
 
-**阶段**：**v0.2 Playwright E2E（2 test / 19 step / 13 截图）+ PR4.3 react-is + PR4-fix 单步语义 + RunResumedEvent 对称设计 + PR5 跑完页 + PR4.5 三 layout dispatch + 纪律修复（pitfalls P4/P5 + AGENTS.md 3.1 §）（同 session 7 阶段连发）完成**（session 41 末，2026-04-29）——`https://github.com/Kaka-cheaper/Polisim`
+**阶段**：**v0.2 PR5.5 跑完页副区（5 tabs + 3 新 hooks + 客户端 Blob 下载 + E2E step 15-18）交付**（session 42 末，2026-04-30）——`https://github.com/Kaka-cheaper/Polisim`
 
 **进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 全量版 / D-016 + LLM 增强分析升级**已落地；**改名 SimEngine → Polisim**；**810 tests passing**（本 session 仅前端，0 后端测试变动）；**v0.2 阶段：D-017 spec（session 29）+ UI mockup v1（session 30）+ Server REST（session 31）+ WebSocket（session 32）+ 架构审查 F1-F10（session 33）+ mockup 第二阶段配套（session 34）+ PR1 web/ 项目骨架（session 35）+ PR2 API 层 + 7 hooks + ErrorBoundary（session 36）+ **PR3：routes/Gallery + routes/PreRun + components/{ScenarioCard, ScenarioIntroPanel, AdvancedOptionsPanel} + i18n 4 组 keys + schema.ts 加 6 嵌套类型别名**（session 37）**
 
@@ -988,10 +988,55 @@
       - **关键 cytoscape 类型子修正**：第一版用 `cytoscape.Stylesheet[]`，cytoscape 包导出名为 `StylesheetCSS`。修
       - **验收**：`pytest`（PR4.5 纯前端，0 后端测试变动）；`playwright 2 passed 23.7s`（test 1 minimal_market 15 step / test 2 three_party_negotiation 4 step / 4 新截图）
       - **设计纪律遵守**：0 v0.1 内核改动 / 0 server 改动 / 装包均在 mockup §8.1 + §9.2 已决议清单内 / AGENTS.md 第 3.2 节落点合规（`layouts/` + `components/` 已预设）/ pitfalls.md 未引入新条目（3 个子修正都是 spec/code 调试期发现的小类型问题，已自修无后续风险）
+71. **v0.2 PR5.5 跑完页副区**（session 42，2026-04-30）：按 `docs/02-design/PR5.5-spec.md`（session 41 末起草）的 5 子步 1:1 落地——**副区容器 + 5 tabs + 3 新 hooks + 客户端 Blob 下载 + E2E step 15-18**：
+    - **子步 1**：schema.ts 加 7 个 alias（`KindStat` / `ActorStat` / `TurningPoint` / `EntityComparison` / `EventListResponse` / `SnapshotsListResponse`）；新建 3 hooks：
+      - `hooks/useEvents.ts`（GET `/runs/:id/events` 分页 + 过滤 + cast `unknown[]` → `EventRecord[]`；react-query 5min staleTime）
+      - `hooks/useSnapshot.ts`（含三 hooks：`useSnapshot` 单 tick + `useSnapshotsList` tick 列表 + **`useAllSnapshots` 批量 Promise.all 拉指定 tick 列表**——绕开"React hooks 不能动态调用"约束）
+      - `hooks/useDownloadEventsJsonl.ts`（客户端分页循环 + Blob + URL.createObjectURL + `<a download>` 触发浏览器下载；总进度条按 `total` 字段估算）
+    - **子步 2**：i18n `finished_side_panel.*` 两组共 36 keys（tabs / attribute_chart / final_relation_graph / event_distribution / replay / raw_data + narrative.enhance_failed 补漏）
+    - **子步 3**：5 tab 组件（全在 `web/src/components/`）：
+      - **`AttributeChart`**（~240 行）：useSnapshotsList + useAllSnapshots → recharts LineChart；实体/属性双 checkbox 过滤（默认全选）；支持 `highlightTick` ReferenceLine；loading / no_data 占位
+      - **`EventDistributionChart`**（~120 行）：消费 `AnalysisResult.summary.events_by_kind / events_by_actor`（**schema 是 `KindStat[]` / `ActorStat[]` array，不是 mockup 猜想的 `Record<>`**——schema-first 胜利）；维度切换 2 按钮；recharts vertical BarChart
+      - **`ReplayPanel`**（~140 行）：tick slider + ◀▶⏮⏭ 4 按钮 + 当前 tick 事件列表（复用 `formatEvent` 自然语言模板）；**不做**真正的自动播放（留 v0.3+）
+      - **`RawDataView`**（~100 行）：前 200 行 JSONL 预览（`<pre>` 可滚动）+ 统计摘要（events / ticks / 预估 KB）+ `useDownloadEventsJsonl` 触发 + 进度条 + 错误 banner
+      - **`FinalRelationGraph`**（~240 行）：cytoscape.js + cose-bilkent 力导向图；time-axis slider 切 tick；节点按 decision_mode 着色、边按 trust value 色/粗细映射；**不复用 RelationGraphLayout**（props 不同 + 避免破 PR4.5 e2e 回归；v0.3+ 可共享 refactor）
+    - **子步 4**：`components/FinishedSidePanel.tsx`（~160 行）：5 tab 容器 + role="tab" + aria-selected 切换 + 懒加载（tab 切换才挂载对应组件）；顶部 useEvents(limit=5000) 共享给 ReplayPanel + RawDataView 避免重复拉取；GraphLoader wrapper 专供 FinalRelationGraph（react-query queryKey 与 AttributeChart 共享缓存）
+    - **子步 5**：`routes/Finished.tsx` 底部挂 `<FinishedSidePanel runId={runId} runDetail={runDetail} result={phaseA} />`（`phaseA` 必然成功——复用 session 41 PR5 的双查询模式）
+    - **E2E spec 扩展**（`web/tests/e2e/mockup-flow.spec.ts`）：原 15 step → 18 step。改 PART 7 注释为"PR5（步 14）+ PR5.5 副区（步 15-17）+ 回画廊（步 18）"；old step 15 （back to gallery）编号改 18；新 step 15（5 tab aria-selected 切换循环 + 截图）+ step 16（属性折线 tab 验 `.recharts-surface` svg + "实体：" filter 标签）+ step 17（原始数据 tab 点下载 → `page.waitForEvent("download")` → 验 `events_<runId>.jsonl` 文件名）
+    - **关键 bugfix（同 session 踩坑 + 已记 P2 pitfall）**：第一版 RawDataView `disabled={downloading || events.length === 0}` 导致 playwright step 17 等 10s 超时——上层 `events = eventsResp?.events ?? []` 使得 "loading" 和 "empty run" 状态无法区分。改 `disabled={downloading}` —— 空 run 触发下载生成 0 行 jsonl 合法。pitfalls.md 新加 P2 条目（disabled + loading 语义混淆）
+    - **关键设计纪律 schema-first 胜利**：写 EventDistributionChart 前发现 `AnalysisResult.summary.events_by_kind` 在 schema 是 `KindStat[]` array（`{kind: str, count: int}`），mockup §11.7 隐性假设是 `Record<EventKind, number>` —— session 41 末立的 P5 纪律（AGENTS.md 3.1 §：字段名/enum 冲突以 schema 为准）立即触发避免重写
+    - **设计决策**：
+      - FinalRelationGraph 不重构 RelationGraphLayout 抽 RelationGraphBase —— 避免破 PR4.5 e2e 回归（`three_party_negotiation` test 2）；接受 ~80 行 cytoscape stylesheet 重复（v0.3+ refactor）
+      - AttributeChart 用 `useAllSnapshots` 一次性批量拉（Promise.all）—— N≤100 场景（walkthrough=6 tick）可接受；**未来**：server 加 `GET /snapshots?from_tick&to_tick` 批量 endpoint
+      - events 共享（ReplayPanel + RawDataView）走 `useEvents(limit=5000)` 一次性拉 —— 大场景（>5000 events）下 RawDataView 的下载走 `useDownloadEventsJsonl` 独立分页路径；预览仍只显示前 5000 的前 200 行；v0.3+ 再优化
+    - **验收**：`tsc --noEmit` 0 错 / `playwright 2 passed 26.9s`（test 1 minimal_market **18 step** / test 2 three_party_negotiation 4 step）：
+
+      ```text
+      验收对象：PR5.5 跑完页副区 5 tabs
+      对应验收项：mockup §4.5 + PR5.5-spec 全 8 节
+      输入：跑完 minimal_market 后的 /runs/:id/finished 页面
+      执行方式：playwright step 15-17（5 tab 切换 + 属性折线验证 + 下载触发）
+      实际输出：
+        - step 15: 默认 📈 tab aria-selected=true → 依次点 🕸/📊/🎬/📋 每个 aria-selected 切换成功 + 500ms 给 recharts/cytoscape 挂载
+        - step 16: 📈 tab 下 `.recharts-surface` svg 可见 + "实体：" filter 标签可见
+        - step 17: 📋 tab 下点 "📥 下载 events.jsonl" → downloadPromise resolve → suggestedFilename 匹配 `events_*.jsonl`
+        - 18 step 全 passed in 21.4s（test 1）+ 3.1s（test 2）= 26.9s
+      是否通过：通过
+      备注：RawDataView disabled 初版 bug 修复后一次过；无其他踩坑
+      ```
+
+    - **测试影响**：**0 后端测试变动 / 814 passed 不变**（纯前端 + E2E 增量）；playwright 从 2 passed 23.7s（session 41 末）→ 2 passed 26.9s（+3.2s 为新 3 step + recharts/cytoscape 挂载等待）
+    - **设计纪律遵守**：
+      - **MUST NOT 全员遵守**——0 v0.1 内核改动 / 0 server 改动 / 0 mockup §8.1 之外新依赖（cytoscape 已在 PR4.5 装完）
+      - **schema-first 胜利**——Session 41 P5 纪律 + AGENTS.md 3.1 § 在 EventDistributionChart 写作前触发，避免按 mockup 文字猜 `Record<>` 写错后再 tsc 报错
+      - **AGENTS.md 落点纪律**——所有新增在 `hooks/` + `components/` + `i18n/` + `routes/`（挂载），无新顶层目录
+      - **PR5.5-spec.md 作为开发前权威**——session 41 末花 1h 起草，session 42 开发按 8 子步 1:1 落地，减少 session 42 内决策分叉
+      - **pitfalls.md 纪律**——踩坑立记 P2 条目（disabled + loading 语义混淆）
+    - **新踩坑（pitfalls.md 已加 1 条 P2）**：RawDataView 按钮 `disabled={downloading || events.length === 0}` 混淆 loading 与业务空值，playwright 10s 超时
 
 **进行中**：
 
-- v0.2 session 41 收尾：**6 阶段连发**——PR4.3 react-is + PR4-fix 单步 + RunResumedEvent + PR5 跑完页 + PR4.5 三 layout dispatch 全部交付。`pytest 814 passed / playwright 2 passed 23.7s（test 1 minimal_market 15 step / test 2 three_party_negotiation 4 step）/ pitfalls.md 第 1+2 条 P3 全标「✅ 已修」`。**session 42+ 入口任务**：剩余 v0.2 R 前端 1 条支线：**PR5.5 跑完页副区**（FinishedSidePanel + 5 tabs：📈 AttributeChart 折线 / 🕸 FinalRelationGraph（复用 PR4.5 cytoscape） / 📊 EventDistributionChart 柱状 / 🎬 重播 / 📋 RawDataView + useDownloadEventsJsonl 客户端 Blob 下载；E2E spec 加 step 16-18 验证 tabs 切换；预计 1 session）。剩余 1 session 收尾 v0.2 R 前端核心功能。
+- v0.2 session 42 **PR5.5 跑完页副区**全部交付——**FinishedSidePanel + 5 tabs + 3 新 hooks + 客户端 Blob 下载 + E2E step 15-18 扩展**。`tsc 0 错 / playwright 2 passed 26.9s（test 1 minimal_market 18 step / test 2 three_party_negotiation 4 step） / pitfalls.md 加 1 条 P2 (disabled + loading 条件混淆)`。**v0.2 R 前端核心功能已全部交付**——Gallery → PreRun → Running (3 layouts) → Finished (4 段叙事 + 6 指标) → FinishedSidePanel (5 tabs + 下载) 完整用户流程闭环。
 - **PR3 关键文件清单**（session 37 落地，全在 `web/src/`）：
   - `routes/Gallery.tsx`（重写——useScenarios + 3 段 grid）
   - `routes/PreRun.tsx`（重写——useRun + ScenarioIntroPanel + AdvancedOptionsPanel + 上下按钮）

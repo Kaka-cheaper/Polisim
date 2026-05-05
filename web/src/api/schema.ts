@@ -48,3 +48,11 @@ export type HealthResponse = Schemas["HealthResponse"];
 
 // === 分析层 ===
 export type AnalysisResult = Schemas["AnalysisResult"];
+export type KindStat = Schemas["KindStat"];
+export type ActorStat = Schemas["ActorStat"];
+export type TurningPoint = Schemas["TurningPoint"];
+export type EntityComparison = Schemas["EntityComparison"];
+
+// === PR5.5 副区数据 ===
+export type EventListResponse = Schemas["EventListResponse"];
+export type SnapshotsListResponse = Schemas["SnapshotsListResponse"];
