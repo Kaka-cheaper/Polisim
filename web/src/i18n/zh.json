@@ -1,0 +1,274 @@
+{
+  "topbar": {
+    "title": "Polisim",
+    "lang_toggle": "EN",
+    "lang_toggle_aria": "切换至英文"
+  },
+  "routes": {
+    "gallery": "场景画廊",
+    "pre_run": "跑前介绍",
+    "running": "跑中态势",
+    "finished": "跑完报告"
+  },
+  "placeholder": {
+    "pr1_notice": "PR1 占位页 —— 业务组件将在 PR3 起逐步落地"
+  },
+  "error": {
+    "boundary": {
+      "title": "页面渲染崩溃",
+      "description": "前端组件抛出了未捕获异常。可尝试重置当前视图，或刷新整页。",
+      "retry": "重置视图",
+      "reload": "刷新页面"
+    },
+    "toast": {
+      "4xx_prefix": "请求失败",
+      "5xx_prefix": "服务器错误"
+    }
+  },
+  "gallery": {
+    "title": "场景画廊",
+    "subtitle": "分层驱动的多实体仿真引擎",
+    "tagline": "选一个场景，看 AI 在多实体世界里如何决策",
+    "empty": "scenarios/ 目录为空，请先添加场景文件",
+    "error_title": "无法加载场景列表",
+    "error_hint": "请检查 server 是否在运行（默认 http://localhost:8000）",
+    "retry": "重试",
+    "section": {
+      "production": "现成场景",
+      "upcoming": "即将到来",
+      "custom": "自定义"
+    },
+    "upcoming": {
+      "info_cascade": {
+        "name": "📰 信息级联",
+        "description": "消息节点动态衍生（D-015 EntityCreate 能力点）"
+      },
+      "organization_decision": {
+        "name": "🏛 组织决策",
+        "description": "审批链 + 责任传递（D-015 ChainedAction 能力点）"
+      }
+    },
+    "custom": {
+      "title": "✨ 创建你自己的场景",
+      "description": "通过对话告诉 AI 你想要什么样的世界 → AI 生成 world + scenario YAML → 立即跑起来看效果"
+    },
+    "coming_soon_toast": "v0.3+ 即将开放，进度见 progress.md"
+  },
+  "scenario_card": {
+    "start": "▶ 开始",
+    "v0_3_label": "v0.3+",
+    "ticks_label": "{{count}} 个 tick",
+    "world_id_label": "world: {{id}}",
+    "ui_layout_hint": {
+      "entity_card": "实体卡片视图",
+      "relation_graph": "关系图视图",
+      "event_stream": "事件流视图"
+    }
+  },
+  "pre_run": {
+    "back": "← 返回画廊",
+    "story_title": "🎬 这场仿真的故事",
+    "section": {
+      "description": "场景描述",
+      "entities": "参与实体",
+      "schedule": "预设事件"
+    },
+    "scheduled_event": "第 {{tick}} tick · {{type}}",
+    "no_scheduled_events": "本场无预设事件",
+    "no_description": "（场景未提供描述）",
+    "decision_mode": {
+      "llm": "LLM",
+      "rule": "规则",
+      "random": "随机",
+      "default": "—"
+    },
+    "start": "▶ 开始仿真",
+    "back_to_gallery": "← 选其他场景",
+    "error_title": "无法加载 run 信息"
+  },
+  "advanced_options": {
+    "title": "⚙️ 高级选项",
+    "tip": "v0.2 占位 —— 此处修改不会立即生效；下个 PR 接通到 [▶ 开始仿真] 流程",
+    "ticks_override": "覆盖 total_ticks",
+    "ticks_override_placeholder": "默认按场景声明",
+    "llm_provider": "LLM provider",
+    "llm_provider_options": {
+      "mock": "Mock（离线）",
+      "openai": "OpenAI"
+    }
+  },
+  "running": {
+    "loading": "加载 run 信息...",
+    "error_title": "加载失败",
+    "layout_not_implemented": "{{layout}} 布局将在 PR4.5 实施；当前仅 entity_card 可演示"
+  },
+  "control_bar": {
+    "pause": "暂停",
+    "resume": "恢复",
+    "step": "单步",
+    "speed_label": "速度",
+    "side_panel_show": "显示数据副区",
+    "side_panel_hide": "隐藏数据副区",
+    "exit": "退出",
+    "tick_label": "tick {{current}}/{{total}}",
+    "status": {
+      "idle": "未连接",
+      "connecting": "连接中",
+      "running": "运行中",
+      "paused": "已暂停",
+      "finished": "已完成",
+      "reconnecting": "重连中 #{{attempt}}",
+      "closed": "已关闭",
+      "error": "错误"
+    },
+    "paused_reason": {
+      "manual": "手动暂停",
+      "every_tick": "每轮自动暂停",
+      "breakpoint": "断点触发：{{ids}}",
+      "total_ticks": "已完成全部 tick"
+    }
+  },
+  "entity_card": {
+    "decision_mode_label": {
+      "llm": "LLM",
+      "rule": "RULE",
+      "random": "RAND"
+    },
+    "no_decision_yet": "等待决策",
+    "no_action_yet": "等待动作",
+    "just_executed": "刚执行",
+    "intervene": "📌 干预",
+    "intervene_pr_4_2": "干预面板将在 PR4.2 实施"
+  },
+  "llm_thought": {
+    "title": "💭 LLM 想法",
+    "view_prompt": "📋 看完整 prompt",
+    "view_prompt_pr_4_2": "Prompt 详情将在 PR4.2 实施"
+  },
+  "rule_thought": {
+    "title": "🤐 规则决策",
+    "random_title": "🎲 随机决策"
+  },
+  "intervention": {
+    "title": "📌 干预实体",
+    "subtitle": "{{entityId}} —— 将于下一 tick 生效",
+    "tab": {
+      "force_action": "⚡ 强制动作",
+      "inject_message": "💬 注入消息",
+      "override_attribute": "✏️ 修改属性"
+    },
+    "field": {
+      "tick_label": "生效 tick",
+      "tick_hint": "干预在该 tick 开始前应用；默认下一 tick",
+      "reason_label": "理由（可选）",
+      "reason_placeholder": "操作者说明，用于审计追溯",
+      "target_actor": "目标实体",
+      "target_actor_locked": "目标实体（已锁定）",
+      "target_actor_broadcast": "广播（不限定接收方）",
+      "action_type": "动作类型",
+      "action_type_placeholder": "例：promote / advertise",
+      "params_json": "参数（JSON）",
+      "params_json_placeholder": "{\n  \"amount\": 20\n}",
+      "message_type": "消息类型",
+      "message_type_hint": "需在 World Definition.message_types 中已声明",
+      "payload_json": "载荷（JSON）",
+      "payload_json_placeholder": "{\n  \"content\": \"hello\"\n}",
+      "attribute_changes_json": "属性变更（JSON）",
+      "attribute_changes_json_hint": "key 为属性名，value 为新值；可一次改多个",
+      "attribute_changes_json_placeholder": "{\n  \"cash\": 100,\n  \"reputation\": 60\n}"
+    },
+    "submit": "📌 提交干预",
+    "cancel": "✕ 取消",
+    "submitting": "提交中…",
+    "json_parse_error": "JSON 解析失败：{{message}}",
+    "validation": {
+      "tick_required": "tick 必须为非负整数",
+      "target_actor_required": "{{kind}} 必须指定目标实体",
+      "message_type_required": "inject_message 必须指定消息类型",
+      "action_type_required": "force_action 必须指定动作类型",
+      "attribute_changes_empty": "override_attribute 至少需要一组属性变更"
+    },
+    "success": "干预已应用：{{kind}} → {{target}}（tick {{tick}}）",
+    "auto_resume_skipped": "原本已暂停，提交后保持暂停状态"
+  },
+  "mini_dashboard": {
+    "title": "📊 数据副区",
+    "section": {
+      "attributes": "📈 属性趋势（按 tick）",
+      "events": "📊 事件分布（按 kind）"
+    },
+    "no_snapshots": "至少需要 2 个 tick 数据才能绘制趋势线",
+    "no_numeric_attrs": "本场景无数值属性",
+    "no_events": "暂无事件",
+    "tooltip_tick": "tick"
+  },
+  "prompt_modal": {
+    "title": "💭 LLM Prompt 上下文",
+    "subtitle": "{{entityId}} @ tick {{tick}}",
+    "no_data": "本次决策无 prompt_context 字段（可能是 rule / random 决策）",
+    "section": {
+      "system_role": "🎭 system_role —— 角色与身份",
+      "actor_view": "👤 actor_view —— 自身视图",
+      "perception": "🌍 perception —— 外部感知",
+      "available_actions": "⚙️ available_actions —— 可用动作",
+      "language_hint": "💬 language_hint —— 语言指令",
+      "custom_segments": "📝 custom_segments —— 场景特化段"
+    },
+    "empty_field": "（空）",
+    "close": "关闭",
+    "close_hint": "Esc 或点击外部关闭"
+  },
+  "relation_graph": {
+    "legend": {
+      "llm": "LLM 决策",
+      "rule": "规则决策",
+      "random": "随机决策",
+      "edge_hint": "边粗细 = 关系值；颜色：绿 ≥70 / 黄 40-69 / 红 ≤40"
+    },
+    "decision_aria": "最近一次 LLM 决策"
+  },
+  "event_stream": {
+    "entities_title": "📋 实体",
+    "stream_aria": "事件瀑布",
+    "no_events": "暂无事件——等待第一个 tick",
+    "template": {
+      "decision_proposed": "💭 {{actor}} 思考 → {{action}}（{{reason}}）",
+      "action_executed": "⚡ {{actor}} 执行 → {{action}}",
+      "relation_changed": "🤝 {{source}}.{{relationType}}({{target}}) {{before}}→{{after}}",
+      "breakpoint_triggered": "🔔 触发断点 {{id}}",
+      "intervention_applied": "📌 干预 {{kind}} → {{target}}",
+      "environment_changed": "🌐 {{name}} {{before}}→{{after}}",
+      "scheduled_event_triggered": "📅 计划事件：{{name}}",
+      "decision_rejected": "🚫 {{actor}} 决策被拒：{{reason}}"
+    }
+  },
+  "finished": {
+    "header": {
+      "title": "仿真完成"
+    },
+    "back_to_gallery": "← 返回画廊",
+    "rerun": "🔄 重跑",
+    "error": {
+      "title": "分析报告加载失败",
+      "hint": "可能是 LLM 增强超时或 server 错误；可返回画廊重新开始"
+    },
+    "metrics": {
+      "aria_label": "6 类指标卡片",
+      "total_ticks": "总 tick 数",
+      "total_events": "事件总数",
+      "event_kinds": "事件类型数",
+      "entities": "参与实体",
+      "turning_points": "关键转折",
+      "breakpoints": "断点触发"
+    },
+    "narrative": {
+      "title": "📖 LLM 仿真报告",
+      "loading": "正在生成 LLM 增强报告…",
+      "empty_section": "（LLM 未生成此段，可能是 Phase A 模式或 enhance 失败）",
+      "world_overview": "世界概览",
+      "summary": "全过程叙事",
+      "judgement": "局势判断",
+      "suggestions": "行动建议"
+    }
+  }
+}

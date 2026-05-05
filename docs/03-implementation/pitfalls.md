@@ -40,6 +40,179 @@
 
 ## 五、踩坑清单
 
+### [P2] 2026-04-29 mockup 文档与 schema enum 漂移——event_templates EventKind 名按 mockup 文字写错 3 处（session 41 PR4.5 踩坑）
+
+**✅ 已修**（session 41 第 6 阶段）：`@web/src/components/event_templates.ts` 第一版按 mockup §4.3.3 文字写 `attribute_changed` / `relation_value_changed` / `environment_event` 三个 case，schema 真实 enum（`@web/src/api/types.gen.ts:997`）是 `relation_changed` / `environment_changed`（无 `attribute_changed`，属性变化通过 `action_executed` 体现）。tsc 立即报"类型不可与 EventKind 联合比较" 3 错；改 case 名 + 删 `attribute_changed` 通过。
+
+- **现象**：写 PR4.5 `event_templates.ts` 时直接抄 mockup §4.3.3 第 426 行附近的"💰 {actor}.cash {before}→{after}"模板，对应 `attribute_changed`。tsc 报 `类型 "attribute_changed" 不可与类型 "decision_proposed" | ... 比较`。
+- **根因**：mockup 是 session 30/34 写的，schema enum 是 D-013/D-015 落地时定的——**双源 spec 漂移**。session 27 F3 已发现的"schema vs spec 漂移"问题在前端代码上**重新发生**。
+  - mockup 是产品意图文档，写于 server 还没落地时
+  - schema 是 server-client 契约的事实源（自动从 Pydantic 生成 OpenAPI 再生成 ts）
+- **本质**：双源文档没有"自动一致性"机制——mockup 用文字描述事件名，schema 用 enum；改一边不会自动同步另一边。
+- **解法**（已落地）：写 client 代码涉及 enum / 字段名时，**优先看 `@web/src/api/types.gen.ts`**（自动生成）或 `@web/src/api/schema.ts`（人写的别名层）；mockup 仅作 wireframe + 用户故事参考。
+- **相关文件**：`@web/src/components/event_templates.ts:67,93`（修后正确 enum 名）、`@web/src/api/types.gen.ts:997`（EventKind 全部 15 值的事实源）
+- **防再犯**：
+  - **AGENTS.md 第 3.1 节文档优先级**已增补一条：「**字段名 / enum 值**冲突时，以 schema (`@web/src/api/types.gen.ts`) 为准——schema 是 server-client 契约的事实源」
+  - 写 client 代码涉及枚举时，先 `grep_search EventKind` schema 看实际值，**不要从 mockup 文字猜**
+  - 长期：v0.3+ 考虑给 mockup 加自动校验脚本（解析 mockup mention 的事件名 vs schema enum 对照）
+
+### [P3] 2026-04-29 v0.2 跑完页 LLM 增强必须双查询模式 fallback——单查询 enhance=true 在 mock provider 下整页 502（session 41 PR5 第一版踩坑）
+
+**✅ 已修**（session 41 第 5 阶段）：`@web/src/routes/Finished.tsx` 第一版用单 `useAnalysis(runId, { enhance: true })`，mock provider 跑 narrative 生成失败 → server `/runs/:id/analysis?enhance=true` 返 502 → react-query 进 error 状态 → 跑完页整页渲染「分析报告加载失败」red banner，无任何数据可见。改双查询：`useAnalysis(enhance=false)` 拿 phaseA 渲染 6 指标（必然成功）+ `useAnalysis(enhance=true)` 异步拿 4 段 narrative（失败时 ⚠️ banner + phaseA fallback）。E2E spec step 14 一次过。
+
+- **现象**：跑 e2e step 14 在 finished 页找 6 指标卡片标签——找不到。trace.zip 看 H1 = "分析报告加载失败"，整页 error 渲染。server log 显示 `GET /api/v1/runs/.../analysis?enhance=true HTTP/1.1" 502 Bad Gateway`。
+- **根因**：mockup §10.5 M1 早已写明 4 段 LLM 报告**异步获取**而非 ws 直送的标准流程：
+  1. tick 跑完 → server 自动 analyze_run（Phase A，必然成功）→ 推 RunFinishedEvent + close ws
+  2. 前端进入跑完页时优先用 RunFinishedEvent.data 的 Phase A 字段先渲染（事件分布 / 实体比较）+ 在 4 段叙事区域显示 loading skeleton + 异步发起 GET enhance=true
+  3. 失败处理：enhance=true 调用失败 → 显示 banner + 重试按钮 → 不阻塞 phaseA 渲染
+- **本质**：PR5 第一版**没读 mockup §10.5 M1**，按"4 段叙事页"字面意思写单查询。Phase C LLM 增强是**可选**的——mock provider 不能生成 narrative 是 by design 不是 bug。UI 必须在 fallback 模式下完整工作。
+- **影响范围**：所有用 mock provider 跑的场景跑完后整页错（即开发/测试场景全 broken）；只有真 OpenAI 跑成功才能看 finished 页。
+- **解法**（已落地，session 41 第 5 阶段）：`@web/src/routes/Finished.tsx` 改双查询模式
+  - phaseAError 才进 error 分支（致命：连 Phase A 都失败）
+  - enhanceError 显示 ⚠️ banner 但不阻塞渲染
+  - NarrativeReport 接 enhanced ?? phaseA fallback
+- **相关文件**：`@web/src/routes/Finished.tsx:36-51,71-97,141-162`、`@web/src/hooks/useAnalysis.ts`（hook 本身简单，复杂度在 route 双查询）
+- **防再犯**：
+  - **v0.2 LLM 增强 UI 路径设计纪律**：所有"可选 LLM 增强"路径必须**双查询**——必然成功 query（rule-based 数据） + 可选增强 query（LLM 生成）；UI 必须在 enhance fail 模式下能完整工作
+  - mock provider 不能生成 narrative / structured suggestion 是 by design，**测试场景 enhance=true 必失败应当假设而非异常**
+  - 写 PR5 类型组件前必须**先读对应 mockup §10.5 校准段**（mockup 自带 server-side 实际行为对照表）
+
+### [P3] 2026-04-29 v0.2 简化协议漏洞：resume 不推 ws 事件 → client 死锁（session 41 user 报 bug → 同 session 修复）
+
+- **现象**：手动 click [⏸ 暂停] → 状态变 `已暂停` → 再 click [▶ 恢复] → **界面无任何反应**。tick 不推进、状态 badge 不变、auto-step 不启动。需要刷新页面才能恢复。
+- **根因链**：
+  1. **server `RunService.resume`**（修复前 `@server/services/run_service.py:213-221`）：仅 `runtime.resume()` 设 `_paused=False`，**不推任何 ws 事件**（v0.2 简化协议设计："下一次 step 自然推 tick_advanced，足以告知客户端"）
+  2. **client `useRunStream`**（`@web/src/hooks/useRunStream.ts:96-174`）：状态机**仅靠 ws 推送驱动** status 切换。无 ws 事件 → status 永远 paused
+  3. **Running.tsx auto-step useEffect**（`@web/src/routes/Running.tsx:75-93`）：仅 `status === "running"` 才启动 step loop
+  4. **死锁**：status=paused → auto-step 不启动 → step 不发 → server 不推 tick_advanced → status 永远 paused
+- **本质**：v0.2 协议设计的**对称性漏洞**——pause 推 `PausedEvent` 但 resume 不推对应事件，client 状态机依赖 ws 推送但没数据可拉。设计假设"下一次 step 推 tick_advanced 足以告知"忽略了 client side **auto-step 仅 status=running 才发**这个前置条件。
+- **影响范围**：
+  - 任何"暂停后想恢复"的用户操作流（核心交互）
+  - 干预面板的 wasPaused=true 路径（drawer 提交后想 resume，理论上同样卡）—— 但 PR4.2 实测能 work，**因 InterventionDrawer 提交后由 Running.tsx 调 resumeMut + 隐式触发 ws 重连？**未深查（已修，问题消失）
+  - 单步按钮工作（PR4-fix 已修）但走的是 step 路径不经过 resume，所以单步功能不受此 bug 影响
+- **解法**（已落地，session 41 第 4 阶段）：与 PausedEvent **对称设计**——加 `RunResumedEvent` ws 事件，server resume 推、client 切 status=running。改动 5 处：
+  1. `@server/api/v1/ws_events.py:113-137` 加 `RunResumedEvent` + `RunResumedPayload` + 加入 `WSServerEvent` 联合
+  2. `@server/services/run_service.py:260-282` `resume()` 推 `RunResumedEvent`（仅 `was_paused=True` 时推，幂等）
+  3. `@web/src/api/ws.ts:44-60,75-80,91-92,184-186` 加 typed schema + `onResumed` callback + handleMessage case
+  4. `@web/src/hooks/useRunStream.ts:138-146` `onResumed` handler 切 `status="running"` + 清 `pausedInfo`
+  5. `@tests/test_server_ws.py:117-178` 新建 `TestResumeBroadcast` 类 3 个单测 + 修原 `test_repeated_pause_no_duplicate_event`（resume 现在推 ws）
+- **副发现 + 子修正**：调试中发现 `_broadcast_tick` 在 `paused_after=True` 时推 `every_tick` PausedEvent，service step 末尾又显式推 `manual` PausedEvent → **双推 + reason 错乱**。修：`_broadcast_tick` 加 `skip_paused_broadcast` 参数（`@server/services/run_service.py:290-302`），让 service step 包装路径自己接管 paused 推送。
+- **验收**：`pytest 811 → 814 passed`（+3 单测），`playwright 13 step 1 passed 14.9s`（regression）
+- **相关文件**：`@server/api/v1/ws_events.py:113-137`、`@server/services/run_service.py:260-302`、`@web/src/api/ws.ts:44-60`、`@web/src/hooks/useRunStream.ts:138-146`、`@tests/test_server_ws.py:117-178`
+- **防再犯**：
+  - **v0.2+ 协议设计纪律**：所有"状态变迁"（pause/resume/cancel/retry）都必须有**对称的 ws 事件**——client 状态机靠 ws 驱动，缺事件即死锁
+  - **审视 D-017 §4 ws 事件清单**：补 `RunResumedEvent` 后是否还缺其他对称事件（如 cancel / abort / restart）？v0.3+ 设计时检查
+  - **不要在协议设计中省事件**：即使"看起来下次 step 会带"，client side 可能根本没机会发"下次 step"
+
+### [P3] 2026-04-29 v0.2 UI 单步功能与 v0.1 runtime.step() 语义错位（session 41 E2E 调试发现 → 同 session 修复）
+
+**✅ 已修**（session 41 PR4-fix，server side 包装路线 1）：`@server/services/run_service.py:176-243` `RunService.step` 加 paused 单步包装：`if was_paused: resume → step → manual_repause + 注入 paused_after=True 到 broadcast result + 补推 PausedEvent(reason="manual")`。**关键避坑**：仅 server `is_paused()`+`pause()` 不够——还要把 broadcast 的 TickResult.paused_after 改 True（`result.model_copy(update={"paused_after": True})`），否则 client `useRunStream.onTick` 看到 `paused_after=False` 会把 status 切 running 触发 auto-step useEffect race，把 run 一路跑到 finished（实测过——session 41 spec step 6 第 1 版强断言时这个 race 跑到 /finished 页）。验收：`tests/test_server_runs.py` 加 2 单测，全 **811 passed**；E2E spec step 6 从弱断言（tick≥1 best-effort）升级为强断言（paused click 单步 → tick++ + 仍 paused），13 step 1 passed 15.4s。
+
+- **现象**：Playwright E2E spec 13 step 版的 step 6 用单步按钮（paused 状态）click 3 次推进 tick，每次 click 后 `tick 1/5` 文本不变，`step button` `[active]` focus 但 server 实际未推 `tick_advanced`。日志看 server 返回 4xx error，前端 toast 一闪即过没截到。
+- **根因链**：
+  1. **UI 设计**（`@web/src/components/ControlBar.tsx:116`）：`disabled={!isPaused}` —— 单步按钮**仅 paused 时启用**，对应用户故事「暂停后单步看一眼」
+  2. **server `step` 路由**（`@server/services/run_service.py:176-192`）：`runtime.step()` 直接调用，**不前置 resume**
+  3. **v0.1 runtime**（`@core/runtime.py:380-381`）：`if self._paused: raise PausedError("Runtime 处于暂停状态；请先调用 resume()")` —— **paused 时禁止 step**
+  4. server `PausedError` → 4xx → `useStep.onError` toast → client tick 不变
+- **本质**：v0.1 内核「paused = 完全阻塞」与 v0.2 UI「paused = 可单步审查」两种语义直接冲突。PR4.1 设计 ControlBar 时漏了 v0.1 接口契约校验。
+- **影响范围**：
+  - 单步按钮在 paused 时 click 全部失败（用户操作流断裂）
+  - 测试中 step 6 强行用单步推进 tick 链路全断；改为弱断言（auto-step 推进的 tick≥1）兜底
+  - 不影响 auto-step / pause / resume / 干预 / 副区折线 / prompt modal 等路径
+- **修复选项**（按上游修最小排序）：
+  1. **server side（推荐）**：`RunService.step` 增加包装：`if runtime.is_paused(): runtime.resume(); result = runtime.step(); runtime.pause(); return result` —— 5-10 行 server 改动；UI/v0.1 runtime 不变；保持 paused 状态对客户端透明
+  2. **runtime side**：`step(force_single: bool = False)` 参数；force=True 时跳过 paused 检查；end 自动恢复 _paused 标志 —— v0.1 内核改动 + step_once 路径单测
+  3. **UI side**：Running.tsx onStep 改为 `await resume + step + pause` 三调用 —— 三 round-trip，最不优雅
+- **临时绕开**（已落地 spec）：spec step 6 改为 best-effort 验证 step 5 期间 auto-step 已推进的 tick≥1 + EntityCard diff 箭头 best-effort；不强制单步
+- **相关文件**：`@core/runtime.py:380-381`（PausedError 抛点）、`@server/services/run_service.py:176-192`（step 路由 + _broadcast_tick）、`@web/src/components/ControlBar.tsx:113-119`（单步 button + disabled 逻辑）、`@web/src/hooks/useStep.ts`、`@web/tests/e2e/mockup-flow.spec.ts:130-141`（弱断言绕开）
+- **防再犯**：
+  - **v0.2 server 接口设计前**——必须**走完一遍 v0.1 runtime 接口契约**（`docs/02-design/运行时与事件轨迹设计.md` 第三节）；任何用户操作映射到 v0.1 API 时检查"paused 时是否允许 X"
+  - **PR4-fix（待开）**：server 侧补 step 包装。补完后扩 spec 加 step 6.5: `paused 状态点单步 → tick++ → 仍 paused`，强断言取代弱断言
+  - **架构纪律**：v0.2 server 是 v0.1 内核的**包装层**，要么**遵守 v0.1 契约**，要么**显式包装兼容**；不能让 UI 直接踩 v0.1 raw API 不一致
+
+### [P3] 2026-04-29 写 Playwright E2E 凭印象假设页面文案/路由/数据，5 处 selector 全错（session 41）
+
+- **现象**：mockup §6 全流程 Playwright E2E spec 一稿写完跑，**4 次 fail 4 个不同 step**，每次都是 selector 不匹配。
+- **根因**：写 spec 时直接按 mockup ASCII 的"心理模型"猜测 selector，没有去查实际代码 / API 返回 / 文件名。5 处错误：
+  1. **H1 文案**：以为是 `Polisim`（topbar），实际 Gallery `<h1>` = `gallery.title` = "场景画廊"
+  2. **scenario id**：以为是 `minimal_market`（**目录名**），实际 server 返回 `scenario.id` = `walkthrough-min`（来自 `scenarios/minimal_market/scenario.yaml` 第 19 行）—— 目录名 ≠ scenario.id
+  3. **entity 文案**：以为跑前页用 `entity.id`（如 `company_a`），实际 `ScenarioIntroPanel:77` 用 `entity.name ?? entity.id`，scenario.yaml 给了 `name: A 公司` → 跑前显示 "A 公司"，跑中页 EntityCard 才用 entity.id
+  4. **没有 company_b**：以为 minimal_market 有两个公司，实际是 `company_a` + `regulator_main`（A 公司 + 监管方）
+  5. **路由**：以为 Gallery → 跑前是 `/scenarios/:scenarioId/pre-run`，实际是 `/runs/:runId/intro`（Gallery 触发 useCreateRun + navigate `/runs/${runId}/intro`）
+- **解法**（已落地）：测试通过后总结——**写 selector 前先查 3 个权威源**：
+  1. `useScenarios` hook 实际返回（`curl /api/v1/scenarios` 看 JSON `id`/`name`）
+  2. 目标组件源码（如 `ScenarioIntroPanel.tsx:77` 显示 `entity.name ?? id`）
+  3. `react-router` route 配置（main.tsx 实际 path 而不是 mockup 文字描述）
+- **相关文件**：`web/tests/e2e/mockup-flow.spec.ts`（5 处修复）、`scenarios/minimal_market/scenario.yaml:19`（id=walkthrough-min）、`web/src/components/ScenarioIntroPanel.tsx:77`（displayName fallback）
+- **防再犯**：
+  - 写 E2E 测试 selector 前 **先 manual goto + F12 看 DOM**，或拉 server API 看实际数据
+  - mockup 文档是"产品意图"，**真实文案 = i18n.json + 组件 source 双查**
+  - playwright 失败时**先看 `error-context.md`**（playwright 自动生成 page snapshot）—— 比反复改 selector 快 10 倍
+
+### [P3] 2026-04-29 recharts 装包用 `--legacy-peer-deps` 漏装 react-is，PR4.3 跑中页直接 vite plugin 报错（session 41）
+
+- **现象**：PR4.3 装 recharts 后跑中页打开 → vite 抛 `[plugin:vite:import-analysis] Failed to resolve import "react-is" from "node_modules/.vite/deps/recharts.js"`，全页 error overlay 遮挡，React app 完全不渲染。**PR4.3 提交时 tsc 0 错 + 路由 200 没暴露此 bug**（vite 优化时才解析 recharts 内部依赖；浏览器实际 import 才触发）。
+- **根因**：recharts@2.x 的 `package.json` 把 `react-is` 列为 dependency 而非 peerDependency。但用 `npm install recharts --save --legacy-peer-deps` 时 npm 漏装传递依赖（react-is 应自动装但因 legacy-peer-deps 跳过部分校验路径，未拉到）。**vite 静态分析 recharts.js 发现 `import { isFragment } from "react-is"` → 找不到 → plugin error**。
+- **解法**：手动 `npm install react-is --save --legacy-peer-deps` 补装；kill vite 5173 + 重启触发 deps re-optimize。
+- **相关文件**：`web/package.json`（含 react-is dep）、PR4.3 第 69 条目漏掉的依赖项
+- **防再犯**：
+  - **装第三方图表库 / DOM 库 / d3 系列时**——装完后**必跑一次 vite dev** 确认无 plugin error，再认为装包成功（不能仅靠 `npm install` exit 0）
+  - 同样规则：装 cytoscape（PR4.5 计划）/ react-markdown（PR5 计划）时也先验证
+  - 若 `--legacy-peer-deps` 装的包在 vite 报"找不到 X"，**先单独装 X**，再考虑其他根因
+
+### [P3] 2026-04-29 openapi-typescript v7 把 Pydantic v2 default 字段视为 TS required（session 37）
+
+- **现象**：PR3 实施 `routes/Gallery.tsx` 调 `useCreateRun.mutateAsync({ scenario_path })` 报 TS 编译错：`类型 "{ scenario_path: string; }" 中缺少属性 "llm_provider"`。但 server 端 Pydantic schema `CreateRunRequest.llm_provider: Literal["mock", "openai"] = Field(default="mock")` —— 调用方理论上可以省略。
+- **根因**：FastAPI 把 Pydantic v2 模型转 OpenAPI schema 时，**有 default 的字段仍会进入 `required` 数组**（FastAPI/Pydantic 视角："用户可以省略，但模型保证有值"）。openapi-typescript@7 看到 `required` 就生成非 optional TS 字段（`llm_provider: "mock" | "openai"` 而非 `llm_provider?:`）。这是 openapi-typescript 与 Pydantic 哲学差异——工具层不区分 "API 必填" 与 "模型必有"。
+- **影响范围**：
+  - `CreateRunRequest`：`llm_provider` / `runtime_config` 等 default 字段都会命中
+  - 任何 server 端 Pydantic 模型用 `Field(default=...)` 的 default 值字段
+  - PR4 干预面板 / 高级选项接通业务时再遇（`Intervention` 子字段 + `RuntimeConfig` 字段）
+- **解法**（PR3 已落地，最小改动）：调用方显式传 default 值。`Gallery.handleStartProduction`：
+  - `await createRun.mutateAsync({ scenario_path: scenario.path, llm_provider: "mock" })`
+- **未来选项**（按上游修最小排序）：
+  1. 现状（已采用）：调用方显式传 —— 0 改 hook / server，简单稳
+  2. `useCreateRun` hook 包默认值——所有调用方省心，但 hook 不再"纯薄包装"
+  3. server 改 `llm_provider: Literal[...] | None = Field(default=None)` + 路由 service 填 default —— 让 OpenAPI 真把它列 optional；侵入后端
+  4. 改 openapi-typescript 配置——v7 似乎无 flag 让 default 字段自动 optional；可能需要 patch generator
+- **相关文件**：`web/src/routes/Gallery.tsx:60-73`（已落地的显式传值）、`web/src/api/types.gen.ts:716-756`（生成的 TS 类型）、`server/api/v1/schemas.py:CreateRunRequest`
+- **防再犯**：
+  - PR4+ 用任何 hook 调用方传 CreateRunRequest / Intervention / RuntimeConfig 等含 default 字段的 Pydantic 模型时，**先看 types.gen.ts 实际类型**而不是看 Pydantic 源
+  - 未来若有可观察 default 字段冲突频次提升（>5 次），考虑升级到方案 2 或 3
+
+### [P3] 2026-04-29 mockup §8.3 默认 `gen:types` URL 与 server 实际 openapi.json 路径不一致（session 36）
+
+- **现象**：PR2 第一次跑 `npm run gen:types` 报 `ResolveError: Failed to load http://localhost:8000/openapi.json: 404 Not Found`。Server 已正常起在 8000，但 `GET /openapi.json` 返 404。
+- **根因**：`server/app.py:139` 的 FastAPI 配置 `openapi_url="/api/v1/openapi.json"`（v0.2 server 全部业务路径都在 `/api/v1` 前缀下，`openapi.json` 也跟随），与 mockup §8.3 默认假设的 `/openapi.json` 不一致。session 34 第二轮 API 反向校验（mockup §10）发现 35 项偏差但**漏抓本项**——它在 §8.3 技术约定段，不在 §10 反向校验对比表里。
+- **影响范围**：
+  - 本 session（PR2）首次跑 `gen:types` 必命中——已发现 + 已修
+  - 未来任何 fork / 重新部署 Polisim 后跑 `npm run gen:types` 不会再命中（脚本已修）
+  - 极少数情况：用户手动改 `package.json` 想用其他 openapi.json 来源（如另一台 host）—— 用 `VITE_API_BASE` env var 就够
+- **解法**（已落地）：修 `web/package.json` 的 `gen:types` 脚本：
+  ```json
+  "gen:types": "openapi-typescript http://localhost:8000/api/v1/openapi.json -o src/api/types.gen.ts"
+  ```
+- **相关文件**：`web/package.json:11`（gen:types 脚本）、`server/app.py:139`（openapi_url 配置）、`docs/02-design/v0.2-前端-UI-mockup.md` §8.3（待回填修正）
+- **防再犯**：
+  - mockup §10 反向校验下次扩展时，把"§8 技术约定"段也纳入校验范围（不仅校 endpoint 列表，还校配置 URL / 默认值）
+  - 未来若 server 改 `openapi_url` 路径（不太可能；`/api/v1` 前缀很稳定），需同步改 `web/package.json` `gen:types` 脚本
+  - 文档与代码漂移时**优先信代码**——server `app.py` 才是 ground truth，mockup §8.3 是辅助
+
+### [P3] 2026-04-29 web/ 模板 TS 6.0 与 openapi-typescript@7 peer dep 冲突（session 35）
+
+- **现象**：`npm install -D openapi-typescript` 在新 Vite 8 + React 19 模板创建的 `web/` 里报 `ERESOLVE`：模板自带 `typescript@~6.0.2` (devDep)，但 `openapi-typescript@7.13.0` 的 peer 是 `typescript@^5.x`。`tailwindcss / postcss / autoprefixer` 同批次安装一并失败（命令是原子的）。
+- **根因**：Vite 8（2026-04 release）模板提前 bump TypeScript 到 6.0；openapi-typescript 7.13.0 还在 TS 5.x 兼容窗。peer dep 是 npm 强约束，整批 install fail。
+- **解法**（已落地）：`npm install -D --legacy-peer-deps tailwindcss@^3 postcss autoprefixer openapi-typescript`——绕开 peer 校验。openapi-typescript 是 type-generation 工具（读 OpenAPI JSON 输出 .ts），TS 6 在类型层面是 5.x 超集，不会触发实际语法不兼容；类型生成产物（PR2 才会跑）落 `src/api/types.gen.ts` 也只用基础 type aliases（不依赖 TS 6 / 5 差异）。
+- **影响范围**：
+  - PR1 build / dev server 0 影响（PR1 不跑 gen:types）
+  - PR2 跑 `npm run gen:types` 时若 openapi-typescript 内部用了不兼容 TS 6 的 API 才会显形——届时再决定
+  - 未来若 openapi-typescript 升 8.x 适配 TS 6，可去 --legacy-peer-deps；若 Vite 模板回退 TS 5（不太可能），同样可去
+- **相关文件**：`web/package.json`（已记 openapi-typescript 7.13.0 + typescript 6.0.3）、`web/package-lock.json`
+- **防再犯**：
+  - 后续 `npm install -D` 若再撞 TS peer 问题，**首选 `--legacy-peer-deps`**——type 层面的 peer 警告通常无害
+  - PR2 跑 `gen:types` 时若产物有真实运行时错（不是 type warning），再升级处理（升 openapi-typescript 8.x prerelease / 降 TS 5.x / 报 upstream issue）
+  - 不要因 peer 警告就**升级 / 降级 TypeScript**——会牵连 ESLint / TS 编译器本身配置
+
 ### [P2] 2026-04-29 in-memory run（persist=False）跑完不推 run_finished 事件（session 33 审查发现）
 
 - **现象**：`RunService._broadcast_tick` 中 `reached_total_ticks=True` 分支检查 `runtime.run_dir is not None` 才推 `RunFinishedEvent`——**内存模式 run 跑完后前端 WebSocket 收不到 finished 事件**，仅靠 `close_run(None sentinel)` 关闭连接，前端无从知道是"正常完结"还是"server 挂了"。

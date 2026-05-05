@@ -1,0 +1,46 @@
+/**
+ * Polisim 前端全局样式 —— PR1 最小化。
+ *
+ * 加载顺序（关键）：
+ *   1. tokens.css —— design-system primitives + semantic 层（先于 Tailwind preflight，
+ *                    确保 :root 上的 CSS variables 在 Tailwind utility 之前生效）
+ *   2. @tailwind base / components / utilities —— preflight reset + 官方/扩展 utility
+ *
+ * tokens.css 与 Tailwind 桥接见 tailwind.config.ts（mockup §8.4 落地）。
+ * 业务组件代码只允许使用 semantic 层 utility（如 `bg-canvas` / `text-fg-primary`），
+ * 严禁直接引用 primitives（`--color-bg-primary` 等）。
+ */
+
+@import "./styles/tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-feature-settings: var(--font-features);
+    font-size: var(--text-md);
+    line-height: var(--leading-relaxed);
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family: var(--font-mono);
+  }
+}

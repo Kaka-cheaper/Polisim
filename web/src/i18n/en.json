@@ -1,0 +1,274 @@
+{
+  "topbar": {
+    "title": "Polisim",
+    "lang_toggle": "中",
+    "lang_toggle_aria": "Switch to Chinese"
+  },
+  "routes": {
+    "gallery": "Scenario Gallery",
+    "pre_run": "Pre-Run Intro",
+    "running": "Running",
+    "finished": "Finished Report"
+  },
+  "placeholder": {
+    "pr1_notice": "PR1 placeholder —— business components arrive starting PR3"
+  },
+  "error": {
+    "boundary": {
+      "title": "Render error",
+      "description": "A frontend component threw an uncaught exception. You can reset the current view or reload the entire page.",
+      "retry": "Reset view",
+      "reload": "Reload page"
+    },
+    "toast": {
+      "4xx_prefix": "Request failed",
+      "5xx_prefix": "Server error"
+    }
+  },
+  "gallery": {
+    "title": "Scenario Gallery",
+    "subtitle": "A layered multi-entity simulation engine",
+    "tagline": "Pick a scenario and see how AI decides in a multi-entity world",
+    "empty": "The scenarios/ directory is empty—add a scenario file first",
+    "error_title": "Failed to load scenarios",
+    "error_hint": "Check whether the server is running (default http://localhost:8000)",
+    "retry": "Retry",
+    "section": {
+      "production": "Built-in scenarios",
+      "upcoming": "Coming soon",
+      "custom": "Custom"
+    },
+    "upcoming": {
+      "info_cascade": {
+        "name": "📰 Information cascade",
+        "description": "Message nodes spawn dynamically (D-015 EntityCreate)"
+      },
+      "organization_decision": {
+        "name": "🏛 Organisational decision",
+        "description": "Approval chain + responsibility flow (D-015 ChainedAction)"
+      }
+    },
+    "custom": {
+      "title": "✨ Build your own scenario",
+      "description": "Describe the world you want to AI → AI generates world + scenario YAML → run it immediately"
+    },
+    "coming_soon_toast": "v0.3+ is on the way—see progress.md for status"
+  },
+  "scenario_card": {
+    "start": "▶ Start",
+    "v0_3_label": "v0.3+",
+    "ticks_label": "{{count}} ticks",
+    "world_id_label": "world: {{id}}",
+    "ui_layout_hint": {
+      "entity_card": "Entity card view",
+      "relation_graph": "Relation graph view",
+      "event_stream": "Event stream view"
+    }
+  },
+  "pre_run": {
+    "back": "← Back to gallery",
+    "story_title": "🎬 The story of this simulation",
+    "section": {
+      "description": "Description",
+      "entities": "Entities",
+      "schedule": "Scheduled events"
+    },
+    "scheduled_event": "Tick {{tick}} · {{type}}",
+    "no_scheduled_events": "No scheduled events",
+    "no_description": "(no description provided)",
+    "decision_mode": {
+      "llm": "LLM",
+      "rule": "Rule",
+      "random": "Random",
+      "default": "—"
+    },
+    "start": "▶ Start simulation",
+    "back_to_gallery": "← Pick another",
+    "error_title": "Failed to load run info"
+  },
+  "advanced_options": {
+    "title": "⚙️ Advanced options",
+    "tip": "v0.2 placeholder —— changes are not yet wired to [▶ Start simulation]; next PR will connect them",
+    "ticks_override": "Override total_ticks",
+    "ticks_override_placeholder": "use scenario default",
+    "llm_provider": "LLM provider",
+    "llm_provider_options": {
+      "mock": "Mock (offline)",
+      "openai": "OpenAI"
+    }
+  },
+  "running": {
+    "loading": "Loading run info...",
+    "error_title": "Load failed",
+    "layout_not_implemented": "{{layout}} layout arrives in PR4.5; only entity_card is demoable for now"
+  },
+  "control_bar": {
+    "pause": "Pause",
+    "resume": "Resume",
+    "step": "Step",
+    "speed_label": "Speed",
+    "side_panel_show": "Show data side panel",
+    "side_panel_hide": "Hide data side panel",
+    "exit": "Exit",
+    "tick_label": "tick {{current}}/{{total}}",
+    "status": {
+      "idle": "idle",
+      "connecting": "connecting",
+      "running": "running",
+      "paused": "paused",
+      "finished": "finished",
+      "reconnecting": "reconnecting #{{attempt}}",
+      "closed": "closed",
+      "error": "error"
+    },
+    "paused_reason": {
+      "manual": "Paused manually",
+      "every_tick": "Auto-paused (every tick)",
+      "breakpoint": "Breakpoint hit: {{ids}}",
+      "total_ticks": "Reached total ticks"
+    }
+  },
+  "entity_card": {
+    "decision_mode_label": {
+      "llm": "LLM",
+      "rule": "RULE",
+      "random": "RAND"
+    },
+    "no_decision_yet": "awaiting decision",
+    "no_action_yet": "awaiting action",
+    "just_executed": "just executed",
+    "intervene": "📌 Intervene",
+    "intervene_pr_4_2": "Intervention panel arrives in PR4.2"
+  },
+  "llm_thought": {
+    "title": "💭 LLM thinks",
+    "view_prompt": "📋 View full prompt",
+    "view_prompt_pr_4_2": "Prompt detail arrives in PR4.2"
+  },
+  "rule_thought": {
+    "title": "🤐 Rule decision",
+    "random_title": "🎲 Random decision"
+  },
+  "intervention": {
+    "title": "📌 Intervene entity",
+    "subtitle": "{{entityId}} —— takes effect on next tick",
+    "tab": {
+      "force_action": "⚡ Force action",
+      "inject_message": "💬 Inject message",
+      "override_attribute": "✏️ Override attribute"
+    },
+    "field": {
+      "tick_label": "Effective tick",
+      "tick_hint": "applied before that tick begins; defaults to next tick",
+      "reason_label": "Reason (optional)",
+      "reason_placeholder": "operator note, kept for audit trail",
+      "target_actor": "Target actor",
+      "target_actor_locked": "Target actor (locked)",
+      "target_actor_broadcast": "Broadcast (no specific receiver)",
+      "action_type": "Action type",
+      "action_type_placeholder": "e.g. promote / advertise",
+      "params_json": "Params (JSON)",
+      "params_json_placeholder": "{\n  \"amount\": 20\n}",
+      "message_type": "Message type",
+      "message_type_hint": "must be declared in World Definition.message_types",
+      "payload_json": "Payload (JSON)",
+      "payload_json_placeholder": "{\n  \"content\": \"hello\"\n}",
+      "attribute_changes_json": "Attribute changes (JSON)",
+      "attribute_changes_json_hint": "key = attribute name, value = new value; multiple at once allowed",
+      "attribute_changes_json_placeholder": "{\n  \"cash\": 100,\n  \"reputation\": 60\n}"
+    },
+    "submit": "📌 Submit intervention",
+    "cancel": "✕ Cancel",
+    "submitting": "submitting…",
+    "json_parse_error": "JSON parse failed: {{message}}",
+    "validation": {
+      "tick_required": "tick must be a non-negative integer",
+      "target_actor_required": "{{kind}} requires target actor",
+      "message_type_required": "inject_message requires message_type",
+      "action_type_required": "force_action requires action_type",
+      "attribute_changes_empty": "override_attribute requires at least one attribute change"
+    },
+    "success": "Intervention applied: {{kind}} → {{target}} (tick {{tick}})",
+    "auto_resume_skipped": "was already paused; staying paused after submit"
+  },
+  "mini_dashboard": {
+    "title": "📊 Data side panel",
+    "section": {
+      "attributes": "📈 Attribute trend (by tick)",
+      "events": "📊 Event distribution (by kind)"
+    },
+    "no_snapshots": "at least 2 ticks of data needed to plot trend",
+    "no_numeric_attrs": "no numeric attribute in this scenario",
+    "no_events": "no events yet",
+    "tooltip_tick": "tick"
+  },
+  "prompt_modal": {
+    "title": "💭 LLM Prompt Context",
+    "subtitle": "{{entityId}} @ tick {{tick}}",
+    "no_data": "no prompt_context for this decision (likely rule / random)",
+    "section": {
+      "system_role": "🎭 system_role —— role & identity",
+      "actor_view": "👤 actor_view —— self view",
+      "perception": "🌍 perception —— external view",
+      "available_actions": "⚙️ available_actions —— action menu",
+      "language_hint": "💬 language_hint —— language directive",
+      "custom_segments": "📝 custom_segments —— scenario flair"
+    },
+    "empty_field": "(empty)",
+    "close": "Close",
+    "close_hint": "Esc or click outside to close"
+  },
+  "relation_graph": {
+    "legend": {
+      "llm": "LLM",
+      "rule": "Rule",
+      "random": "Random",
+      "edge_hint": "Edge width = relation value; color: green ≥70 / yellow 40-69 / red ≤40"
+    },
+    "decision_aria": "Latest LLM decision"
+  },
+  "event_stream": {
+    "entities_title": "📋 Entities",
+    "stream_aria": "Event stream",
+    "no_events": "No events yet — waiting for first tick",
+    "template": {
+      "decision_proposed": "💭 {{actor}} thinks → {{action}} ({{reason}})",
+      "action_executed": "⚡ {{actor}} executes → {{action}}",
+      "relation_changed": "🤝 {{source}}.{{relationType}}({{target}}) {{before}}→{{after}}",
+      "breakpoint_triggered": "🔔 Breakpoint {{id}} triggered",
+      "intervention_applied": "📌 Intervention {{kind}} → {{target}}",
+      "environment_changed": "🌐 {{name}} {{before}}→{{after}}",
+      "scheduled_event_triggered": "📅 Scheduled: {{name}}",
+      "decision_rejected": "🚫 {{actor}} decision rejected: {{reason}}"
+    }
+  },
+  "finished": {
+    "header": {
+      "title": "Simulation finished"
+    },
+    "back_to_gallery": "← Back to gallery",
+    "rerun": "🔄 Rerun",
+    "error": {
+      "title": "Analysis report failed to load",
+      "hint": "Possibly LLM enhance timeout or server error; try going back to gallery"
+    },
+    "metrics": {
+      "aria_label": "6 metric cards",
+      "total_ticks": "Total ticks",
+      "total_events": "Total events",
+      "event_kinds": "Event kinds",
+      "entities": "Entities",
+      "turning_points": "Turning points",
+      "breakpoints": "Breakpoints"
+    },
+    "narrative": {
+      "title": "📖 LLM simulation report",
+      "loading": "Generating LLM-enhanced report…",
+      "empty_section": "(LLM did not generate this section — Phase A mode or enhance failed)",
+      "world_overview": "World overview",
+      "summary": "Full narrative",
+      "judgement": "Situation judgement",
+      "suggestions": "Action suggestions"
+    }
+  }
+}

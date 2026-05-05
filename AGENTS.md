@@ -45,6 +45,15 @@
 
 **实现代码不是验收依据，验收标准才是**。
 
+**v0.2+ 补充规则**（session 41 末加，pitfalls.md P5 教训沉淀）：
+
+- **字段名 / enum 值冲突时**，优先级高于上面 5 项——以 **schema 为准**：
+  - server-side 事实源：`models/*` Pydantic 类（`Field(...)` 描述）
+  - client-side 事实源：`web/src/api/types.gen.ts`（`openapi-typescript` 自动从 OpenAPI 生成）+ `web/src/api/schema.ts`（人写的别名层）
+- 写 client 代码涉及 enum / 字段名 / payload 结构时**必须先 grep schema 确认实际值**，不要从 mockup 文字猜
+- mockup（`docs/02-design/v0.2-前端-UI-mockup.md`）只作 wireframe + 用户故事 + 校准表参考，**具体字段名以 schema 为准**
+- 这条规则优先级最高的原因：schema 是 server-client 契约的事实源，错了直接跑不起来；mockup 错了只是产品意图与实现 drift
+
 ### 3.2 六层架构边界
 
 每一层只能做自己的事，跨层污染立即拒绝：

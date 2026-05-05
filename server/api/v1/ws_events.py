@@ -110,6 +110,33 @@ class PausedEvent(WSEventBase):
     data: PausedPayload = Field(..., description="暂停信息")
 
 
+class RunResumedPayload(BaseModel):
+    """`RunResumedEvent.data` 的载荷（PR4-fix，session 41 P3 修复）。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    tick: int = Field(..., ge=0, description="恢复时的 tick 编号")
+
+
+class RunResumedEvent(WSEventBase):
+    """恢复事件——客户端 POST /resume 后推送（PR4-fix，session 41）。
+
+    与 ``PausedEvent`` 对称：
+
+    - PausedEvent：runtime 进入 paused 状态时推
+    - RunResumedEvent：runtime 退出 paused 状态时推
+
+    **为什么必须推**：client ``useRunStream`` 状态机仅靠 ws 推送驱动 status 切换；
+    若 server resume 不推事件，client status 永远 paused，auto-step useEffect 不启动，
+    形成死锁。v0.2 初版有过这个简化设计，session 41 被 E2E 测试发现。
+    """
+
+    event: Literal["run_resumed"] = Field(
+        default="run_resumed", description="事件类型常量"
+    )
+    data: RunResumedPayload = Field(..., description="恢复信息")
+
+
 class RunFinishedEvent(WSEventBase):
     """run 跑到 total_ticks 时推送（最后一条消息）。
 
@@ -188,6 +215,7 @@ class PongEvent(WSEventBase):
 WSServerEvent = (
     TickAdvancedEvent
     | PausedEvent
+    | RunResumedEvent
     | RunFinishedEvent
     | ErrorEvent
     | PingEvent

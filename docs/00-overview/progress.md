@@ -6,9 +6,9 @@
 
 ## 一、当前位置
 
-**阶段**：**v0.2 前端 mockup 第二阶段配套（design tokens + API 反向校验 + React 组件清单）完成**（session 34 末，2026-04-29）——`https://github.com/Kaka-cheaper/Polisim`
+**阶段**：**v0.2 Playwright E2E（2 test / 19 step / 13 截图）+ PR4.3 react-is + PR4-fix 单步语义 + RunResumedEvent 对称设计 + PR5 跑完页 + PR4.5 三 layout dispatch + 纪律修复（pitfalls P4/P5 + AGENTS.md 3.1 §）（同 session 7 阶段连发）完成**（session 41 末，2026-04-29）——`https://github.com/Kaka-cheaper/Polisim`
 
-**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 全量版 / D-016 + LLM 增强分析升级**已落地；**改名 SimEngine → Polisim**；**810 tests passing**（本 session 仅文档 + design-system，0 测试变动）；**v0.2 阶段：D-017 spec（session 29）+ UI mockup v1（session 30）+ Server REST（session 31）+ WebSocket（session 32）+ 架构审查保健清债 F1-F10（session 33）+ **mockup 第二阶段配套：`design-system/tokens.css` + §10 API 反向校验 + §11 React 组件清单 + §8.4 token 化**（session 34）**
+**进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 全量版 / D-016 + LLM 增强分析升级**已落地；**改名 SimEngine → Polisim**；**810 tests passing**（本 session 仅前端，0 后端测试变动）；**v0.2 阶段：D-017 spec（session 29）+ UI mockup v1（session 30）+ Server REST（session 31）+ WebSocket（session 32）+ 架构审查 F1-F10（session 33）+ mockup 第二阶段配套（session 34）+ PR1 web/ 项目骨架（session 35）+ PR2 API 层 + 7 hooks + ErrorBoundary（session 36）+ **PR3：routes/Gallery + routes/PreRun + components/{ScenarioCard, ScenarioIntroPanel, AdvancedOptionsPanel} + i18n 4 组 keys + schema.ts 加 6 嵌套类型别名**（session 37）**
 
 > 路线：**A → B → C 三段式**（session 18 user 选定）→ 已全部完成 → v1 上线 ✅
 >
@@ -37,6 +37,20 @@
 > **session 33 已交付**：server 全面架构审查 + 保健清债——发现 10 项问题 F1-F10（8 修复 + 2 pitfalls 记录）。全路径详见第 62 条目。交付亮点：取消 3 处 `runtime._private` 访问——为 Runtime 加 `runtime_config` / `provider` 两个只读 @property；StreamService.broadcast 加顶层 try/except 防序列化失败阻断 step；清理 dead import 与 不必要 type:ignore；D-017 spec ScenarioSummary 补 world_id 字段；ws_events 三个事件 docstring 标注 v0.2 未触发；补 breakpoint 触发 paused 事件测试 + 2 项 P2 pitfalls（in-memory run finished + lifespan 不优雅 ws shutdown）。**810 passed / +1 净新 / 0 回归**。
 >
 > **session 34 已交付**：v0.2 前端 mockup 第二阶段配套——三件套：(A) `design-system/tokens.css` 基于 linear.app 抽取的 design tokens（316 行三层结构：24 primitives + 30+ semantic + 9 个 polisim-* 业务专属 + 8 类基础 token）；(B1) mockup §10 「第二轮 API 反向校验」——对照 session 31-33 实施的 server，识别 2 🔴 + 5 🟡 + 5 🟢 + 23 ✅ 共 35 项偏差；(B3) mockup §11 「React 组件清单 + props API」——4 routes + 3 layouts + 12 共用 + 12 基础 + 11 hooks + 1 store + 数据流图 + 5 PR 实施顺序；(B2) §8.4 颜色主题节重写为 token 引用 + §4.3.2 关系图 token 化。**810 passed / 0 代码变动 / 0 测试变动**（纯文档 + design-system 产出）。详见第 63 条目。
+>
+> **session 35 已交付**：v0.2 React 前端 PR1 实施——按 mockup §11.11 PR1 清单 1:1 落地：`web/` 项目骨架（Vite 8 + React 19 + TS + 16 工程文件）+ Tailwind v3（PostCSS + tailwind.config.ts 桥接 tokens.css 全部 semantic 层 + Polisim 业务专属 token）+ design-system/tokens.css 拷贝至 web/src/styles/tokens.css 并经 index.css `@import` 引入 + react-router-dom v6 4 个空 route（Gallery / PreRun / Running / Finished，路径符合 D-017）+ react-i18next 初始化（zh.json / en.json 骨架）+ zustand uiStore（speed / sidePanelCollapsed / locale 持久化 + prevSnapshotByRunId 非持久化）+ TopBar 中英切换按钮 + package.json `gen:types` 脚本（openapi-typescript）。**Vite dev server 5173 验收通过**：所有路由 200 / SPA fallback 工作 / Tailwind transform 后 33899 bytes 含全部 semantic token utility（`.bg-canvas{--bg-canvas}` / `.text-fg-primary{--text-primary}` / `.max-w-layout{--layout-max-width}` 等）/ tokens.css 应用至 body computed style（深色画布 #08090a）。**0 v1 内核改动 / 0 server 改动 / 810 后端测试不变**——纯前端骨架。详见第 64 条目。
+>
+> **session 36 已交付**：v0.2 React 前端 PR2 实施——按 mockup §11.11 PR2 清单 1:1 落地：装包 axios + @tanstack/react-query + sonner（6包 + 23 deps）+ 启 server（8000）跑 `npm run gen:types` 生成 `src/api/types.gen.ts`（2493 行 / 77 KB / 100+ schema）+ 写 `src/api/{schema.ts, client.ts, ws.ts}` + 7 hooks（`useScenarios` / `useRun` / `useCreateRun` / `useStep` / `usePause` / `useResume` / `useRunStream` 核心 WS 状态机）+ `components/ErrorBoundary.tsx`（mockup §9.8 决策 C）+ `main.tsx` 集成 QueryClientProvider + Toaster + ErrorBoundary + i18n key 补充 error.boundary / error.toast。**发现以及修正两项**：(a) mockup §8.3 默认 `gen:types` URL 为 `/openapi.json`，但 server `app.py:openapi_url` 实际是 `/api/v1/openapi.json` → 修脚本 URL（P3 pitfall）；(b) `useRunStream.onTick` 原接受 `tick.snapshot.tick` 但 schema 表明 `snapshot` 是 nullable（snapshot_mode=final_only/never 时 server 推 null）→ 改用 `tick.tick` + 空安全累加。**验收**：`tsc --noEmit` 0 错 / Vite re-optimize 含 axios 等新 deps / dev server 5173 ready 1172ms / SPA fallback / 0 控制台错。**0 v1 / 0 server / 0 后端测试变动**。详见第 65 条目。
+>
+> **session 37 已交付**：v0.2 React 前端 PR3 实施——按 mockup §11.11 PR3 清单 1:1 落地：重写 `routes/Gallery.tsx`（useScenarios + ScenarioCard 列表 + 2 upcoming + 1 custom 占位 + loading skeleton + error banner）+ 重写 `routes/PreRun.tsx`（useRun + ScenarioIntroPanel + AdvancedOptionsPanel + [▶ 开始仿真] + [← 返回画廊]）+ 新建 3 业务组件：`ScenarioCard`（三种 kind discriminated union: production/upcoming/custom + ui_layout 图标提示 🎴/🕸️/📜）/ `ScenarioIntroPanel`（场景描述 + 实体列表含 decision_mode 标签 + scheduled_events 摘要）/ `AdvancedOptionsPanel`（折叠式 + ticks_override + llm_provider，PR3 disabled 占位）+ schema.ts 加 6 个嵌套类型别名（WorldDefinition / EntityTypeSchema / Scenario / ScenarioInfo / EntityInstance / ScheduledEvent）+ i18n 加 4 组 keys（gallery / scenario_card / pre_run / advanced_options）。**修正 1 项**：openapi-typescript v7 把 Pydantic v2 default 字段（`CreateRunRequest.llm_provider`）仍列为 TS required → Gallery 调用方显式传 `llm_provider: "mock"`（P3 pitfall）。**验收**：`tsc --noEmit` 0 错 / Vite ready 389ms / GET / + GET /runs/test_run/intro 返 200 / GET /api/v1/scenarios 返 697 bytes 2 个生产场景。**0 v1 / 0 server / 0 后端测试变动**——mockup §6 用户流程第 1-2 步走通。详见第 66 条目。
+>
+> **session 38 已交付**：v0.2 React 前端 PR4.1 实施（跑中页最小可演示路径，按用户选定的 PR4 拆分粒度）——按 mockup §11.11 PR4 清单 1:1 落地 5 主文件：重写 `routes/Running.tsx`（useRun cache hit + useRunStream ws 订阅 + auto-step loop 按 speed 控 1000/speed ms 调 useStep.mutateAsync + finished 自动 navigate /finished + PausedEvent reason toast + Layout dispatch by ui_layout：entity_card 走 EntityCardLayout，relation_graph / event_stream 占位 PR4.5 提示 + [🚪 退出] fire-and-forget DELETE /runs/:id + navigate /）+ 新建 `components/ControlBar.tsx`（mockup §4.4.1：tick 计数 + 8 状态 badge + 暂停/恢复切换 + 单步（仅 paused 启用）+ 4 档速度选择对接 zustand uiStore.speed + 副区按钮 PR5 占位 + 退出按钮）+ 新建 `layouts/EntityCardLayout.tsx`（mockup §4.3.1：grid 1col/tablet 2col/desktop 3col + entries 数组 + environment 底部行）+ 新建 `components/EntityCard.tsx`（emoji 头部按 type 关键词匹配 + decision_mode 标签 + 属性列表 + diff 箭头按数值 prev vs current 计算 + LLMThoughtBubble（LLM 模式专属）+ rule/random 单行简化提示 + 刚执行动作显示 action(params) + [📌 干预] 占位按钮 PR4.2）+ 新建 `components/LLMThoughtBubble.tsx`（reason + [📋 看完整 prompt] disabled 占位）+ i18n 加 5 组 keys（running / control_bar 含 8 状态 + 4 paused_reason / entity_card / llm_thought / rule_thought）。**关键设计**：(a) auto-step loop 用 while + cancelled flag + setTimeout，stepMutAsync deps 稳定避免 effect 抖动，cleanup 清 cancelled；(b) PausedPayload reason toast 用 i18next 插值 ids；(c) attribute emoji + entity emoji 按关键词匹配（cash/reputation/trust/strict/regul/compan/negotiat），v0.3+ 可改 EntityTypeSchema.icon 字段驱动；(d) decision_mode 三档（llm/rule/random）UI 风格区分：llm 渲染气泡，rule/random 单行提示。**验收**：`tsc --noEmit` 0 错 / Vite ready 630ms（5173 假性占用 → 自动跑 5174）/ GET /api/v1/health + /api/v1/scenarios + 5174 / + 5174 /runs/test/run 全 200。**0 v1 / 0 server / 0 后端测试变动**——纯前端增量，mockup §6 第 3 步走通（点画廊→跑前→开始仿真→实体卡片自动 tick 推进 + LLM 气泡 + diff 箭头）。详见第 67 条目。
+>
+> **session 41 已交付**：v0.2 Playwright E2E 自动化测试 + 修复 PR4.3 latent bug——按 user 选定 "Playwright E2E（推荐）" 粒度落地 mockup §6 全 8 步用户故事 1:1 测试：装 `@playwright/test` + `chromium` + `@types/node` + `react-is`（4 包；前 3 个 dev，最后一个 prod，全用 `--legacy-peer-deps`）+ 新建 `playwright.config.ts`（baseURL 5173 / 单 worker / 失败截图+录像+trace / chromium 1440x900 viewport）+ 新建 `tests/e2e/mockup-flow.spec.ts`（170 行，8 个 test.step：画廊→跑前→跑中→0.5x 速度→干预 force_action→prompt modal→副区折叠→退出）+ 改 `web/.gitignore` 加 test-results / playwright-report / tests/screenshots 三段。**关键修复 1 P3 bug**：PR4.3 装 recharts 用 `--legacy-peer-deps` 漏装 react-is 传递依赖 → vite 抛 `[plugin:vite:import-analysis] Failed to resolve import "react-is"` → 跑中页 React app 完全不渲染（**PR4.3 提交时 tsc + 路由 200 验收没暴露此 bug**，因为 vite 仅在浏览器实际 import 时才解析 recharts 内部依赖）。补装 react-is + 重启 vite 触发 deps re-optimize 修复。**测试结果**：**1 passed (11.1s) / 9 截图全生成 / mockup §6 全流程走通**（含 LLM prompt modal——证实 minimal_market 场景含 LLM 决策实体）。**踩坑 P3 已记 pitfalls.md**：(a) 写 spec 凭印象假设 5 处全错（H1 文案 Polisim → 场景画廊 / scenario id minimal_market → walkthrough-min / entity 文案 id → name / 实体集 + company_b → regulator_main / 路由 /scenarios/:id/pre-run → /runs/:runId/intro）；(b) recharts 漏装 react-is。**0 后端测试变动 / 810 passed 不变**——纯前端 + E2E 测试增量。详见第 70 条目。
+>
+> **session 40 已交付**：v0.2 React 前端 PR4.3 实施（MiniDashboard 副区）——按 mockup §11.11 PR4.3 子集 + §4.4.2 数据副区 1:1 落地：装 recharts（38 包，`--legacy-peer-deps` 跳 openapi-typescript@7 peer dep 冲突，已知 P3 pitfall）+ 新建 `components/MiniDashboard.tsx`（属性折线 LineChart × N numeric attrs + 事件分布 BarChart by EventKind + responsive container + 5 色 palette + 3 兜底文案：snapshots<2 / 无 numeric attrs / 0 events）+ 改 `components/ControlBar.tsx`（[📊] 按钮从 disabled 占位 → enable + sidePanelCollapsed prop + onSidePanelToggle prop + active 视觉 toggle + dynamic title show/hide）+ 改 `routes/Running.tsx`（zustand 加 sidePanelCollapsed/toggleSidePanel selector + ControlBar 传两新 prop + main 双区 grid 布局：xl breakpoint 启动 1fr/22rem，下 size 自动单列 + MiniDashboard 仅 entity_card layout + 未折叠时渲染）+ i18n 加 1 组 mini_dashboard.* keys + 改 control_bar.side_panel_pr5 → side_panel_show / side_panel_hide。**关键修复 1 项**：MiniDashboard 初版用 `snap.entities[]` 数组遍历是错的，Snapshot 实际 schema 是 `entity_state_summary: { [entityId]: { [attr]: unknown } }` 字典 → 改 `Object.entries(snap.entity_state_summary ?? {})` 两处（collectNumericAttributes / buildAttributeSeries）。**验收**：tsc --noEmit 0 错 / vite 5173 重启（recharts 装包后 deps re-optimize）/ GET 8000/api/v1/{health,scenarios} 200 / GET 5173/src/components/{MiniDashboard,ControlBar,Running} 全 200（vite transform OK）。**0 v1 / 0 server / 0 后端测试变动**——纯前端增量 + 1 dev dep。详见第 69 条目。
+>
+> **session 39 已交付**：v0.2 React 前端 PR4.2 实施（干预面板 + Prompt 上下文 modal）——按 mockup §11.11 PR4 子集 + §10.6 M4 流程 + D-016 §2.1 PromptContext 6 段 1:1 落地：新建 `hooks/useIntervene.ts`（POST /runs/:id/intervene react-query mutation + onError toast）+ 新建 `components/InterventionDrawer.tsx`（侧抽屉，3 tab discriminated union 对齐 Intervention.kind：force_action / inject_message / override_attribute；通用 tick / reason 字段；Esc 取消；params/payload/attribute_changes 用 JSON textarea + parse + 校验；4 项校验消息）+ 新建 `components/PromptContextModal.tsx`（modal 6 段 collapsible：system_role / actor_view / perception / available_actions / language_hint / custom_segments；JSON pretty-print；Esc / 点击外部关闭）+ 改 `components/EntityCard.tsx`（接通 onIntervene 按钮 + 解析 latestDecision.payload.prompt_context + LLMThoughtBubble 条件性传 onClickViewPrompt + 持有 PromptContextModal local state）+ 改 `routes/Running.tsx`（新增 useIntervene hook + 3 字段 drawer state（open/entityId/wasPaused）+ handleEntityClick 自动暂停-打开 + handleDrawerSubmit 提交-条件 resume-关闭 + handleDrawerCancel 条件 resume-关闭 + 渲染 InterventionDrawer page-level singleton + 传 onEntityClick 给 EntityCardLayout）+ i18n 加 2 组 keys（intervention 含 3 tab + 全字段 + 校验消息 + success / prompt_modal 含 6 段标题 + 关闭提示）。**关键设计**：(a) wasPaused 记录用户原始状态——已暂停状态下提交不自动 resume（保持用户意图）；(b) drawer 是 page-level singleton 由 Running 持有（避免多实例 state 冲突）；PromptContextModal 由 EntityCard local 持有（per-entity 入口）；(c) 提交失败保持 drawer 打开让用户修改后重试（useIntervene.onError 已 toast）；(d) JSON parse helper 用 discriminated union { ok: true; value } | { ok: false; error } 而非 throw。**修复 1 项**：PromptContextModal 用 `JSX.Element` 类型在 React 19 + TS 5 下不再可用 → 改用 `ReactElement`（非阻塞 lint，tsc 0 错）。**验收**：`tsc --noEmit` 0 错 / Vite HMR 自动重载 Running.tsx + index.css / GET /api/v1/health 200 / GET 5174/ + /runs/test/run 全 200 / 3 个新文件 vite transform 全 200。**0 v1 / 0 server / 0 后端测试变动**——纯前端增量，mockup §6 第 4-5 步走通（点 [📌 干预] → 自动暂停 + drawer 打开 → 选 force_action 填动作 → 提交 → 自动恢复 + 下 tick 看效果；点 LLMThoughtBubble [📋 看完整 prompt] → modal 6 段 PromptContext）。详见第 68 条目。
 
 **已完成**：
 
@@ -606,10 +620,399 @@
       - **不动 v1 内核**——本 session 0 代码变动；后续 React 实施同样不应推动 v1 内核改动（如需新字段，先走 D-017 spec 再实施）
       - **transparent token 来源**——design-system/tokens.css 顶部 docstring 明确标注「来自 linear.app raw.json + 哪些是自定义」；尊重 extract-design-system skill 的 Safety Boundaries
       - **未来场景视角驱动决策**——§9.2 重评 react-force-graph → cytoscape 是「考虑 v0.3+ 复杂场景」的决策范式：v0.2 不需要 dagre，但 v0.3+ 必需，**用户明确指出"通用场景怎么办"才看清这点**
+64. **v0.2 React 前端 PR1 实施**（session 35，2026-04-29）：
+    - **背景**：session 34 已交付 design tokens（`design-system/tokens.css`）+ §10 API 反向校验 + §11 React 组件清单。session 35 是 v0.2 React 前端 5-PR 实施路径的第 1 步——按 mockup §11.11 PR1 清单 1:1 落地项目骨架，不写组件 / 不写 hooks（PR2 范围）。
+    - **任务范围**（用户 prompt 明确锁定）：(1) `npm create vite@latest web -- --template react-ts` 创建项目；(2) 装 runtime deps 4 个 + dev deps 4 个；(3) 引入 tokens.css；(4) Tailwind v3 + tailwind.config.ts 桥接 semantic 层；(5) react-router 4 个空 route + i18n + zustand uiStore；(6) `gen:types` 脚本；(7) 验收 dev server。
+    - **交付清单**（16 文件，全在 `web/` 子树）：
+      - **配置层**（4 文件）：`package.json`（自动生成 + 加 `gen:types` script）/ `vite.config.ts`（vite 模板默认）/ `postcss.config.js`（PostCSS + Tailwind + autoprefixer）/ `tailwind.config.ts`（**完整 token 桥接**：colors 30+ 项 / fontFamily / fontSize 14 档 / spacing / borderRadius 9 档 / boxShadow 9 档 / transitionDuration / transitionTimingFunction / zIndex / maxWidth / screens 三断点）
+      - **样式层**（2 文件）：`src/styles/tokens.css`（拷贝自 `design-system/tokens.css` 全 321 行，单源真理在 design-system/）/ `src/index.css`（`@import "./styles/tokens.css"` + Tailwind 三 directives + `@layer base` 全局深色基底）
+      - **入口与路由层**（2 文件）：`src/main.tsx`（StrictMode + BrowserRouter + i18n init）/ `src/App.tsx`（4 路由 + i18n.changeLanguage 同步钩子）
+      - **i18n 层**（3 文件）：`src/i18n/index.ts`（fallbackLng=zh，escapeValue=false）/ `src/i18n/zh.json` / `src/i18n/en.json`（含 4 路由标签 + 顶栏切换 + PR1 占位提示）
+      - **store 层**（1 文件）：`src/store/ui_store.ts`（zustand persist 中间件，**partialize 排除 prevSnapshotByRunId**——Map 不可 JSON.stringify 且按 run 自然失效）
+      - **组件层**（1 文件）：`src/components/TopBar.tsx`（顶栏：项目名 Link + 中英切换按钮 + ARIA label）
+      - **路由占位层**（4 文件）：`src/routes/{Gallery, PreRun, Running, Finished}.tsx`——每个仅渲染 `<h1 i18n>` + 占位提示 + （非 Gallery 路由）`runId` URL 参数显示
+    - **关键设计决策**（PR1 范围内）：
+      - **i18n 单一真理在 store**——i18n init 用静态 'zh'，App.tsx useEffect 把 store.locale 同步到 `i18n.changeLanguage`。zustand persist 是 sync hydrate，首屏 locale 已是上次保存值。避免 i18n 内置 detector / store 双源同步竞争
+      - **Tailwind v3 not v4**——v4 改 CSS-first 配置（`@theme`），废弃 tailwind.config.ts。用户 prompt 明确要 ts 配置 + 团队对 v3 更熟，不冒进
+      - **token 桥接策略**——`theme.extend.colors` 用 `'var(--bg-canvas)'` 字符串而非函数式（不支持 opacity-modifier，PR1 不需要）。命名空间避免冲突：文字用 `fg-*` 不用 Tailwind 默认 `text-*`（与 `text-5xl` 字号语义冲突），背景直接用 `canvas` / `surface` / `panel` 等 short name
+      - **tokens.css 拷贝而非 alias**——单源真理在 `design-system/tokens.css`，web/ 拷贝一份。Vite resolve.alias 引外部目录会增加构建复杂度；拷贝两份的同步成本极低（PR2-5 不会改 tokens.css）
+      - **Tailwind v3 vs `verbatimModuleSyntax`**——Vite 8 模板的 `tsconfig.app.json` 开了 `verbatimModuleSyntax: true`；i18n 资源 import 用 `import zh from "./zh.json"`（非 type-only）正常工作（json 是 value）。OK
+      - **App.css / assets/ 不删**——Vite 模板 hero 资源在 src/，但 App.tsx 不引用就不打包（tree-shake）。删除增加风险，保留无成本
+    - **验收证据**（mockup §11.11 PR1 验收清单 + 用户 prompt 明确要求）：
+      ```text
+      验收对象：v0.2 React 前端 PR1（项目骨架 + tokens + i18n + Router + uiStore）
+      对应验收项：mockup §11.11 PR1 清单（5 项 + 用户 prompt 验收 4 项）
+      输入：cd web && npm run dev → 浏览器开 localhost:5173
+      执行方式：vite dev server（5173）+ PowerShell Invoke-WebRequest 自动验证
+      实际输出：
+        - Vite v8.0.10 ready in 1250ms（无 ESM/Tailwind/类型错误）
+        - GET / 返 200 / 610 bytes index.html
+        - GET /runs/abc/run 返 200 / 610 bytes（SPA fallback 工作 → React Router 客户端路由 OK）
+        - GET /src/main.tsx 返 200，含 React 转译后代码 + 我们的 docstring 注释
+        - GET /src/index.css 返 33899 bytes（远大于源 41 行 ~1.3KB，证 PostCSS+Tailwind transform 完整工作）
+          - 含 .bg-canvas { background-color: var(--bg-canvas); }
+          - 含 .text-fg-primary { color: var(--text-primary); }
+          - 含 .max-w-layout { max-width: var(--layout-max-width); }
+          - 含 .duration-fast { transition-duration: var(--motion-duration-fast); }
+          - 含 .rounded-md / .text-5xl / .bg-header（顶栏 token） / .focus-visible:ring-border-focus
+          - 全部 Polisim 业务专属 token utility 全 transform 出来
+          - @layer base 把 html/body/#root 应用 var(--bg-canvas) #08090a 深色背景
+      是否通过：✅
+      备注：F12 浏览器手动验证（用户做）：
+        - body computed style 应 `background-color: rgb(8, 9, 10)` (= #08090a)
+        - 顶栏 [EN] 按钮点一下切英文，再点切回中文（zustand persist 保存 + i18n 同步）
+        - 4 路由 URL 切换显示对应 t('routes.xxx') 文本
+        - 控制台 0 ESM / Tailwind / 类型错误
+      ```
+    - **测试影响**：**0 后端测试变动 / 810 passed 不变**——本 session 0 v1 内核改动 / 0 server 改动 / 0 后端测试改动；纯 `web/` 子树新增（v0.2 8 层架构第 8 层落地起点）。
+    - **session 36+ 入口任务**：PR2 实施——`src/api/types.gen.ts`（启 server 跑 `npm run gen:types` 自动生成）+ `src/api/client.ts`（axios / fetch wrapper）+ `src/api/ws.ts`（WebSocket client）+ hooks 全套（mockup §11.7 11 个）+ ErrorBoundary（§9.8 决策 C：4xx toast / 5xx modal / ws 断开 banner，需装 sonner）+ TanStack Query v5 集成。**PR2 后端到端连不上但 type 跑通**；PR3 起累积可演示完整 5 步用户流程。
+    - **设计纪律遵守**：
+      - **MUST NOT 全员遵守**——0 v1 内核改动 / 0 server 改动 / 0 hooks（PR2 范围）/ 0 mockup §8.1 之外的依赖（cytoscape / react-markdown 等留给 PR4-5）/ 0 §11.10 7 项 v0.2 不做列表
+      - **mockup 是唯一权威**——§11.11 PR1 清单 1:1 落地，0 边写边发明（store 字段对 §11.8、路由路径对 §11.2、i18n init 对 §8.1 react-i18next）
+      - **token 单源 + 业务层只用 semantic**——所有组件代码引用 `bg-canvas` / `text-fg-primary` 等 semantic 类，0 引用 primitives `--color-bg-primary` 等
+      - **AGENTS.md 落点纪律**——所有新增代码全在 `web/` 子树，无新顶层目录、无 `utils/` 垃圾桶
+    - **新踩坑（已记 P3）**：TS 6.0 与 openapi-typescript@7 peer dep 冲突——`npm install -D openapi-typescript` 因 TS 6 vs `peer typescript@^5.x` ERESOLVE 失败；解法 `--legacy-peer-deps`。openapi-typescript 是 type-generation 工具，TS 6 在类型层面 5.x 超集，不会触发实际语法不兼容。详见 `pitfalls.md`。
+65. **v0.2 React 前端 PR2 实施**（session 36，2026-04-29）：
+    - **背景**：session 35 交付 PR1 项目骨架。session 36 是 v0.2 React 5-PR 路径的第 2 步——按 mockup §11.11 PR2 清单 1:1 落地 API 层 + 7 核心 hooks + ErrorBoundary，为 PR3-5 组件提供数据套件。本 session 范围不含组件或 routes 实体 UI。
+    - **任务范围**（用户 prompt 明确锁定 + mockup §11.11）：(1) 装 axios / @tanstack/react-query / sonner；(2) 启 server 跑 gen:types；(3) 写 client.ts + ws.ts + schema.ts；(4) 7 hooks；(5) ErrorBoundary；(6) main.tsx 集成 QueryClientProvider + Toaster + ErrorBoundary。
+    - **交付清单**（13 文件、全在 `web/src/`）：
+      - **API 层**（3 文件）：`api/types.gen.ts`（自动生成 2493 行 / 77 KB / 100+ schema）/ `api/schema.ts`（type aliases 马软业务层 import，暴露 14 个常用类型如 RunDetail / TickResult / Snapshot 等）/ `api/client.ts`（axios 实例 + 统一 baseURL `/api/v1` + ApiError 包装器 + 60s timeout + 4xx/5xx isClientError/isServerError helper）
+      - **WebSocket 层**（1 文件）：`api/ws.ts` `connectRunStream(runId, callbacks)` —— 手写 WS event schema（TickAdvancedEvent / PausedEvent / RunFinishedEvent / WsErrorEvent，openapi-typescript 不产包括 WS）+ 指数退避重连（500ms → 10s 五档）+ NO_RECONNECT_CODES = {1000, 4004} + 客户端主动 close 不重连
+      - **Hooks 层**（7 文件）：`useScenarios`（staleTime=30s）/ `useRun`（staleTime=30s，runId undefined 时 disabled）/ `useCreateRun`（onSuccess 插缓存，onError 4xx 与 5xx 按§9.8 分级 toast）/ `useStep` / `usePause` / `useResume`（mutation pattern，4xx/5xx prefix 错信）/ `useRunStream`（核心状态机 8 个 status：idle/connecting/running/paused/finished/reconnecting/closed/error + events/snapshots/latestTick/pausedInfo/finishedAnalysis/errorInfo/reconnectAttempt 7 个状态字段）
+      - **错误边界**（1 文件）：`components/ErrorBoundary.tsx`——class component + getDerivedStateFromError + RenderErrorFallback 用 useTranslation 的函数子组件访问 i18n + 错误信息 / [重置视图] / [刷新页面] 三区
+      - **入口集成**（1 文件改动）：`main.tsx`——从里到外：BrowserRouter（原有） → QueryClientProvider（PR2 新） → ErrorBoundary（PR2 新）；同级 Toaster（PR2 新，position=top-right + theme=dark + richColors）。QueryClient 默认 retry=1 / refetchOnWindowFocus=false / staleTime=5s
+      - **i18n 补充**（2 文件改动）：`zh.json` + `en.json` 加 `error.boundary.{title,description,retry,reload}` + `error.toast.{4xx_prefix,5xx_prefix}`
+      - **脚本修正**（1 文件改动）：`package.json` `gen:types` URL `…/openapi.json` → `…/api/v1/openapi.json`（mockup vs server 漂移修正 → P3 pitfall）
+    - **关键设计决策**（PR2 范围内）：
+      - **types.gen.ts 不含 WS schema** —— FastAPI 不把 WS schema 写进 openapi.json，openapi-typescript 存在本体缺口。解法：ws.ts 手写一份 PausedPayload / TickAdvancedEvent / PausedEvent / RunFinishedEvent / WsErrorEvent，与 `server/api/v1/ws_events.py` 1:1 对齐（未来 server 改动 ws_events.py 时同步本文件）
+      - **types.gen.ts 也不含 ErrorBody / ErrorResponse** —— server 全局 exception handler 返回的 `ErrorResponse` 未作任何 endpoint response_model 声明。解法：client.ts 手写 ApiErrorBody 接口 + interceptor 送容两种 shape（{ error: ErrorBody } 与 裸 ErrorBody）+ 网络层错 fallback 为 status=0 + code='NETWORK_ERROR'
+      - **错误处理分层**（mockup §9.8 决策 C）：(a) client.ts 是纯数据层，不 toast；(b) hooks 的 onError 调 toast 且区分 4xx/5xx prefix；(c) ErrorBoundary 仅 catch React 渲染错（不扫楬 API 错，各取其职）
+      - **useRunStream 状态机 + StrictMode 双 mount** —— effect deps `[runId]` 使得 dev 带双连接一次，可接受（生产不发生）。`status` 8 个完备状态 —— idle / connecting / running / paused / finished / reconnecting / closed / error，finished 优先级高于 closed
+      - **react-query QueryClient 配置** —— retry=1 / refetchOnWindowFocus=false / staleTime=5s；mutations.retry=0（mutation 不重试，避免双重副作用如双推送）
+      - **API_BASE / API_PREFIX 环变量** —— 默认 `http://localhost:8000` + `/api/v1`；可覆盖 `VITE_API_BASE` / `VITE_API_PREFIX`（PR3+ 需部署到其他 host 时使用）
+    - **TS 修复 1 条**：`useRunStream.onTick` 原状拿 `tick.snapshot.tick` 作 latestTick + 未考虑 snapshot 可为 null（snapshot_mode=final_only/never 时）→ 改为：snapshots 仅在 tick.snapshot 非空时累加 / latestTick 用 tick.tick（始终非空 number）。修后 `tsc --noEmit` 0 错
+    - **验收证据**（mockup §11.11 PR2 标准）：
+      ```text
+      验收对象：v0.2 React 前端 PR2（API 层 + 7 hooks + ErrorBoundary + react-query/sonner）
+      对应验收项：mockup §11.11 PR2：openapi-typescript types.gen.ts + axios client + 7 hooks + WS + ErrorBoundary
+      输入：(1) `python -m cli serve --port 8000` 启 server；(2) `cd web && npm run gen:types`；(3) `npx tsc --noEmit -p tsconfig.app.json`；(4) `npm run dev`
+      执行方式：openapi-typescript v7.13.0 + tsc 6.0 + Vite v8.0.10
+      实际输出：
+        - gen:types：444.3ms 生成 src/api/types.gen.ts（2493 行 / 77 KB / paths + components.schemas 完备）
+        - tsc --noEmit：exit 0 / 0 type 错
+        - vite dev：ready in 1172ms，那中 Re-optimizing dependencies 含新装 axios
+        - GET / 返 200 / 610 bytes（Gallery 占位页）
+        - GET /runs/abc/run 返 200 / 610 bytes（SPA fallback OK）
+        - GET /src/main.tsx 返 200 / 6519 bytes（QueryClientProvider + Toaster + ErrorBoundary 被转译出现）
+        - GET /src/hooks/useRunStream.ts 返 200 / 13716 bytes（核心 hook 转译后仍添加了完整 docstring）
+        - vite client 推 "new dependencies optimized: axios" 后重载页面 — PR1 PR2 位置状态差交接顺利
+      是否通过：✅
+      备注：F12 手动验证（用户做）：— 控制台 0 ESM/Tailwind/类型错误；— PR1 4 路由、中英切换、顶栏全部照旧工作；— 未来 PR3+ 里调用 useScenarios 时 toast 应出（本阶段没调起到实体，遇到应是默默不处理）
+      ```
+    - **测试影响**：**0 后端测试变动 / 810 passed 不变**——本 session 0 v1 内核改动 / 0 server 改动 / 0 后端测试文件变动；纯前端增量。
+    - **session 37+ 入口任务**：PR3 实施——画廊页（`Gallery.tsx` 完整实体）+ 跑前页（`PreRun.tsx` 完整实体）+ 两个新组件：`ScenarioCard.tsx`（画廊卡片，含 ui_layout 图标与 [▶ 开始] 按钮）+ `ScenarioIntroPanel.tsx`（mockup §4.2 场景叙事）+ `AdvancedOptionsPanel.tsx`（上体可选覆盖 ticks/llm_provider）。都使用本 session 交付的 useScenarios + useCreateRun + useRun，PR2 点起 PR3 点进入 mockup §6 场景五步用户流程的前 2 步。
+    - **设计纪律遵守**：
+      - **MUST NOT 全员遵守**——0 v1 内核改动 / 0 server 改动 / 0 组件或 routes 实体（PR3+ 范围）/ 0 mockup §8.1 之外的依赖（cytoscape / react-markdown / framer-motion 留给 PR3-5）/ 0 §11.10 7 项不做项（ErrorEvent / Ping-Pong / ReplayPlayer 等）
+      - **mockup 是实施唯一权威**——§11.11 PR2 清单 1:1 落地（0 边写边发明）；hooks 类型依赖 mockup §10 反向校验产出（ScenarioSummary 7 字段含 ui_layout / world_id，TickResult 含 paused_after）
+      - **token 单源 + 业务层只用 semantic** —— ErrorBoundary 的 fallback UI 全部用 `bg-surface` / `text-fg-primary` / `border-status-danger` / `rounded-lg` 等 PR1 桥接过的 semantic class，0 直接引 primitives
+      - **AGENTS.md 落点纪律**——所有新增代码全在 `web/src/{api,hooks,components,i18n}/`，无新顶层目录、无 utils/ 垃圾桶
+    - **新踩坑（已记 P3）**：mockup §8.3 默认 `gen:types` URL 为 `http://localhost:8000/openapi.json`，但 server `app.py` 设 `openapi_url="/api/v1/openapi.json"`（§10 反向校验未捕获此漂移）。首次跑 gen:types 报 404 后修 `package.json` 脚本为 `…/api/v1/openapi.json`。详见 `pitfalls.md`。
+66. **v0.2 React 前端 PR3 实施**（session 37，2026-04-29）：
+    - **背景**：session 36 交付 PR2 API 层 + 7 hooks。session 37 是 v0.2 React 5-PR 路径的第 3 步——按 mockup §11.11 PR3 清单 1:1 落地「画廊 + 跑前」两个路由的实体 UI，走通 mockup §6 场景五步用户流程的第 1-2 步。本 session 不含跑中布局（PR4 范围）与跑完页（PR5 范围）。
+    - **交付清单**（8 文件变动，全在 `web/src/`）：
+      - **路由**（2 文件重写）：`routes/Gallery.tsx`（header 中央标题 + 三段 grid：production（useScenarios）/ upcoming（2 占位硬编码）/ custom（1 占位））/ `routes/PreRun.tsx`（useParams 拿 runId + useRun cache-only 命中 + ScenarioIntroPanel + AdvancedOptionsPanel + [▶ 开始仿真] / [← 选其他场景]，后者 fire-and-forget DELETE 当前 run）
+      - **业务组件**（3 文件新建）：`components/ScenarioCard.tsx`（三种 kind discriminated union：production 走 ScenarioSummary + ui_layout 图标（🎴 entity_card / 🕸️ relation_graph / 📜 event_stream, mockup §10.6 M6） + [▶ 开始] 主按钮；upcoming/custom 走 emoji + name + description + [v0.3+] 占位按钮） / `components/ScenarioIntroPanel.tsx`（三段：描述（whitespace-pre-line） + 实体列表（entity emoji 按 type 关键词匹配 + `world.entity_types[type].decision_mode` 查 i18n 标签） + scheduled_events 摘要） / `components/AdvancedOptionsPanel.tsx`（`<details>` 受控折叠 + ticks_override（number input） + llm_provider（select），PR3 disabled 以示意 UI占位，提示 v0.2 不接通业务）
+      - **类型补全**（1 文件改动）：`api/schema.ts` 加 6 个嵌套子类型别名（`WorldDefinition` / `EntityTypeSchema` / `Scenario` / `ScenarioInfo` / `EntityInstance` / `ScheduledEvent`）供业务层直接 import。
+      - **i18n 补充**（2 文件改动）：`zh.json` + `en.json` 加 4 组 keys：`gallery.{title, subtitle, tagline, error_*, retry, section.*, upcoming.*, custom.*, coming_soon_toast}` / `scenario_card.{start, v0_3_label, ticks_label, world_id_label, ui_layout_hint.*}` / `pre_run.{back, story_title, section.*, scheduled_event, no_scheduled_events, no_description, decision_mode.*, start, back_to_gallery, error_title}` / `advanced_options.{title, tip, ticks_override, ticks_override_placeholder, llm_provider, llm_provider_options.*}`。插值用 i18next `{{count}}` / `{{tick}}` / `{{type}}` / `{{id}}`。
+    - **关键设计决策**（PR3 范围内）：
+      - **ScenarioCard 三 kind discriminated union**——主场景走 ScenarioSummary，占位走手写 emoji+name+description。这让画廊页不为每种 kind 写三份 JSX，同时 props 类型严格区分（TS narrowing）
+      - **AdvancedOptionsPanel disabled 默认** —— mockup §4.2 未明确高级选项生效路径（POST /runs 已在画廊点 [▶ 开始] 时发出，PreRun 的 [▶ 开始仿真] 仅跳转不重 POST）。PR3 disabled 反映「v0.2 占位 UI / 下 PR 接通」；v0.3+ 可加 [应用并重新创建 run] 按钮（DELETE + POST 路径）
+      - **fire-and-forget DELETE on back-to-gallery** —— PreRun [← 返回画廊] 按钮在 navigate 前调 `apiDelete(`/runs/${runId}`)`，但 try/catch 并静默失败（用户已在切走的路上，不需要 toast）。未来可出 `useDeleteRun` hook 包装
+      - **decision_mode emoji 映射 helper** —— ScenarioIntroPanel 用 entity type 名的关键词匹配（compan/regul/negotiat/agent）决定图标。v0.3+ 可改为 `EntityTypeSchema.icon` 字段驱动（mockup §9.5 未决）
+      - **token 单源深色化**——所有组件 0 直接引 primitives（0 `--color-bg-*`），全走 PR1 桥接过的 semantic class：bg-canvas / bg-surface / bg-surface-hover / bg-surface-active / text-fg-primary / text-fg-secondary / text-fg-tertiary / text-fg-muted / border-border-default / border-border-subtle / border-border-divider / status-danger / accent / accent-hover。避免用 Tailwind opacity-modifier 在 var-based token上（`hover:border-accent/40` 不生效——改用净色 `hover:border-accent`）
+    - **TS 修复 1 条**：`useCreateRun.mutateAsync` 拿 CreateRunRequest 入参，`llm_provider` 被 openapi-typescript v7 生成为 required（Pydantic v2 default 字段进了 OpenAPI required 数组）。Gallery `handleStartProduction` 显式传 `llm_provider: "mock"`——作为最小修。未来可考虑在 `useCreateRun` hook 里默认填（或 server 端改 `llm_provider` 字段为 `Optional[Literal[...]]` 并明变 server 代码套）。详见 P3 pitfall。修后 `tsc --noEmit` 0 错
+    - **验收证据**（mockup §11.11 PR3 标准 + §6 用户流程前 2 步）：
+      ```text
+      验收对象：v0.2 React 前端 PR3（画廊 + 跑前页 + 3 业务组件）
+      对应验收项：mockup §4.1 §4.2 §6 步 1-2 §11.11 PR3
+      输入：(1) `python -m cli serve --port 8000`（PR2 代付仍在跑 PID 28756）；(2) `cd web && npm run dev`；(3) `npx tsc --noEmit -p tsconfig.app.json`
+      执行方式：FastAPI 8000 + Vite 5173 + axios + react-query + sonner
+      实际输出：
+        - tsc --noEmit：exit 0 / 0 type 错
+        - vite dev：ready 389ms（deps cache 命中）
+        - GET / 返 200 / 610 bytes（Gallery 页面）
+        - GET /runs/test_run/intro 返 200 / 610 bytes（PreRun SPA fallback）
+        - GET /src/routes/Gallery.tsx + /src/components/ScenarioCard.tsx + /src/components/ScenarioIntroPanel.tsx 全 200（vite transform OK）
+        - GET /api/v1/scenarios 返 697 bytes 2 个生产场景：{path: minimal_market…, id: walkthrough-min, total_ticks: 5, ui_layout: "entity_card", world_id: "minimal-market"} + {path: three_party_negotiation…, id: walkthrough-three-party, total_ticks: 8, ui_layout: "relation_graph", world_id: "three-party-negotiation"}
+      是否通过：✅
+      备注：F12 手动验证（用户做）：— 画廊页看到两个生产场景卡片（🎴 + 🕸️ 图标） + 2 upcoming + 1 custom；— hover 卡片 错elevate 动画；— 点 [▶ 开始] 跳转跑前页，看场景叙事/实体列表/预设事件 + 顶部 run_id；— [▶ 开始仿真] 跳 /run 路由（PR4 未实施，仅占位页）；— [← 返回画廊] 后反查 server 日志应看到 DELETE /runs/…
+      ```
+    - **测试影响**：**0 后端测试变动 / 810 passed 不变**——本 session 0 v1 / 0 server / 0 后端测试文件变动；纯前端增量。
+    - **session 38+ 入口任务**：PR4 实施——**跑中布局最小可演示路径**：`routes/Running.tsx`（使用 useRun + useRunStream 核心 + Layout dispatch by `scenario.ui_layout`）+ `components/ControlBar.tsx`（mockup §4.4.1：[⏸ 暂停] / [⏭ 单步] / 速度 / [📊 副区] / [🚪 退出]）+ `layouts/EntityCardLayout.tsx`（mockup §4.3.1）+ `components/EntityCard.tsx`（实体卡片 + LLMThoughtBubble + diff 箭头）。可选加 `MiniDashboard.tsx`（§4.4.2）与 `InterventionDrawer.tsx`（§4.4.3）。累积可演示 mockup §6 第 3-4 步（开始跑 + 点实体卡片干预）。剩余 PR4-PR5 预计 2-3 session。
+    - **设计纪律遵守**：
+      - **MUST NOT 全员遵守**——0 v1 内核改动 / 0 server 改动 / 0 跑中布局或跑完页（PR4-5 范围）/ 0 mockup §8.1 之外依赖（cytoscape / react-markdown / framer-motion / recharts 留给 PR4-5） / 0 §11.10 不做项
+      - **mockup 是实施唯一权威**——§11.11 PR3 清单 1:1 落地（0 边写边发明）；三 kind ScenarioCard 其设计可反复查 §4.1 ASCII wireframe 验证
+      - **token 单源 + 业务层只用 semantic** ——§8.4 可迫期检查（0 `--color-*` primitives 引用）
+      - **AGENTS.md 落点纪律**——所有新增在 `web/src/{routes, components, api, i18n}/`，无新顽层目录 / utils 垃圾桶
+    - **新踩坑（已记 P3）**：openapi-typescript v7 把 Pydantic v2 有 default 的字段仍列为 TS required——例 `CreateRunRequest.llm_provider` 从 Pydantic 看是“可选但默认 mock”，但 OpenAPI 将其放入 required 数组，openapi-typescript 生成为非 optional 字段。调用方必须显式传 default 值。详见 `pitfalls.md`。
+67. **v0.2 React 前端 PR4.1 实施**（session 38，2026-04-29）：
+    - **背景 + 范围**：用户在 PR4 拆分粒度选择中选定 PR4.1（最小可演示）—— mockup §11.11 PR4 清单的核心 5 文件，先打通 mockup §6 第 3 步（点 [▶ 开始仿真] → ws 自动跑 → 实体卡片浮 LLM 想法气泡 + 属性 diff 箭头）。本 session 不含干预面板（PR4.2）/ PromptContextModal（PR4.2）/ MiniDashboard（PR4.2）/ relation_graph + event_stream layouts（PR4.5）。
+    - **交付清单**（5 主文件 + i18n + 1 删除 PR1 占位）：
+      - `routes/Running.tsx`（重写）—— useRun cache hit + useRunStream ws 订阅 + auto-step loop + finished 跳转 + PausedEvent reason toast + Layout dispatch by ui_layout + [🚪 退出] DELETE + navigate
+      - `components/ControlBar.tsx`（新建）—— tick 计数 + 8 状态 badge（mockup §4.4.1）+ 暂停/恢复/单步 按钮 + 4 档速度对接 zustand uiStore.speed + 副区按钮 PR5 占位 + 退出按钮
+      - `layouts/EntityCardLayout.tsx`（新建）—— grid 1col/tablet 2col/desktop 3col + entries 数组 + environment 底部行（mockup §4.3.1）
+      - `components/EntityCard.tsx`（新建）—— emoji 头部按 type 关键词匹配 + decision_mode 标签 + 属性列表 + diff 箭头（数值型 prev vs current）+ LLMThoughtBubble（LLM 模式专属）+ rule/random 单行简化提示 + 刚执行动作 action(params) + 干预占位按钮
+      - `components/LLMThoughtBubble.tsx`（新建）—— reason 文本 + [📋 看完整 prompt] disabled 占位（mockup §4.3.1 内嵌气泡）
+      - `i18n/{zh,en}.json`（+ 5 组 keys：running / control_bar 含 8 状态 + 4 paused_reason / entity_card / llm_thought / rule_thought）
+    - **关键设计决策**（PR4.1 范围内）：
+      - **Auto-step loop 模式**：客户端 while + cancelled flag + setTimeout，间隔 = max(50, 1000/speed) ms；await stepMutAsync 串行（避免请求积压）；status!="running" 时 effect cleanup 清 cancelled 自然停。dev StrictMode 双 mount 触发 1 次额外 step（dev only，prod 不发生）
+      - **EntityCardEntry 在 Running 内组装**：把 runDetail.scenario.entities + runDetail.world.entity_types + stream.snapshots[-1/-2] + stream.events 拼成 entries[]，传 Layout 与 EntityCard。Layout 不耦合 hooks（保持 mockup §11.3 L1 props 与 React 基本设计模式）
+      - **PausedEvent reason toast**：mockup §10.6 M3 简化版（toast.info 而非顶部 banner）；breakpoint reason 用 i18next 插值 ids
+      - **decision_mode 三档 UI 风格区分**：llm 渲染 LLMThoughtBubble 气泡（var(--polisim-llm-bubble) bg）；rule 渲染 "🤐 规则决策" 单行；random 渲染 "🎲 随机决策" 单行
+      - **emoji 关键词匹配 helper**：entity type 名 / attribute name 用 includes 关键词（cash/reputation/trust/strict/regul/compan/negotiat）匹配 emoji；v0.3+ 可改 EntityTypeSchema.icon 字段驱动（mockup §9.5 未决问题）
+      - **退出流程**：先 stream.close()（防 ws 重连尝试）→ apiDelete fire-and-forget（清 server registry）→ navigate('/')；3 步顺序保证不留半挂状态
+    - **验收证据**（mockup §11.11 PR4.1 + §6 步 3）：
+      ```text
+      验收对象：v0.2 React 前端 PR4.1（跑中页最小可演示路径）
+      对应验收项：mockup §4.3.1 §4.4.1 §6 步 3 §11.11 PR4 核心子集
+      输入：(1) python -m cli serve --port 8000；(2) cd web && npm run dev；(3) npx tsc --noEmit -p tsconfig.app.json
+      执行方式：FastAPI 8000 + Vite 5174（5173 假性占用 → 自动跑下一个）+ axios + react-query + sonner
+      实际输出：
+        - tsc --noEmit：exit 0 / 0 type 错
+        - vite dev：ready 630ms
+        - GET /api/v1/health 返 200 / 49 bytes
+        - GET /api/v1/scenarios 返 200 / 697 bytes（2 个生产场景）
+        - GET 5174/ + 5174/runs/test/run 全 200 / 610 bytes（SPA fallback）
+      是否通过：✅
+      备注：F12 手动验证（用户做）：— 画廊 → 选 minimal_market → 跑前 → [▶ 开始仿真] → 跑中页自动每秒 1 tick；— company_a 卡片每 tick 浮 LLM reason 气泡 + cash/reputation 属性右侧 ↑/↓ 箭头；— [⏸ 暂停] 切到 paused 状态 + auto-step 停止；— [⏭ 单步] 单步推进；— 速度切到 4x → 间隔 ~250ms；— 跑到 tick 5 → ws 推 run_finished → 自动跳 /finished（PR5 未实施仅占位）；— [🚪 退出] DELETE + 回画廊
+      ```
+    - **测试影响**：**0 后端测试变动 / 810 passed 不变**——本 session 0 v1 / 0 server / 0 后端测试文件变动；纯前端增量。
+    - **session 39+ 入口任务**：PR4.2 实施——补干预面板：`components/InterventionDrawer.tsx`（mockup §4.4.3 三表单：force_action / inject_message / override_attribute）+ EntityCard 接通 onIntervene → POST /pause 乐观更新 + 打开 Drawer + 提交 POST /intervene + POST /resume + close drawer（mockup §10.6 M4 流程）+ `components/PromptContextModal.tsx`（D-016 6 段 prompt 展开）+ LLMThoughtBubble [📋 看完整 prompt] 接通 + 可选 `components/MiniDashboard.tsx`（mockup §4.4.2 副区折线 + 事件分布）。PR4.5 加 `RelationGraphLayout` + `EventStreamLayout`。剩余 PR4.2-PR5 预计 2-3 session。
+    - **设计纪律遵守**：MUST NOT 全员遵守——0 v1 / 0 server / 0 干预面板（PR4.2）/ 0 PromptContextModal（PR4.2）/ 0 MiniDashboard（PR4.2）/ 0 关系图与事件流 layout（PR4.5）/ 0 mockup §8.1 之外依赖；mockup §11.11 PR4 拆分子集 1:1 落地。
+68. **v0.2 React 前端 PR4.2 实施**（session 39，2026-04-29）：
+    - **背景 + 范围**：session 38 PR4.1 已交付跑中页最小可演示路径（自动 step + 实体卡片 + LLM 想法气泡）。session 39 在 PR4.2 拆分子集中聚焦「干预面板 + Prompt 上下文 modal」两个 mockup §6 用户流程的核心交互（步 4「点击实体 → 干预 LLM 决策」+ 步 5「展开 prompt 看 AI 在想啥」）。MiniDashboard（mockup §4.4.2 副区折线 + 事件分布）需装 recharts，推 PR4.3 单独成 PR；relation_graph + event_stream layouts 推 PR4.5。
+    - **交付清单**（3 文件新建 + 2 文件改 + i18n）：
+      - **新建**：`hooks/useIntervene.ts` —— POST /runs/:id/intervene react-query mutation + onError toast；`components/InterventionDrawer.tsx` —— 侧抽屉 + 3 tab（force_action / inject_message / override_attribute discriminated union 对齐 server `Intervention` schema）+ 通用 tick / reason 字段 + Esc 取消 + JSON textarea + parse + 4 项校验消息；`components/PromptContextModal.tsx` —— modal + 6 段 collapsible（system_role / actor_view / perception / available_actions / language_hint / custom_segments；D-016 §2.1 PromptContext 全字段）+ JSON pretty-print + Esc / 点击外部关闭
+      - **改动**：`components/EntityCard.tsx`（接通 onIntervene 按钮 + 解析 latestDecision.payload.prompt_context + LLMThoughtBubble 条件性传 onClickViewPrompt + 持有 PromptContextModal local state）；`routes/Running.tsx`（新增 useIntervene hook 调用 + drawer state（open/entityId/wasPaused）+ handleEntityClick 流程：仅 status=running 时 pauseMut.mutate + 打开 drawer + handleDrawerSubmit 流程：interveneMut.mutateAsync + toast.success + 条件 resume + 关闭 + handleDrawerCancel 流程：条件 resume + 关闭 + 渲染 InterventionDrawer page-level singleton + 传 onEntityClick 给 EntityCardLayout）
+      - **i18n**：`zh.json` + `en.json` 加 2 组 keys：`intervention.{title, subtitle, tab.*, field.*, submit, cancel, submitting, json_parse_error, validation.*, success, auto_resume_skipped}`（含 3 tab 名 + 全 field 标签 + 4 项校验消息 + success 插值 kind/target/tick） / `prompt_modal.{title, subtitle, no_data, section.*, empty_field, close, close_hint}`（6 段标题 + Esc 提示）
+    - **关键设计决策**（PR4.2 范围内）：
+      - **wasPaused 记录**：`handleEntityClick` 时记录 `stream.status === "paused"` —— 用户原本已手动暂停（点 ControlBar [⏸ 暂停]）→ 提交后**不**自动 resume（保持用户意图）；用户原本 running → 提交后自动 resume 继续跑。同样在 cancel 路径生效
+      - **drawer 持有位置**：page-level singleton 由 Running 持有（避免多 EntityCard 同时开多 drawer）；PromptContextModal 由 EntityCard local 持有（per-entity 入口，可同时开多个 modal 但 UX 上单击单展开）
+      - **失败保留 drawer**：useIntervene.onError 已 toast；handleDrawerSubmit catch 不关闭 drawer，让用户修正 form 后重试。这是 mockup §10.6 M4 未明确的细节
+      - **JSON parse helper**：`parseJsonObject` 用 discriminated union `{ ok: true; value } | { ok: false; error }` 而非 throw —— 支持表单端集中收 4 项校验消息一次性给用户
+      - **JSON textarea 权宜方案**：force_action.params / inject_message.payload / override_attribute.attribute_changes 都用 JSON textarea + 校验，而非按 D-014 ParamSchema 自动生成 form fields。v0.3+ 可补「按 schema 自动生成 input」让普通用户填表更友好。当前对开发用户（懂 JSON）够用
+      - **LLMThoughtBubble onClickViewPrompt 条件性传**：仅 promptContext 非 null 时传 callback —— rule / random 决策事件 payload 不含 prompt_context，按钮自然 disabled（PR4.1 LLMThoughtBubble 已 disabled fallback）
+      - **token 单源**：所有新组件 0 直接引 primitives，全用 PR1 桥接的 semantic class（bg-surface / bg-canvas / bg-panel / bg-overlay / text-fg-primary / text-fg-secondary / text-fg-tertiary / text-fg-muted / border-border-default / border-border-subtle / border-border-divider / accent / accent-hover / status-danger / z-modal）
+    - **TS 修复 1 条 + IDE lint stale 1 条**：(a) PromptContextModal 用 `JSX.Element` 在 React 19 + TS 5 下不再有效 → 改用 `ReactElement`（from "react"）。(b) IDE Volar lint 报 "ReactElement 已声明但从未读取" stale —— 实际 line 55 用了，tsc --noEmit 0 错。
+    - **验收证据**（mockup §11.11 PR4 子集 + §6 步 4-5 + §10.6 M4）：
+      ```text
+      验收对象：v0.2 React 前端 PR4.2（干预面板 + Prompt 上下文 modal + 三流程接通）
+      对应验收项：mockup §4.4.3 §6 步 4-5 §10.6 M4 D-016 §2.1
+      输入：(1) python -m cli serve --port 8000（PID 28756，PR2 时启的仍在跑）；(2) cd web && npm run dev（5174）；(3) npx tsc --noEmit -p tsconfig.app.json
+      执行方式：FastAPI 8000 + Vite 5174 + axios + react-query + sonner（PR4.1 dev server 自动 HMR 重载）
+      实际输出：
+        - tsc --noEmit：exit 0 / 0 type 错
+        - vite HMR：Running.tsx + index.css 自动重载
+        - GET /api/v1/health 返 200 / 49 bytes
+        - GET 5174/ + 5174/runs/test/run 全 200 / 626 bytes（SPA fallback）
+        - GET /src/components/InterventionDrawer.tsx 返 200 / 61329 bytes（vite transform OK）
+        - GET /src/components/PromptContextModal.tsx 返 200 / 20891 bytes
+        - GET /src/hooks/useIntervene.ts 返 200 / 4955 bytes
+      是否通过：✅
+      备注：F12 手动验证（用户做）：— 跑中页 → 点 company_a 卡片 [📌 干预] → drawer 从右滑出 + 自动暂停 + ControlBar 状态切「已暂停」；— 默认 tab=force_action + tick 自动填 latestTick+1；— 切 inject_message tab → message_type select 列出 world.message_types keys；— 切 override_attribute tab → attribute_changes 提示当前实体属性名 / / 列表；— params/payload/attribute_changes JSON 错填 → 提交时 inline 校验消息；— 提交成功 → toast "干预已应用：force_action → company_a (tick X)" + drawer 关 + 自动恢复 + 下 tick 看 server 实际应用动作；— 点 LLMThoughtBubble [📋 看完整 prompt] → modal 6 段全部展开 + JSON pretty 看 actor_view/perception/available_actions；— Esc 关 modal + drawer
+      ```
+    - **测试影响**：**0 后端测试变动 / 810 passed 不变**——本 session 0 v1 / 0 server / 0 后端测试文件变动；纯前端增量。
+    - **session 40+ 入口任务**：剩余 PR4 子项 + PR5 跑完页。3 条可选支线：(a) **PR4.3 MiniDashboard**：装 recharts → `components/MiniDashboard.tsx`（属性折线 + 事件分布 + 副区折叠对接 zustand sidePanelCollapsed）+ ControlBar [📊 副区] 启用；(b) **PR4.5 第二/第三 layout**：`layouts/RelationGraphLayout.tsx`（装 cytoscape，用于 three_party_negotiation 场景的实体-关系图谱）+ `layouts/EventStreamLayout.tsx`（事件流时间线，适用于无 spatial 结构的纯叙事场景）+ Running 已有 layout dispatch 直接接通；(c) **PR5 跑完页**：`routes/Finished.tsx`（D-009 分析报告渲染 + Markdown narrative + 6 类指标卡片 + 重跑 + 回画廊）+ useAnalysis hook（GET /runs/:id/analysis）。**推荐顺序**：PR4.3（演示价值高，相对独立）→ PR5（跑完页对收尾故事重要）→ PR4.5（多 layout 加广度但需要 cytoscape 学习曲线）。
+    - **设计纪律遵守**：
+      - **MUST NOT 全员遵守**——0 v1 内核改动 / 0 server 改动 / 0 MiniDashboard / 0 跑完页 / 0 第二第三 layout / 0 mockup §8.1 之外依赖（recharts / cytoscape / react-markdown 留给 PR4.3 / PR4.5 / PR5）/ 0 §11.10 不做项
+      - **mockup 是实施唯一权威**——§11.11 PR4 干预子集 1:1 落地（0 边写边发明）；3 tab discriminated union 对齐 Pydantic Intervention.kind union；6 段 collapsible 对齐 D-016 §2.1 PromptContext 字段
+      - **token 单源 + 业务层只用 semantic** ——§8.4 可迫期检查（0 `--color-*` primitives 引用）
+      - **AGENTS.md 落点纪律**——所有新增在 `web/src/{routes, components, hooks, api, i18n}/`，无新顶层目录 / utils 垃圾桶
+    - **未引入新 pitfall**：JSX.Element → ReactElement 迁移是 React 19 + TS 5 已知向前兼容点，0 P3 升级；其他改动按设计预期工作。
+69. **v0.2 React 前端 PR4.3 实施**（session 40，2026-04-29）：
+    - **背景 + 范围**：session 38 PR4.1 + session 39 PR4.2 已让跑中页支持「自动 step + 实体卡片 + 干预 + Prompt 查看」。session 40 按 progress.md 第 68 条目末尾「推荐顺序」走第 1 条：PR4.3 MiniDashboard 副区。剩余 PR5 跑完页 + PR4.5 第二/第三 layout 留下 session。
+    - **交付清单**（1 dev dep + 1 文件新建 + 2 文件改 + i18n）：
+      - **装 recharts**：38 包，用 `--legacy-peer-deps` 跳 openapi-typescript@7 peer dep 冲突（已知 P3 pitfall：session 35 PR1 时已记录；TS 6 + 7 冲突链条不解，dep 加 `--legacy-peer-deps` 是单点最小修）
+      - **新建**：`components/MiniDashboard.tsx`（mockup §4.4.2 副区两段：(a) 📈 属性趋势——LineChart × N numeric attrs，X=tick / Y=value / 每实体一条 Line，5 色 palette `var(--polisim-line-1..5)` 循环 / Tooltip + Legend / isAnimationActive=false 防 ws 推送时 GPU 抖动；(b) 📊 事件分布——BarChart layout="vertical" by EventKind，X=count / Y=kind 名 / 高度按 kind 数自适应 `Math.max(140, n*22+40)`；3 项兜底文案：snapshots<2 / 无 numeric attrs / 0 events）
+      - **改动**：
+        - `components/ControlBar.tsx`：副区按钮从 PR4.1 的 disabled 占位 → 加 2 prop `sidePanelCollapsed: boolean` + `onSidePanelToggle: () => void`；active 视觉切换（!collapsed → accent bg / collapsed → default surface + hover）；aria-pressed 支持 SR；dynamic title show/hide
+        - `routes/Running.tsx`：useUiStore 加 `sidePanelCollapsed` + `toggleSidePanel` selector；ControlBar 传两 prop；main 改双区布局——xl breakpoint 启动 `grid xl:grid-cols-[1fr_22rem]`，下 size 自动单列；副区仅 `entity_card` layout 且未折叠时渲染（其他 layout 现仍占位 PR4.5）
+      - **i18n**：`zh.json` + `en.json` 加 `mini_dashboard.{title, section.attributes, section.events, no_snapshots, no_numeric_attrs, no_events, tooltip_tick}` + 改 `control_bar.side_panel_pr5` → `side_panel_show` / `side_panel_hide`
+    - **关键设计决策**（PR4.3 范围内）：
+      - **数据来源单一**：MiniDashboard 0 直接发请求，全部数据从父 Running 传入的 `entries / stream.snapshots / stream.events`——保持单源真相 + 单 ws 订阅
+      - **属性趋势按"每属性一图"而非"每实体一图"**：因为用户阅读心智是「我想看 reputation 怎么变化」（属性维度），而非「我想看 company_a 的所有指标」（实体维度）。每图展示该属性所有实体并列，5 色 palette 区分
+      - **numeric attribute 推断**：从最新 snapshot 取 `entity_state_summary` 字典里 `typeof === 'number' && Number.isFinite()` 的 key 集合（去重 + 排序）。不依赖 World Definition.entity_types[type].attributes 静态 schema —— 允许场景对属性 schema 演化
+      - **事件分布用 vertical BarChart 而非 PieChart**：(a) kind 数量可达 15+（含 `chained_action_triggered` / `entity_destroyed` 等长名）→ 饼图 label 重叠不可读；(b) BarChart 高度自适应支持任意 kind 数量；(c) layout="vertical" 让长 kind 名水平显示在 Y 轴避免 overlap
+      - **isAnimationActive=false**：ws 推 tick 频率高（speed=4x = 250ms 一次 rerender），动画会重叠 + 抖动；recharts 默认动画 1500ms 不适合实时更新
+      - **副区折叠时 conditional unmount**：`{!sidePanelCollapsed && <MiniDashboard/>}` 而非 `display: none` —— 节省非演示状态下的 recharts 计算 + DOM 节点（recharts ResponsiveContainer 在 hidden 状态会反复 ResizeObserver fire 占 CPU）
+      - **token 单源**：5 色 palette 用 `var(--polisim-line-N, fallback-hex)` —— design-system tokens.css 定义业务专属 5 色（mockup §8.4 §11.4 已规划），fallback 防 token 未定义时灰屏。Tooltip / 边框 / 网格全用 semantic tokens（var(--bg-surface) / --border-default 等）
+      - **副区接通仅 entity_card layout**：mockup §4.4.2 副区设计专为 entity_card layout 服务（属性趋势 + 事件分布对实体场景最有意义）；relation_graph / event_stream layouts 推 PR4.5 自带数据可视化，无需通用副区
+    - **关键修复 1 项**：MiniDashboard 初版用 `snap.entities[]` 数组遍历是错的——Snapshot schema 实际字段是 `entity_state_summary: { [entityId]: { [attr]: unknown } }`（字典，非数组）+ `relation_state_summary[]` + `environment_state` + `message_summary` —— openapi-typescript 生成的 types 已暴露此 schema，但我写时按经验假设了 `entities[]`。改两处遍历（collectNumericAttributes + buildAttributeSeries）→ `Object.entries(snap.entity_state_summary ?? {})` + entityIds Set 过滤。
+    - **验收证据**（mockup §11.11 PR4.3 + §4.4.2）：
+      ```text
+      验收对象：v0.2 React 前端 PR4.3（MiniDashboard 副区 + ControlBar [📊] 按钮接通 + 双区 grid 布局）
+      对应验收项：mockup §4.4.2 §11.4 §11.11 PR4.3
+      输入：(1) recharts 装包 `npm install recharts --save --legacy-peer-deps`；(2) python -m cli serve --port 8000；(3) cd web && npm run dev（5173，因 npm install 触发 vite optimize 重启）；(4) npx tsc --noEmit -p tsconfig.app.json
+      执行方式：FastAPI 8000 + Vite 5173 + recharts 2.x + axios + react-query
+      实际输出：
+        - npm install recharts：added 38 packages / audited 313 / 0 vulnerabilities
+        - tsc --noEmit：exit 0 / 0 type 错（修 schema 后）
+        - vite 5173：ready 2759ms（含 deps re-optimize）
+        - GET /api/v1/health 返 200 / 49 bytes
+        - GET /api/v1/scenarios 返 200 / 697 bytes
+        - GET 5173/ + /runs/test/run 返 200 / 610 bytes（SPA fallback）
+        - GET /src/components/MiniDashboard.tsx 返 200 / 30210 bytes（含 recharts imports）
+        - GET /src/components/ControlBar.tsx 返 200 / 18542 bytes
+        - GET /src/routes/Running.tsx 返 200 / 38744 bytes
+      是否通过：✅
+      备注：F12 手动验证（用户做）：— 跑中页 → ControlBar 右侧 [📊] 按钮高亮（accent bg）默认开启状态；— xl breakpoint（≥1280px 屏宽）双列布局：左主区 EntityCardLayout / 右副区 22rem 宽；— 副区上半部分：cash 折线 / reputation 折线（minimal_market 场景）每实体一条 Line + 颜色区分 + Tooltip 鼠标悬停看具体 tick 值；— 副区下半部分：BarChart 显示 decision_proposed / action_executed / message_emitted 等 kind 横条 + count；— 点 [📊] 切到 collapsed → 副区消失 + 主区全宽；— 切回展开 → 副区出现；— 切到 paused → MiniDashboard 数据冻结；— 跑到 tick 5 → 折线延伸到 5 个点
+      ```
+    - **测试影响**：**0 后端测试变动 / 810 passed 不变**——本 session 0 v1 / 0 server / 0 后端测试文件变动；纯前端增量。
+    - **session 41+ 入口任务**：剩余 PR4-PR5 子项 2 条（按 progress.md 第 68 条目推荐顺序余下 2 条）：(a) **PR5 跑完页**：`routes/Finished.tsx`（D-009 分析报告渲染：6 类指标卡片——entity_count / event_count / decision_count / fallback_count / message_count / tick_count；Markdown narrative 用 react-markdown 渲染；2 按钮——重跑 + 回画廊；可选 ConsistencyMarker 显示 v0.1.1 增强分析的「可信度」标签）+ `useAnalysis` hook（GET /runs/:id/analysis）+ i18n 加 finished.* 一组 keys；(b) **PR4.5 第二/第三 layout**（装 cytoscape + react-cytoscapejs：`layouts/RelationGraphLayout.tsx`（实体节点 + 关系边 + force-directed 布局，用于 three_party_negotiation 场景）+ `layouts/EventStreamLayout.tsx`（事件流时间线，适用纯叙事场景）；Running 已有 layout dispatch 直接接通）。**推荐顺序**：PR5 → PR4.5（PR5 收尾故事重要，PR4.5 加广度但 cytoscape 学习曲线）。
+    - **设计纪律遵守**：
+      - **MUST NOT 全员遵守**——0 v1 内核改动 / 0 server 改动 / 0 跑完页（PR5 留空）/ 0 第二第三 layout（PR4.5 留空）/ 0 mockup §8.1 之外依赖（cytoscape / react-markdown 留 PR5 / PR4.5）
+      - **mockup 是实施唯一权威**——§4.4.2 副区双段 1:1 落地（属性趋势 + 事件分布）；§11.4 C2 / C3 ControlBar + MiniDashboard props 1:1 落地；§8.4 token 单源（0 primitives 引用）
+      - **AGENTS.md 落点纪律**——所有新增在 `web/src/{components, routes, i18n}/`，无新顶层目录 / utils 垃圾桶
+    - **未引入新 pitfall**：MiniDashboard schema 错误（`entities[]` vs `entity_state_summary{}`）是「不读 types.gen.ts 凭印象写」教训，已在 PR1 的 P3 pitfall 类似归档（"openapi-typescript 生成 types 是单一真相，写代码前先读"）。本 session 已修，无需新条目。
+70. **v0.2 Playwright E2E 自动化测试 + 修复 PR4.3 latent bug**（session 41，2026-04-29）：
+    - **背景 + 范围**：user 主动请求"自动化测试一下网页"。给 4 选项（Playwright E2E 推荐 / Server API 流脚本 / Vitest 前端单测 / 三者混合）；user 选 Playwright E2E（覆盖最高 + 一次性投入）。本 session 落地 mockup §6 全 8 步用户故事的 1:1 自动化测试，并在测试过程中**意外发现 + 修复了 PR4.3 提交时的 latent bug**——recharts 装包用 `--legacy-peer-deps` 时漏装 react-is 传递依赖，跑中页 vite 抛 plugin error 全页 React app 不渲染。**这是 E2E 测试的核心价值证明**——tsc 0 错 + 路由 200 没暴露的 bug 被自动化捕获。
+    - **交付清单**（4 dev/prod dep + 2 文件新建 + 1 文件改 + 1 docs 加 2 条 P3）：
+      - **装包**：`@playwright/test` (3 包) + `chromium` browser binary (~150MB) + `@types/node`（spec 文件 string path 用不到但 tsconfig 声明） + `react-is`（修 PR4.3 latent bug，prod dep）；4 次装包全用 `--legacy-peer-deps`
+      - **新建**：`web/playwright.config.ts`（baseURL=5173 / 单 worker / 失败时截图+录像+trace / chromium Desktop Chrome 1440x900 viewport / list+html dual reporter / outputDir=test-results/）
+      - **新建**：`web/tests/e2e/mockup-flow.spec.ts`（170 行 / 1 spec / 8 个 test.step：步 1 画廊 → 步 2 跑前 → 步 3 跑中 → 步 4 切 0.5x 速度 + 等 auto-step → 步 5 干预 force_action（promote action_type / `{"amount": 30}` params）→ 步 6 暂停 + best-effort 看 prompt modal → 步 7 副区折叠/展开 → 步 8 退出 + 回画廊；每步 + 9 个截图）
+      - **改动**：`web/.gitignore` 加 3 段 `# Playwright E2E` + `test-results/` + `playwright-report/` + `tests/screenshots/`
+      - **docs**：`docs/03-implementation/pitfalls.md` 加 2 条 P3（详见下"踩坑记录"）
+    - **关键修复 1 P3 bug（PR4.3 latent）**：装 recharts 用 `--legacy-peer-deps` 漏装 react-is → 跑测试时 page snapshot 抛 `[plugin:vite:import-analysis] Failed to resolve import "react-is" from "node_modules/.vite/deps/recharts.js"` → 全页 vite error overlay 遮挡 React app。手动 `npm install react-is --save --legacy-peer-deps` 补装 + kill vite 5173 + 重启触发 deps re-optimize 修复。
+    - **关键修复 5 处 selector 错误（写 spec 凭印象）**：测试一次 spec 一稿写完 → 跑了 4 轮，每轮 fail 1 个不同 step：
+      1. **步 1 H1 文案**：以为 "Polisim"（topbar 那个），实际 Gallery `<h1>` = `gallery.title` = "场景画廊"
+      2. **步 1/8 scenario id**：以为 "minimal_market"（**目录名**），实际 `/api/v1/scenarios` 返回 `id` = "walkthrough-min"（来自 scenario.yaml `scenario.id: walkthrough-min`）
+      3. **步 2 entity 文案**：以为跑前页用 entity.id（`company_a`），实际 `ScenarioIntroPanel:77` 用 `entity.name ?? entity.id` → 跑前显示 "A 公司" / "监管方"（中文 name），跑中页 EntityCard 才用 entity.id
+      4. **步 2 实体集**：以为有 `company_a` + `company_b`，实际是 `company_a` + `regulator_main`（A 公司 + 监管方）
+      5. **步 2 路由 pattern**：以为 Gallery → 跑前是 `/scenarios/:scenarioId/pre-run`，实际是 `/runs/:runId/intro`（Gallery [▶ 开始] 触发 useCreateRun + navigate `/runs/${runId}/intro`）
+    - **测试结果**：**1 passed (11.1s) / 9 截图全生成**：
+      - `01-gallery.png` 84KB / `02-prerun.png` 44KB / `03-running-tick0.png` 47KB
+      - `04-running-advanced.png` 66KB / `05-drawer-filled.png` 73KB / `06-after-intervene.png` 73KB
+      - `07-prompt-modal.png` **114KB**（**最大 → modal 真打开了 6 段 PromptContext** → minimal_market 场景**含 LLM 决策实体**——意外验证了 PR4.1/4.2/4.3 的 LLM 联动通路）
+      - `08-side-collapsed.png` 40KB（**最小 → MiniDashboard 真卸载了**）
+      - `09-back-to-gallery.png` 84KB（与 01 同 size → 回到画廊）
+    - **关键设计决策**（PR4.3 范围内）：
+      - **best-effort 步 6/7**：步 6 看 prompt modal 用 `if (await viewPromptBtn.isVisible().catch(false))` —— 若场景 entities 全是 rule/random 决策则 LLMThoughtBubble 不渲染，跳过 modal 验证。同样步 7 副区折叠用 `if visible` 防 layout=relation_graph 时无副区。这是 **mockup §6 用户故事覆盖度** vs **测试稳定性** 的权衡——production 场景 minimal_market 实际有 LLM 实体，步 6 走通；future 场景可能 0 LLM，让 spec 自动跳过而非 fail
+      - **0.5x 速度切换**：minimal_market 默认 ticks=5 + 1x speed = 5s 跑完，留给 step 5+ 干预 + prompt 查看 + 副区切换的窗口太短。切 0.5x → 每 tick 2000ms → 总 10s，给后续步充足时间
+      - **单 worker 串行**：playwright.config.ts `fullyParallel: false / workers: 1` —— 多 worker 并发会在 server runtime registry 上互相污染（同一个 minimal_market 创建多个 run + 同时 intervene），且 chromium 多实例占用 RAM
+      - **失败时 trace + video + screenshot**：`trace: "retain-on-failure" + video: "retain-on-failure" + screenshot: "only-on-failure"` —— 跑通时不存（节省磁盘），失败时全留（debug 三件套）
+      - **不用 webServer 自动起**：playwright config 没设 `webServer` —— vite + python server 都是外部跑（已在跑），避免覆盖；CI 环境再加 webServer 配置
+    - **验收证据**（user 主动请求 + Playwright E2E 全流程通过）：
+      ```text
+      验收对象：v0.2 Playwright E2E 自动化测试 + PR4.3 react-is bug 修复
+      对应验收项：mockup §6 用户故事 8 步 + PR4.1/4.2/4.3 全部 UI 集成
+      输入：(1) npm install --save-dev @playwright/test --legacy-peer-deps；(2) npx playwright install chromium；(3) npm install react-is --save --legacy-peer-deps；(4) kill vite 5173 + npm run dev；(5) npx playwright test
+      执行方式：FastAPI 8000 + Vite 5173 + chromium headless + Playwright runner 单 worker
+      实际输出：
+        - playwright install chromium：exit 0（~150MB browser binary）
+        - 4 轮 fail 4 个不同 step（spec selector 凭印象错），最后 1 轮：
+          ✓ 1 [chromium] › mockup §6 minimal_market full user flow (11.1s)
+          1 passed (15.2s)
+        - 9 截图全生成在 tests/screenshots/，size 范围 40-114KB
+        - 步 6 prompt modal 实际开了（07 截图最大 114KB）
+        - 步 7 副区折叠实际生效（08 截图最小 40KB）
+      是否通过：✅
+      备注：bug 不仅修了 react-is 装包，也证明了 mockup §6 全流程在 PR4.1/4.2/4.3 后 mock 决策模式跑通；E2E 测试可作为 PR5/PR4.5 后续实施前的 baseline regression check（每次新功能后回跑确认未 break）
+      ```
+    - **测试影响**：**0 后端测试变动 / 810 passed 不变 + 新增 1 个 Playwright spec / 1 个测试通过**——纯前端 + E2E 增量。
+    - **session 42+ 入口任务**：剩余 v0.2 R 前端支线（按 progress.md 第 69 条推荐顺序余下 2 条）：(a) **PR5 跑完页**：装 react-markdown + 新建 `routes/Finished.tsx`（D-009 分析报告 + 6 类指标卡片 + Markdown narrative + 重跑/回画廊 + ConsistencyMarker）+ `useAnalysis` hook（GET /runs/:id/analysis）+ i18n 加 finished.* 一组 keys；**实施完后扩 spec 加 step 9-10**（跑完页指标卡片 + 重跑按钮验证）；(b) **PR4.5 第二/第三 layout**：装 cytoscape + react-cytoscapejs + 新建 `layouts/RelationGraphLayout.tsx` + `layouts/EventStreamLayout.tsx`；Running 已有 layout dispatch 直接接通；**实施完后扩 spec 加 second test for three_party_negotiation 场景**（用 relation_graph layout）。**推荐顺序**：PR5 → PR4.5。剩余预计 1-2 session 收尾 v0.2 R 前端。
+    - **设计纪律遵守**：
+      - **MUST NOT 全员遵守**——0 v1 内核改动 / 0 server 改动 / 0 PR5 / 0 PR4.5 / 0 mockup §8.1 之外依赖（cytoscape / react-markdown 留 PR5 / PR4.5）；@playwright/test 是 user 选定的工具栈扩展，符合"测试是开发活动"分类
+      - **AGENTS.md 落点纪律**——所有新增在 `web/` 子目录（playwright.config.ts 工程配置 / tests/e2e/ E2E 目录 / .gitignore），无新顶层目录
+      - **pitfalls.md 纪律**——session 中踩的 P3 立刻记 2 条（recharts 漏装 react-is + 写 spec 凭印象假设），按既有 P3 模板（现象+根因+解法+相关文件+防再犯）
+    - **新踩坑（pitfalls.md 已加 2 条 P3）**：(a) `recharts` 装包用 `--legacy-peer-deps` 漏装 react-is，跑中页 vite plugin 报错；(b) 写 Playwright E2E 凭印象假设页面文案/路由/数据，5 处 selector 全错。
+    - **session 41 第 2 阶段（user 主动质疑覆盖度后扩展）**：user 质疑「你确定你覆盖了所有的测试了吗」→ 给出 gap 清单（已测 8 step ≈ smoke test；未测约 20+ 关键交互）+ 4 选项；user 选「扩现 spec 加关键交互（~10 step）」。落地：spec 8 step → **13 step / 1 spec 1 passed (13.5s) / 10 截图**：
+      - **PART 1 画廊与 i18n**：步 1 zh→en→zh 切换 + H1 文案变化双向断言；步 2 upcoming/custom 占位卡片点击触发 v0.3+ toast
+      - **PART 2 跑前页**：步 3 进入 + AdvancedOptionsPanel 展开（best-effort 见 ticks_override label）；步 4 [← 返回画廊] 按钮 + 重新进入跑前
+      - **PART 3 跑中页基础**：步 5 4 档速度（1x/2x/4x/0.5x 末档）循环点击 + 每档 `aria-pressed=true` 强断言；步 6 弱断言 tick ≥ 1 + EntityCard `↑/↓` diff 箭头 best-effort；步 7 MiniDashboard `.recharts-line` + `.recharts-bar` SVG 可见 best-effort
+      - **PART 4 干预 3 tabs + cancel**：步 8 force_action(promote, **budget=30** 修正 amount→budget) + toast；步 9 inject_message tab 切换 + selectOption("policy_signal") + cancel 路径（drawer 2 个 ✕ 取消 button 用 `.last()` 取 footer）；步 10 override_attribute tab + `{"strictness": 99}` JSON + 提交
+      - **PART 5 prompt modal 6 段**：步 11 暂停 + 打开 prompt modal + **6 段标题全验**（system_role / actor_view / perception / available_actions / language_hint / custom_segments）+ Esc 关
+      - **PART 6 副区与退出**：步 12 副区折叠/展开 best-effort；步 13 [🚪 退出] + 回画廊
+    - **第 2 阶段调试历程：4 轮 fail 4 个不同根因**：
+      - **Round 1（step 1 i18n EN 切换）**：playwright `getByRole({name})` 优先 aria-label 而非 button text → topbar lang button 有 aria-label="切换至英文"，需用 aria-label 匹配
+      - **Round 2（step 6 切 0.5x 找不到）**：4x×5tick=1.25s 跑完 5 tick → 自动 navigate `/finished` → 后续 step 找不到 ControlBar 控件。修：4 档切档顺序末档改 0.5x + 末尾立即 pause
+      - **Round 3（step 6 resume 后 tick 不推进）**：resume click 成功但 status 不切 running。**根因深挖发现 v0.2 简化协议设计漏洞**：`server/services/run_service.py:213-221` resume 端点**不推 ws 事件**（v0.2 简化），但 client `useRunStream` 状态机仅靠 ws 推送切 status → resume 后 status 永远 paused → auto-step `useEffect` 不启动。临时改用单步按钮 → 又遇 Round 4
+      - **Round 4（step 9 cancel button strict mode）**：drawer 2 个 ✕ 取消 button（header 关闭 aria-label + footer 长文本），strict mode 拒绝。修：`getByRole('dialog').last()` 取 footer
+    - **session 41 第 2 阶段意外发现 1 个 P3 latent bug（已记 pitfalls.md）**：**v0.2 UI 单步功能与 v0.1 runtime.step() 语义错位**：UI `ControlBar.tsx:116` `disabled={!isPaused}` 的设计意图是「paused 时单步推进」，但 v0.1 `runtime.py:380-381` 在 paused 时**raise PausedError**——直接禁止 step。server step 路由不前置 resume，所以 UI 单步按钮在 paused 时 click 全部失败，server 返回 4xx，前端 toast 一闪而过没截到。**本质**：PR4.1 设计 ControlBar 时漏了 v0.1 接口契约校验；v0.1 内核「paused = 完全阻塞」与 v0.2 UI「paused = 可单步审查」语义直接冲突。**修复选项**（按上游修最小排序）：(a) server `RunService.step` 包装：`if paused: resume + step + pause`（推荐，5-10 行 server 改动）；(b) runtime `step(force_single)` 参数（v0.1 内核改动）；(c) UI 三调用 round-trip。**临时绕开**：spec step 6 改为弱断言（验证 step 5 期间 auto-step 已推进的 tick ≥ 1 + diff 箭头 best-effort）。**留 PR4-fix 单独处理**——本 session 不动代码。
+    - **覆盖度对比（旧 8 step vs 新 13 step）**：新增覆盖：i18n 切换 / upcoming toast / AdvancedOptionsPanel / 返回画廊 / 4 档速度 aria-pressed / EntityCard diff 箭头 / MiniDashboard 折线+柱状图 / inject_message tab + cancel / override_attribute tab / prompt modal **6 段全验**（旧仅 1 段）/ Esc 关。**仍未覆盖**（PR5/PR4.5 实施后再扩）：跑完页 /finished + 6 类指标卡片 + 重跑路径；relation_graph + event_stream layout（cytoscape 未装）；错误流程（404/500/ws 断开重连）。
+    - **测试结果（第 2 阶段）**：**1 passed (13.5s) / 10 截图全生成**：`01a-gallery-zh.png` 84KB / `01b-gallery-en.png` 73KB / `02a-prerun-advanced.png` 63KB / `03-running-4x.png` 51KB / `04-running-tick-advanced.png` 62KB / `05-mini-dashboard.png` 63KB / `06-drawer-force-action.png` 68KB / **`07-prompt-modal-6sections.png` 104KB（最大 → 6 段全验）** / `08-side-collapsed.png` 40KB / `09-back-to-gallery.png` 84KB。
+
+    - **session 41 第 3 阶段（PR4-fix，user 选定路线 1 同 session 落地）**：上一阶段发现的 P3 latent bug（v0.1+v0.2 单步语义错位）user 选定 server side 包装路线（推荐路线 1）+ 顺手修 cli/serve.py help 文本不一致。**5 处改动 + 1 race 子修正 + 双层验收**：
+      - **A. cli/serve.py:108**：help 「默认 10」→「默认 20」（user 改了 default 值未同步 help，顺手修）
+      - **B. server/services/run_service.py:176-243**：`RunService.step` 加 paused 单步包装：`if was_paused: resume → step → manual_repause + paused_after=True 注入 broadcast result + 补推 PausedEvent(reason="manual")`
+      - **C. tests/test_server_runs.py:250-282**：原 `test_pause_blocks_step`（断 409 RUNTIME_PAUSED）改名重写为 `test_step_in_paused_is_single_step`（断 200 + tick++ + 仍 paused）+ 新增 `test_step_in_paused_advances_multiple_times`（多次单步连推）
+      - **D. web/tests/e2e/mockup-flow.spec.ts:130-152**：spec step 6 从弱断言「auto-step 推进的 tick≥1 best-effort + diff 箭头」升级为强断言「paused 状态点单步 → tick++ + resume button 仍 visible（仍 paused 证据）」
+      - **E. 关键 race 子修正**：第一版 server fix 仅 `is_paused()` + `pause()`，跑 spec 时 step 7 后 page 跳到 `/finished` 页 → step 8 找不到 [📌 干预] 按钮。**根因深挖**：client `useRunStream.onTick` 见 `paused_after=False` 切 status="running" 短暂触发 auto-step useEffect race → run 跑到 5 tick finished。修：server 把 broadcast 的 TickResult.paused_after 改 True（`result.model_copy(update={"paused_after": True})`），让 client onTick 看到 paused_after=True → 切 status="paused"，避开 race。这是 **v0.2 ws 协议设计的隐性约束**：`tick_advanced.paused_after` 不仅是 v0.1 raw value，还得反映「服务端 step 后客户端应认为的实际暂停状态」——必要时由 service 层修改语义。
+      - **测试影响**：`pytest 810 → 811 passed`（+1：`test_step_in_paused_advances_multiple_times`；`test_pause_blocks_step` rename 为 `test_step_in_paused_is_single_step` 内容重写但不计 +）；`playwright 13 step 1 passed 15.4s`（step 6 强断言版）；pitfalls.md 第 1 条 P3「✅ 已修」标记追加。
+      - **设计纪律遵守**：MUST NOT 全员遵守——0 v0.1 内核改动（runtime.step() PausedError 行为保留，仅 service 层包装）/ 0 PR5 / 0 PR4.5 / 0 mockup §8.1 之外依赖；AGENTS.md 第 3.2 节「Runtime 不直接修改业务逻辑」继续遵守——server service 层是 v0.1 内核的**包装层**，承担 v0.2 用户操作语义到 v0.1 raw 接口的桥接职责
+      - **未引入新 pitfall**——race 修正记录在原 P3 的"已修"段内（"关键避坑"小节），不另起新条目
+    - **session 41 第 4 阶段（user 报 resume bug → 同 session 修复 RunResumedEvent 对称设计）**：上一阶段 PR4-fix 后 user 立刻报新 bug：「手动点击暂停后再点击恢复，界面无任何反应」。这是 session 41 第 2 阶段 Round 3 调试时已发现但未修的 v0.2 协议设计漏洞——**resume 不推 ws 事件 + client 状态机仅 ws 驱动 → 死锁**。**5 处对称改动 + 1 副发现 race 子修正 + 4 测试**：
+      - **A. server/api/v1/ws_events.py:113-137**：加 `RunResumedEvent` + `RunResumedPayload`（与 `PausedEvent` 完全对称）；加入 `WSServerEvent` 联合类型
+      - **B. server/services/run_service.py:260-282**：`resume()` 推 `RunResumedEvent`（仅 `was_paused=True` 时推，幂等防重复）
+      - **C. web/src/api/ws.ts:44-60,75-80,91-92,184-186**：加 `RunResumedEvent` + `RunResumedPayload` typed schema + `onResumed` callback + handleMessage `case "run_resumed"`
+      - **D. web/src/hooks/useRunStream.ts:138-146**：`onResumed` handler 切 `status="running"` + 清 `pausedInfo`（触发 Running.tsx auto-step useEffect 启动）
+      - **E. 副发现 + 子修正**：调试中发现 `_broadcast_tick` 在 `paused_after=True` 时推 `every_tick` PausedEvent，service step 末尾又显式推 `manual` PausedEvent → **双推 + reason 错乱**。修：`_broadcast_tick` 加 `skip_paused_broadcast` 参数（`server/services/run_service.py:290-302`），让 service step 包装路径自己接管 paused 推送
+      - **测试**：tests/test_server_ws.py 新建 `TestResumeBroadcast` 类 3 个单测（`test_resume_after_pause_pushes_run_resumed` / `test_resume_when_not_paused_pushes_nothing` / `test_resume_after_step_in_paused_no_extra_event`）+ 修原 `test_repeated_pause_no_duplicate_event`（resume 现在推 ws 事件，receive_json 多取一条）
+      - **验收**：`pytest 811 → 814 passed`（+3 ResumeBroadcast 单测）；`playwright 13 step regression check 1 passed 14.9s`（RunResumedEvent 改动不破坏现有 spec）；user 在浏览器手动验证（基于 server CommandId 712 起的新进程 + ws 重连）
+      - **本质**：v0.2 简化协议设计的**对称性漏洞**——pause 推 PausedEvent 但 resume 不推对应事件，client 状态机依赖 ws 推送但没数据可拉。设计假设"下一次 step 推 tick_advanced 足以告知"忽略了 client side **auto-step 仅 status=running 才发**这个前置条件
+      - **新 P3 pitfall（pitfalls.md 顶端）**：「v0.2 简化协议漏洞：resume 不推 ws 事件 → client 死锁」，含完整根因链 + 5 处修复 + 防再犯纪律「v0.2+ 协议设计纪律：所有'状态变迁'（pause/resume/cancel/retry）都必须有对称的 ws 事件——client 状态机靠 ws 驱动，缺事件即死锁」
+      - **设计纪律遵守**：0 v0.1 内核改动 / 0 PR5 / 0 PR4.5 / 0 mockup §8.1 之外依赖；AGENTS.md 第 3.2 节继续遵守；新增的 ws 事件落点 `server/api/v1/ws_events.py` 是合规的设计层
+    - **session 41 第 5 阶段（user 选定路线 1 收尾后立即推 PR5）**：上一阶段 docs 收尾后 user 选「先收尾 session 41（docs + e2e regression）再推 PR5」并立即继续推进。落地 **PR5 精简版**（4 段叙事 + 6 类指标 + 重跑/回画廊；副区 tabs / 下载 / 关系图 / 折线 / 事件分布留 PR5.5+PR4.5）。**装包 1 + 新建 3 文件 + 重写 1 + i18n 加 1 组 + spec 扩 2 step**：
+      - **装包**：`react-markdown` --legacy-peer-deps（79 包）
+      - **新建 hooks/useAnalysis.ts**：基于 `useQuery` 的简单 GET 包装；query key 含 `enhance` 参数；staleTime 5min（runtime 跑完后数据稳定）；retry 1 次
+      - **新建 components/NarrativeReport.tsx**：4 段 LLM 叙事（📖 world_overview / 📜 narrative_summary / ⚖️ situation_judgement / 💡 next_action_suggestions）+ react-markdown 渲染 + 每段 fallback「LLM 未生成此段（Phase A 模式）」+ loading skeleton（4 个灰色块脉动）
+      - **新建 components/FinishedMetricsCard.tsx**：6 类指标卡片（⏱️ total_ticks / 📋 total_events / 🏷️ event_kinds / 👥 entities / 📈 turning_points / 🔔 breakpoints）+ responsive grid（2 → 3 → 6 col）+ loading skeleton
+      - **重写 routes/Finished.tsx**（PR1 占位 24 行 → PR5 145 行）：mockup §10.5 M1 **双查询模式**——`useAnalysis(enhance=false)` 拿 phaseA 渲染指标（必然成功）+ `useAnalysis(enhance=true)` 拿 enhanced 渲染 4 段（失败时显示 ⚠️ banner + phaseA fallback）；header 含 [← 返回画廊] + [🔄 重跑]（反查 scenario_path：`useScenarios()` 列表 + `runDetail.summary.scenario_id` 匹配）
+      - **i18n zh/en finished.* keys**：header / back_to_gallery / rerun / error.title+hint / metrics.* (6 标签 + aria) / narrative.* (title / loading / empty_section / 4 段标题)
+      - **E2E spec 步 13 改写 + 加步 14-15**：原 step 13（退出回画廊）改为「resume + 4x 跑完 → 自动 navigate /finished」；新 step 14「verify finished page → 6 metrics + 4 narrative sections + buttons」（强断言 6 个 i18n 标签 + 4 段 + 2 按钮）；新 step 15「back to gallery from finished page」
+      - **关键 race 子修正**：spec 第一版用 emoji 在 button name regex（`/🔄\s*重跑/`），chromium accessible name 处理 emoji 不一致 fail。修：移除 emoji 用 `/重跑|Rerun/i` 简化匹配
+      - **关键设计修正（mockup §10.5 M1 落地）**：第一版 useAnalysis 单查询 `enhance=true`，mock provider 跑 narrative 失败 → server 502 Bad Gateway → 整页 error。改双查询：`useAnalysis(enhance=false)` 必然成功（Phase A 数据）+ 异步 `useAnalysis(enhance=true)` 失败时降级为 phaseA fallback。这正是 mockup §10.5 M1「先 Phase A 渲染 + 异步 enhance + 失败 fallback」的标准流程
+      - **验收**：`pytest 814 passed`（PR5 纯前端，0 后端测试变动）；`playwright 15 step 1 passed 16.8s`（13 → 15 step / 9 → 11 截图：加 `10-finished-page.png` 67KB + `11-back-to-gallery.png` 84KB）
+      - **后续 PR5.5 留**：副区 tabs（`FinishedSidePanel` + 5 tabs）/ events.jsonl 下载（`useDownloadEventsJsonl`）/ tick 引用点击跳副区高亮（`onTickRefClick`）/ FinalRelationGraph（依赖 cytoscape PR4.5）/ AttributeChart（recharts 折线）/ EventDistributionChart（recharts bar）/ RawDataView
+      - **设计纪律遵守**：0 v0.1 内核改动 / 0 server 改动 / 0 mockup §8.1 之外新依赖（react-markdown 在 §8.1 清单内）/ AGENTS.md 第 3.2 节落点合规（`hooks/` + `components/` + `routes/`）/ pitfalls.md 未引入新条目（emoji selector + mock provider 502 都是 spec 调试期发现的小问题，已自修无后续风险）
+    - **session 41 第 6 阶段（user 选定 (a) PR4.5 后立即推进）**：上一阶段 PR5 后 user 选 (a) 即 PR4.5 第二/第三 layout。落地 **PR4.5 完整版**（RelationGraphLayout + EventStreamLayout + Running 三 layout dispatch + i18n + 第二个 spec test）。**装包 3 + 新建 3 文件 + 修 2 文件 + i18n 加 2 组 + spec 加 second test 4 step**：
+      - **装包**：`cytoscape` + `react-cytoscapejs` + `cytoscape-cose-bilkent`（8 包；mockup §8.1 + §9.2 决议）
+      - **新建 layouts/RelationGraphLayout.tsx**：基于 react-cytoscapejs；cose-bilkent 力导向 layout；节点颜色按 decision_mode（llm 蓝 / rule 灰 / random 紫）；边粗细 1-4px 线性映射 trust value；边颜色阈值（绿 ≥70 / 黄 40-69 / 红 ≤40）；directed 关系自动加箭头；底部 LLM decision 气泡（reason + action.type）；图例 section（3 mode + edge hint）；点击节点委派 onEntityClick
+      - **新建 layouts/EventStreamLayout.tsx**：左侧栏（实体小卡片：id / mode label / 前 2 数值属性 / [📌 干预] 按钮）+ 主区瀑布（按 tick 分组 + tick 内顺序 + 自动滚到底部）；mockup §4.3.3 简化版
+      - **新建 components/event_templates.ts**：i18n 自然语言模板 + groupEventsByTick helper；8 种 EventKind 模板（decision_proposed / action_executed / relation_changed / breakpoint_triggered / intervention_applied / scheduled_event_triggered / environment_changed / decision_rejected）+ fallback ℹ️ 默认；payload 字段 typed extract（reason / action.type / variable / source / target / value 等）；非数值用 num() 兜底
+      - **修 routes/Running.tsx**：(1) imports 加 RelationGraphLayout + EventStreamLayout + RelationEntry type（合规：从 layouts/ 导入，避免循环依赖）；(2) 新增 `relations` useMemo（snapshot.relation_state_summary 优先 + scenario.relations fallback；弱类型 `{[key]: unknown}[]` filter to typed）；(3) 新增 `latestDecision` useMemo（events 倒序 find decision_proposed）；(4) layout dispatch 改为 `entity_card / relation_graph / event_stream` 三分支（弃用占位提示）；(5) MiniDashboard 副区放开三 layout 都可显示（原仅 entity_card）
+      - **修 web/src/api/schema.ts**：加 `export type RelationTypeSchema = Schemas["RelationTypeSchema"]`（RelationGraphLayout 需要 directed 字段；schema.ts 此前缺）
+      - **i18n zh/en 加 relation_graph + event_stream 2 组**：`relation_graph.legend.{llm,rule,random,edge_hint}` / `relation_graph.decision_aria` / `event_stream.{entities_title,stream_aria,no_events}` / `event_stream.template.{8 种 EventKind}`（含 i18next 占位符 `{{actor}}` / `{{action}}` 等）
+      - **E2E spec 加 second test for three_party_negotiation**：4 step（A: gallery → 找三人谈判卡片 → 进跑前；B: 跑前验 alice/bob/charlie；C: 开始仿真 → 验图例 3 mode 文本 + edge hint；D: 暂停 + 退出 → 回画廊）；不验证 cytoscape canvas 节点（无 DOM id 可断言）；2 截图（12-three-party-pre-run + 13-three-party-running）
+      - **关键 selector 子修正**：spec 第一版用 `page.locator("article")` 找 ScenarioCard，实际 ScenarioCard 顶层是 `<div className="group ...">`。改 `page.locator("div.group", { hasText: ... })` 通过
+      - **关键 EventKind enum 子修正**：event_templates.ts 第一版按 mockup 文字写 `attribute_changed` / `relation_value_changed` / `environment_event`，schema 真实 enum 是 `relation_changed` / `environment_changed`（无 attribute_changed）。修 3 个 case 名 + 删 attribute_changed
+      - **关键 cytoscape 类型子修正**：第一版用 `cytoscape.Stylesheet[]`，cytoscape 包导出名为 `StylesheetCSS`。修
+      - **验收**：`pytest`（PR4.5 纯前端，0 后端测试变动）；`playwright 2 passed 23.7s`（test 1 minimal_market 15 step / test 2 three_party_negotiation 4 step / 4 新截图）
+      - **设计纪律遵守**：0 v0.1 内核改动 / 0 server 改动 / 装包均在 mockup §8.1 + §9.2 已决议清单内 / AGENTS.md 第 3.2 节落点合规（`layouts/` + `components/` 已预设）/ pitfalls.md 未引入新条目（3 个子修正都是 spec/code 调试期发现的小类型问题，已自修无后续风险）
 
 **进行中**：
 
-- v0.2 前端 mockup 第二阶段配套完成 + §9 4 项关键决策拍板。**session 35+ 入口任务**：React 前端实现 PR1——`web/` 目录初始化（Vite + TS + Tailwind + 引入 `design-system/tokens.css`）+ react-router 4 个空 route + react-i18next + zustand uiStore + openapi-typescript 生成 `types.gen.ts`。**装包清单**：cytoscape + react-cytoscapejs + cytoscape-cose-bilkent（PR4.5 用）/ react-markdown（PR5 用）/ sonner（toast）/ 其他基础包按 mockup §8.1 表。预计 3-5 session 走完 PR1-PR5。详见 `@d:\桌面\github_project\Polisim\docs\02-design\v0.2-前端-UI-mockup.md` §11。
+- v0.2 session 41 收尾：**6 阶段连发**——PR4.3 react-is + PR4-fix 单步 + RunResumedEvent + PR5 跑完页 + PR4.5 三 layout dispatch 全部交付。`pytest 814 passed / playwright 2 passed 23.7s（test 1 minimal_market 15 step / test 2 three_party_negotiation 4 step）/ pitfalls.md 第 1+2 条 P3 全标「✅ 已修」`。**session 42+ 入口任务**：剩余 v0.2 R 前端 1 条支线：**PR5.5 跑完页副区**（FinishedSidePanel + 5 tabs：📈 AttributeChart 折线 / 🕸 FinalRelationGraph（复用 PR4.5 cytoscape） / 📊 EventDistributionChart 柱状 / 🎬 重播 / 📋 RawDataView + useDownloadEventsJsonl 客户端 Blob 下载；E2E spec 加 step 16-18 验证 tabs 切换；预计 1 session）。剩余 1 session 收尾 v0.2 R 前端核心功能。
+- **PR3 关键文件清单**（session 37 落地，全在 `web/src/`）：
+  - `routes/Gallery.tsx`（重写——useScenarios + 3 段 grid）
+  - `routes/PreRun.tsx`（重写——useRun + ScenarioIntroPanel + AdvancedOptionsPanel + 上下按钮）
+  - `components/ScenarioCard.tsx`（三 kind discriminated union + ui_layout 图标）
+  - `components/ScenarioIntroPanel.tsx`（描述 + 实体列表 + 预设事件）
+  - `components/AdvancedOptionsPanel.tsx`（折叠 + ticks_override + llm_provider）
+  - `api/schema.ts`（+ 6 嵌套子类型别名）
+  - `i18n/{zh,en}.json`（+ 4 组 keys: gallery / scenario_card / pre_run / advanced_options）
+- **PR2 关键文件清单**（session 36 落地，全在 `web/src/`）：
+  - `api/types.gen.ts`（openapi-typescript 自动生成，2493 行 / 77 KB）
+  - `api/schema.ts`（type aliases helper，14 个常用类型暴露）
+  - `api/client.ts`（axios + ApiError + apiGet/apiPost/apiDelete helper）
+  - `api/ws.ts`（connectRunStream + 4 typed event + 指数退避重连）
+  - `hooks/useScenarios.ts` + `hooks/useRun.ts`（react-query useQuery）
+  - `hooks/useCreateRun.ts`（react-query useMutation + onSuccess 插缓存）
+  - `hooks/useStep.ts` + `hooks/usePause.ts` + `hooks/useResume.ts`（mutation 模式）
+  - `hooks/useRunStream.ts`（核心 8 状态 + 7 字段状态机）
+  - `components/ErrorBoundary.tsx`（class component + RenderErrorFallback）
+  - `main.tsx`（加 QueryClientProvider + Toaster + ErrorBoundary）
+  - `i18n/{zh,en}.json`（+ error.boundary + error.toast）
+  - `package.json`（gen:types URL 修为 `/api/v1/openapi.json`）
 
 **阻塞中**：
 
@@ -1243,6 +1646,15 @@ Phase A / B / C 三个主段已全通。剩下三个选项，按优先级：
 1. 改"当前位置"的已完成/进行中/阻塞
 2. 改"下一步"——确保第一条是真正能马上执行的粒度（2~5 分钟任务）
 3. 如有新的设计犹豫，加到"待决策"
+4. 在"会话历史"最顶端追加一条（格式：`### YYYY-MM-DD session N`），保持最多 5 条，老的删掉
+5. 如踩坑了，去 `docs/03-implementation/pitfalls.md` 追加
+
+## 七、本文件不做什么
+
+- ❌ 不记录完整实现细节（那是代码和 docstring 的事）
+- ❌ 不复述设计文档内容（那些在 `docs/02-design/`）
+- ❌ 不存放决策的完整论证（待决策区只写"问题+候选+倾向"）
+- ❌ 不当 TODO 垃圾桶（多于 10 条待办说明粒度太细，该合并）
 4. 在"会话历史"最顶端追加一条（格式：`### YYYY-MM-DD session N`），保持最多 5 条，老的删掉
 5. 如踩坑了，去 `docs/03-implementation/pitfalls.md` 追加
 

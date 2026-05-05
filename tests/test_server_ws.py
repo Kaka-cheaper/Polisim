@@ -115,6 +115,70 @@ class TestStepBroadcast:
 
 
 # =============================================================================
+# resume 推送 run_resumed（PR4-fix，session 41）
+# =============================================================================
+
+
+class TestResumeBroadcast:
+    """PR4-fix（session 41 P3）：server resume 必须推 RunResumedEvent，
+    否则 client useRunStream 状态机死锁——status 永远 paused，auto-step 不启动。
+    """
+
+    def test_resume_after_pause_pushes_run_resumed(
+        self, client: TestClient
+    ) -> None:
+        rid = _create_run(client, "ws-resume-1")
+        with client.websocket_connect(
+            f"/api/v1/runs/{rid}/stream"
+        ) as ws:
+            # pause → 推 paused
+            client.post(f"/api/v1/runs/{rid}/pause")
+            msg1 = ws.receive_json()
+            assert msg1["event"] == "paused"
+            # resume → 推 run_resumed
+            client.post(f"/api/v1/runs/{rid}/resume")
+            msg2 = ws.receive_json()
+            assert msg2["event"] == "run_resumed"
+            assert msg2["data"]["tick"] == 0  # 还没 step 过
+
+    def test_resume_when_not_paused_pushes_nothing(
+        self, client: TestClient
+    ) -> None:
+        """幂等 + 仅状态变化时推：未 paused 时调 resume 不推 ws 事件。"""
+        rid = _create_run(client, "ws-resume-noop")
+        with client.websocket_connect(
+            f"/api/v1/runs/{rid}/stream"
+        ) as ws:
+            # 直接调 resume（runtime 初始 _paused=False）
+            client.post(f"/api/v1/runs/{rid}/resume")
+            # 后续 step 看到的应是 tick_advanced（不是 run_resumed）
+            client.post(f"/api/v1/runs/{rid}/step")
+            msg = ws.receive_json()
+            assert msg["event"] == "tick_advanced"
+
+    def test_resume_after_step_in_paused_no_extra_event(
+        self, client: TestClient
+    ) -> None:
+        """单步包装内部 resume → step → pause 不应额外推 run_resumed。"""
+        rid = _create_run(client, "ws-resume-internal")
+        with client.websocket_connect(
+            f"/api/v1/runs/{rid}/stream"
+        ) as ws:
+            client.post(f"/api/v1/runs/{rid}/pause")
+            msg_paused = ws.receive_json()
+            assert msg_paused["event"] == "paused"
+            # paused 时 step 包装：内部 resume → step → pause
+            # 期待 ws 队列：tick_advanced + paused（第二个 paused 是手动重 pause）
+            # 不期待 run_resumed —— 包装路径用直接 runtime.resume()，没经 service.resume()
+            client.post(f"/api/v1/runs/{rid}/step")
+            msg_tick = ws.receive_json()
+            assert msg_tick["event"] == "tick_advanced"
+            msg_repaused = ws.receive_json()
+            assert msg_repaused["event"] == "paused"
+            assert msg_repaused["data"]["reason"] == "manual"
+
+
+# =============================================================================
 # pause 推送 paused
 # =============================================================================
 
@@ -194,9 +258,11 @@ class TestPauseBroadcast:
             assert msg1["event"] == "paused"
             client.post(f"/api/v1/runs/{rid}/pause")
             # 第二次 pause 不应推送——验证：下一条消息不是 paused
-            # 走 step 后看到的是 tick_advanced（resume + step 才能跑，这里直接验证
-            # queue 没有第二条 paused）
+            # 走 resume + step 后看到的是 run_resumed + tick_advanced
+            # （PR4-fix session 41：resume 推 run_resumed；之前 resume 不推 ws 事件）
             client.post(f"/api/v1/runs/{rid}/resume")
+            resumed = ws.receive_json()
+            assert resumed["event"] == "run_resumed"
             client.post(f"/api/v1/runs/{rid}/step")
             msg2 = ws.receive_json()
             assert msg2["event"] == "tick_advanced"

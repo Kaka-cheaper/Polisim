@@ -45,6 +45,8 @@ from server.api.v1.ws_events import (
     PausedEvent,
     PausedPayload,
     RunFinishedEvent,
+    RunResumedEvent,
+    RunResumedPayload,
     TickAdvancedEvent,
 )
 from server.runtime_registry import RuntimeRegistry
@@ -176,19 +178,66 @@ class RunService:
     def step(self, run_id: str) -> TickResult:
         """推进一个 tick + 推送 WebSocket 事件。
 
-        推送顺序（D-017 第 4.3 节）：
-        1. **tick_advanced** —— 永远推（含本次 step 的 TickResult）
-        2. **paused** —— 仅当 ``result.paused_after=True`` 且 ``reached_total_ticks=False``
-           （手动暂停 / every_tick / breakpoint 触发）
-        3. **run_finished** —— 仅当 ``result.reached_total_ticks=True`` ——
-           **代替** paused，跑 Phase A 分析后推；推完后由 stream_service 关闭订阅者
+        **paused 状态下的单步语义**（PR4-fix，session 41 P3 pitfall 修复）：
 
-        Runtime.step() 自然抛 PausedError / TerminatedError / RulesError 等——
-        交给 server 全局 handler 映射为 4xx/5xx；本方法**不**捕获。
+        若 runtime 处于 paused 状态（手动 pause / every_tick / 断点）调用 step：
+
+        1. 临时 ``resume()`` → ``step()`` → 推进 1 tick
+        2. 场景 A（手动暂停单步）：若 step 后 runtime 未自动 pause，
+           主动 ``pause()`` + 推 ``PausedEvent(reason="manual")``
+        3. 场景 B/C（every_tick / 断点）：runtime 内部 ``paused_after=True``
+           自动 pause；``_broadcast_tick`` 已推 PausedEvent
+
+        这样 UI ControlBar「paused 时单步」按钮的语义（推进 1 tick 后保持 paused）
+        与 v0.1 runtime「paused 时不允许 step」契约自然桥接。
+
+        推送顺序（D-017 第 4.3 节）：
+
+        1. **tick_advanced** —— 永远推（含本次 step 的 TickResult）
+        2. **paused** —— 当 ``result.paused_after=True``（every_tick / breakpoint）
+           或场景 A 手动重 pause 时；``reached_total_ticks=True`` 时跳过
+        3. **run_finished** —— 仅当 ``result.reached_total_ticks=True`` ——
+           **代替** paused，跑 Phase A 分析后推；推完由 stream_service 关闭订阅
+
+        Runtime.step() 自然抛 TerminatedError / RulesError 等——交给 server 全局
+        handler 映射为 4xx/5xx；本方法**不**捕获。``PausedError`` 在场景 A/B/C
+        包装下不会再抛出（已 resume）。
         """
         runtime = self._get_or_404(run_id)
+        was_paused = runtime.is_paused()
+        if was_paused:
+            runtime.resume()
         result = runtime.step()
-        self._broadcast_tick(run_id, result, runtime)
+        # 场景 A：手动暂停后单步 —— 保持 paused（runtime 未自动 pause 时）
+        needs_manual_repause = (
+            was_paused
+            and not result.paused_after
+            and not result.reached_total_ticks
+        )
+        if needs_manual_repause:
+            runtime.pause()
+            # **关键修正**：把 paused_after 标 True 写入 broadcast 的 result，避免 client
+            # `useRunStream.onTick` 看到 paused_after=False 误把 status 切回 running
+            # → 触发 auto-step useEffect race → 直跑到 finished。
+            # HTTP response 的 paused_after=True 也准确反映服务端真实状态。
+            result = result.model_copy(update={"paused_after": True})
+        # 场景 A 时跳过 _broadcast_tick 内部的 paused 推送（reason 会误标 every_tick）；
+        # 由下面显式推 reason="manual" 的 PausedEvent 接管
+        self._broadcast_tick(
+            run_id, result, runtime,
+            skip_paused_broadcast=needs_manual_repause,
+        )
+        if needs_manual_repause and self._stream_service is not None:
+            self._stream_service.broadcast(
+                run_id,
+                PausedEvent(
+                    data=PausedPayload(
+                        tick=runtime.current_tick(),
+                        breakpoint_ids=[],
+                        reason="manual",
+                    )
+                ),
+            )
         return result
 
     def pause(self, run_id: str) -> PauseResumeResponse:
@@ -211,13 +260,27 @@ class RunService:
         return PauseResumeResponse(status="paused", tick=runtime.current_tick())
 
     def resume(self, run_id: str) -> PauseResumeResponse:
-        """恢复。幂等。
+        """恢复 + 推送 RunResumedEvent（PR4-fix，session 41 P3 修复）。幂等。
 
-        v0.2 不推送 "resumed" 事件——下一次 step 自然推 tick_advanced，足以告知
-        客户端"已恢复"。简化协议设计。
+        原设计（v0.2 初版）不推 ws 事件——计划由下一次 step 推的 tick_advanced 隐含告知
+        客户端。**但 client ``useRunStream`` 状态机仅靠 ws 推送驱动 status 切换**，resume 后不
+        推会导致 client status 永远 paused，auto-step useEffect 不启动，step 永远不发，
+        ws 永远不推——**死锁**。
+
+        修法：与 PausedEvent 对称，resume 后推 RunResumedEvent（仅当真从 paused 切回时，
+        幂等调用不重复推送）。client ``useRunStream.onResumed`` 切 status="running" +
+        清 pausedInfo。
         """
         runtime = self._get_or_404(run_id)
+        was_paused = runtime.is_paused()
         runtime.resume()
+        if was_paused and self._stream_service is not None:
+            self._stream_service.broadcast(
+                run_id,
+                RunResumedEvent(
+                    data=RunResumedPayload(tick=runtime.current_tick())
+                ),
+            )
         return PauseResumeResponse(status="running", tick=runtime.current_tick())
 
     # ------------------------------------------------------------------
@@ -225,9 +288,18 @@ class RunService:
     # ------------------------------------------------------------------
 
     def _broadcast_tick(
-        self, run_id: str, result: TickResult, runtime: Runtime
+        self,
+        run_id: str,
+        result: TickResult,
+        runtime: Runtime,
+        *,
+        skip_paused_broadcast: bool = False,
     ) -> None:
-        """根据 TickResult 推送 1-2 条事件到订阅者。"""
+        """根据 TickResult 推送 1-2 条事件到订阅者。
+
+        ``skip_paused_broadcast=True`` 用于 step 包装的"场景 A 手动暂停单步"路径——
+        调用方会自己推 reason="manual" 的 PausedEvent，避免本方法推 every_tick 误标。
+        """
         if self._stream_service is None:
             return  # 无 stream_service（CLI / 单测时）跳过
         # 1. 永远推 tick_advanced
@@ -248,7 +320,7 @@ class RunService:
                 pass
             # 通知所有订阅者：该 run 已结束
             self._stream_service.close_run(run_id)
-        elif result.paused_after:
+        elif result.paused_after and not skip_paused_broadcast:
             # 自动暂停（every_tick 或 breakpoint）
             bp_ids = list(result.triggered_breakpoints or [])
             # reason 字面量在 Literal 范围内——不需 type:ignore（session 33 F5 清理）

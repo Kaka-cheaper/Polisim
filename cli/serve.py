@@ -104,8 +104,8 @@ def add_serve_subparser(subparsers: argparse._SubParsersAction) -> None:
     serve_p.add_argument(
         "--max-concurrent-runs",
         type=int,
-        default=10,
-        help="活跃 run 并发上限（默认 10；超出返 503）",
+        default=20,
+        help="活跃 run 并发上限（默认 20；超出返 503）",
     )
     serve_p.add_argument(
         "--reload",

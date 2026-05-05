@@ -247,16 +247,39 @@ class TestControlOperations:
         state = resp.json()
         assert state["tick"] == 1
 
-    def test_pause_blocks_step(self, client: TestClient) -> None:
+    def test_step_in_paused_is_single_step(self, client: TestClient) -> None:
+        """PR4-fix（session 41 P3 pitfall 修复）：paused 状态下 step 自动包装为
+        resume → step → 重 pause（手动暂停场景）。
+
+        UI ControlBar「paused 时单步」语义；server side 包装让 v0.1 runtime 契约
+        （paused 时禁止 step）对客户端透明。
+        """
         rid = _create_min_run(client)
         # pause
         r1 = client.post(f"/api/v1/runs/{rid}/pause")
         assert r1.status_code == 200
         assert r1.json()["status"] == "paused"
-        # step 在 paused 状态 → 409
+        # step 在 paused 状态 → 200 + tick++（旧行为为 409）
         r2 = client.post(f"/api/v1/runs/{rid}/step")
-        assert r2.status_code == 409
-        assert r2.json()["error"]["code"] == "RUNTIME_PAUSED"
+        assert r2.status_code == 200
+        assert r2.json()["tick"] == 1
+        # 验证 step 后仍 paused（场景 A：手动暂停单步保持 paused）
+        runs = client.get("/api/v1/runs", params={"status": "paused"}).json()
+        assert any(r["run_id"] == rid for r in runs)
+
+    def test_step_in_paused_advances_multiple_times(
+        self, client: TestClient
+    ) -> None:
+        """连续多次单步：每次 tick++ + 仍 paused。"""
+        rid = _create_min_run(client)
+        client.post(f"/api/v1/runs/{rid}/pause")
+        for expected_tick in [1, 2, 3]:
+            r = client.post(f"/api/v1/runs/{rid}/step")
+            assert r.status_code == 200
+            assert r.json()["tick"] == expected_tick
+        # 仍 paused
+        runs = client.get("/api/v1/runs", params={"status": "paused"}).json()
+        assert any(r["run_id"] == rid for r in runs)
 
     def test_resume_allows_step(self, client: TestClient) -> None:
         rid = _create_min_run(client)
