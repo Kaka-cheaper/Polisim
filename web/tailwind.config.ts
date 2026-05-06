@@ -105,6 +105,10 @@ const config: Config = {
         loose: "var(--leading-loose)",
       },
       letterSpacing: {
+        // session 44 加：display 三档极致负 tracking（Linear/Vercel "minified-engineering" 美学）
+        "display-xl": "var(--tracking-display-xl)",
+        "display-lg": "var(--tracking-display-lg)",
+        "display-md": "var(--tracking-display-md)",
         tight: "var(--tracking-tight)",
         normal: "var(--tracking-normal)",
         wide: "var(--tracking-wide)",
@@ -134,6 +138,9 @@ const config: Config = {
         xl: "var(--shadow-xl)",
         "2xl": "var(--shadow-2xl)",
         focus: "var(--shadow-focus)",
+        // session 44 加：Linear-style 顶边白光（用法：shadow-inner-highlight 或叠加在 card 上）
+        "inner-highlight": "var(--inner-highlight)",
+        "inner-highlight-strong": "var(--inner-highlight-strong)",
       },
       transitionDuration: {
         instant: "var(--motion-duration-instant)",

@@ -79,10 +79,10 @@ export default function Gallery() {
   return (
     <main className="mx-auto max-w-layout px-6 py-12">
       <header className="text-center">
-        <h1 className="text-7xl font-semibold tracking-tight text-fg-primary">
+        <h1 className="text-8xl font-semibold leading-tight tracking-display-lg text-fg-primary">
           {t("gallery.title")}
         </h1>
-        <p className="mt-3 text-xl text-fg-secondary">
+        <p className="mt-4 text-xl text-fg-secondary">
           {t("gallery.subtitle")}
         </p>
         <p className="mt-2 text-md text-fg-tertiary">{t("gallery.tagline")}</p>
@@ -118,7 +118,7 @@ export default function Gallery() {
           <button
             type="button"
             onClick={() => void refetch()}
-            className="mt-4 rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-primary transition-colors duration-fast hover:border-accent hover:bg-surface-hover"
+            className="mt-4 rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-primary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0"
           >
             {t("gallery.retry")}
           </button>

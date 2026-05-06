@@ -60,7 +60,7 @@ export default function PreRun() {
         <button
           type="button"
           onClick={() => void handleBackToGallery()}
-          className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-md font-medium text-fg-secondary transition-colors duration-fast hover:border-accent hover:bg-surface-hover hover:text-fg-primary"
+          className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-md font-medium text-fg-secondary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover hover:text-fg-primary focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0"
         >
           {t("pre_run.back")}
         </button>
@@ -91,7 +91,7 @@ export default function PreRun() {
           <button
             type="button"
             onClick={() => void handleBackToGallery()}
-            className="mt-4 rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-primary transition-colors duration-fast hover:border-accent hover:bg-surface-hover"
+            className="mt-4 rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-primary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0"
           >
             {t("pre_run.back_to_gallery")}
           </button>
@@ -119,14 +119,14 @@ export default function PreRun() {
             <button
               type="button"
               onClick={handleStart}
-              className="rounded-md bg-accent px-6 py-3 text-lg font-semibold text-fg-on-accent transition-colors duration-fast hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+              className="rounded-md bg-accent px-6 py-3 text-lg font-semibold text-fg-on-accent shadow-inner-highlight transition-all duration-fast ease-out hover:scale-[1.015] hover:bg-accent-hover focus-visible:shadow-focus focus-visible:outline-none active:scale-[0.985]"
             >
               {t("pre_run.start")}
             </button>
             <button
               type="button"
               onClick={() => void handleBackToGallery()}
-              className="rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-secondary transition-colors duration-fast hover:border-accent hover:bg-surface-hover hover:text-fg-primary"
+              className="rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-secondary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover hover:text-fg-primary focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0"
             >
               {t("pre_run.back_to_gallery")}
             </button>

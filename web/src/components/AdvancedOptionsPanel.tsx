@@ -43,7 +43,7 @@ export function AdvancedOptionsPanel({
       open={expanded}
       onToggle={(e) => onExpandedChange((e.target as HTMLDetailsElement).open)}
     >
-      <summary className="cursor-pointer select-none rounded-xl bg-surface px-6 py-4 text-md font-medium text-fg-primary transition-colors duration-fast hover:bg-surface-hover">
+      <summary className="cursor-pointer select-none rounded-xl bg-surface px-6 py-4 text-md font-medium text-fg-primary shadow-inner-highlight transition-all duration-fast ease-out hover:bg-surface-hover">
         {t("advanced_options.title")}
       </summary>
 
@@ -76,7 +76,7 @@ export function AdvancedOptionsPanel({
                 onChange({ ...value, ticks_override: n });
               }
             }}
-            className="mt-2 w-40 rounded-md border border-border-default bg-input px-3 py-2 font-mono text-md text-fg-primary placeholder:text-fg-muted transition-colors duration-fast hover:bg-input-hover focus:border-accent focus:outline-none focus:ring-2 focus:ring-border-focus disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-2 w-40 rounded-md border border-border-default bg-input px-3 py-2 font-mono text-md text-fg-primary placeholder:text-fg-muted transition-all duration-fast ease-out hover:bg-input-hover focus:border-accent focus:shadow-focus focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           />
         </div>
 
@@ -98,7 +98,7 @@ export function AdvancedOptionsPanel({
                 llm_provider: e.target.value as "mock" | "openai",
               })
             }
-            className="mt-2 w-40 rounded-md border border-border-default bg-input px-3 py-2 text-md text-fg-primary transition-colors duration-fast hover:bg-input-hover focus:border-accent focus:outline-none focus:ring-2 focus:ring-border-focus disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-2 w-40 rounded-md border border-border-default bg-input px-3 py-2 text-md text-fg-primary transition-all duration-fast ease-out hover:bg-input-hover focus:border-accent focus:shadow-focus focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           >
             <option value="mock">
               {t("advanced_options.llm_provider_options.mock")}

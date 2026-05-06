@@ -23,12 +23,12 @@ export default function TopBar() {
 
   return (
     <header
-      className="sticky top-0 z-sticky flex items-center justify-between border-b border-border-divider bg-header px-6 backdrop-blur"
+      className="sticky top-0 z-sticky flex items-center justify-between border-b border-border-divider bg-header px-6 backdrop-blur-md"
       style={{ height: "var(--layout-header-height)" }}
     >
       <Link
         to="/"
-        className="text-xl font-semibold tracking-tight text-fg-primary transition-colors duration-fast hover:text-accent"
+        className="text-xl font-semibold tracking-tight text-fg-primary transition-colors duration-fast ease-out hover:text-accent"
       >
         {t("topbar.title")}
       </Link>
@@ -36,7 +36,7 @@ export default function TopBar() {
         type="button"
         onClick={handleToggleLocale}
         aria-label={t("topbar.lang_toggle_aria")}
-        className="rounded-md border border-border-default bg-surface px-3 py-1 text-md font-medium text-fg-secondary transition-colors duration-fast hover:border-accent hover:bg-surface-hover hover:text-fg-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+        className="rounded-md border border-border-default bg-surface px-3 py-1 text-md font-medium text-fg-secondary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover hover:text-fg-primary focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0"
       >
         {t("topbar.lang_toggle")}
       </button>

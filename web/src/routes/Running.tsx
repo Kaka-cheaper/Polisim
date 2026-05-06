@@ -291,7 +291,7 @@ export default function Running() {
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="mt-4 rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-primary transition-colors duration-fast hover:border-accent hover:bg-surface-hover"
+            className="mt-4 rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-primary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0"
           >
             {t("pre_run.back_to_gallery")}
           </button>

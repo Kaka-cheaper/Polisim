@@ -13,7 +13,12 @@ description: >
 #   Token references use {colors.<name>} syntax (W3C Design Tokens spec).
 # ---------------------------------------------------------------------------
 colors:
-  # Surfaces
+  # Surfaces (4-step ladder — session 44 强化 Linear 用法语义)
+  #   bg-canvas       → 顶级画布（body）；0-elevation，最深
+  #   bg-surface      → 默认卡片（resting state）；level 1
+  #   bg-surface-hover→ hover 状态；level 1.5（transient only）
+  #   bg-surface-active→ 选中 / 激活 / dropdown；level 2
+  #   bg-panel        → sidebar / topbar 底色（介于 canvas 与 surface 之间）
   bg-canvas: "#08090a"          # Top-level canvas (body)
   bg-surface: "#1c1c1f"         # Cards / blocks
   bg-surface-hover: "#232326"   # Card hover
@@ -21,6 +26,10 @@ colors:
   bg-panel: "#0f1011"           # Sidebar / topbar base
   bg-overlay: "rgba(0,0,0,0.85)" # Modal scrim
   bg-input: "rgba(255,255,255,0.03)"
+
+  # Inner highlight（Linear-style 顶边白光，session 44 加）
+  inner-highlight: "inset 0 1px 0 0 rgba(255,255,255,0.04)"
+  inner-highlight-strong: "inset 0 1px 0 0 rgba(255,255,255,0.08)"
 
   # Text
   fg-primary: "#f7f8f8"         # Main text
@@ -66,7 +75,27 @@ colors:
 #   Linear's typographic features (cv01, ss03) intentionally enabled.
 # ---------------------------------------------------------------------------
 typography:
-  # Display
+  # Display（session 44 加：Linear/Vercel "minified-engineering" 美学）
+  display-xl:
+    fontFamily: "Inter Variable"
+    fontSize: 4.5rem      # 72px — hero headline
+    fontWeight: 590
+    lineHeight: 1.0
+    letterSpacing: -0.042em  # ≈ -3.0px @ 72px
+  display-lg:
+    fontFamily: "Inter Variable"
+    fontSize: 3.5rem      # 56px — section opener
+    fontWeight: 590
+    lineHeight: 1.0
+    letterSpacing: -0.0375em  # ≈ -2.1px @ 56px
+  display-md:
+    fontFamily: "Inter Variable"
+    fontSize: 2.5rem      # 40px — sub-section
+    fontWeight: 590
+    lineHeight: 1.0
+    letterSpacing: -0.0375em  # ≈ -1.5px @ 40px
+
+  # Headings
   h1:
     fontFamily: "Inter Variable"
     fontSize: 3rem        # 48px
@@ -345,8 +374,13 @@ hues are reserved for semantic meaning, never decoration.
 font features are intentionally enabled at the body level for character clarity
 in dense data (`f7f8f8` vs `f7f8f0` distinguishable, `0` vs `O` distinguishable).
 
+- **Headlines (display-xl/lg/md):** Inter Semibold (590), extreme negative tracking
+  (-0.042em to -0.0375em). Reserve for page-level hero titles. This is the
+  "minified-engineering" aesthetic borrowed from Linear and Vercel — text that
+  feels compressed like production code. Use `display-lg` (56px) for Gallery
+  and `display-md` (40px) for Finished page.
 - **Headlines (h1–h3):** Inter Semibold (590), tight tracking (-0.022em).
-  Reserve h1 for page-level titles ("Scenario Gallery" / "Simulation Finished").
+  Reserve h1 for page-level titles; h2/h3 for section headers within a page.
 - **Subheads (h4–h6):** Inter Medium (510), normal tracking. Used for section
   titles within a page (e.g. "📈 Attribute trends" inside the side panel).
 - **Body (body-lg / body-md / body-sm):** Inter Regular (400). Use `body-md`
@@ -387,14 +421,17 @@ in dense data (`f7f8f8` vs `f7f8f0` distinguishable, `0` vs `O` distinguishable)
 
 ## Elevation & Depth
 
-Depth is conveyed primarily through **tonal layering and 1px borders**, not
-heavy shadows. Linear's actual elevation pattern is borrowed:
+Depth is conveyed primarily through **tonal layering, 1px borders, and inner
+highlight rings**, not heavy shadows. Linear's actual elevation pattern is
+borrowed:
 
 - **Canvas (level 0):** `bg-canvas` (#08090a). Flat, no shadow, no border.
-- **Surface (level 1):** `bg-surface` (#1c1c1f) + `border-subtle` 1px. Cards,
-  panels. Optional `shadow-xs` for chips that need a hint of lift.
-- **Elevated surface (level 2):** `bg-surface` + `shadow-sm` (a 1px-spread
-  rgba(0,0,0,0.33)). Used for dropdowns, popovers.
+- **Surface (level 1):** `bg-surface` (#1c1c1f) + `border-subtle` 1px +
+  `inner-highlight` (inset 0 1px 0 0 rgba(255,255,255,0.04)). The top-edge
+  white highlight gives dark cards a subtle "pixel-rendered" feel — this is
+  Linear's signature depth cue on dark surfaces.
+- **Elevated surface (level 2):** `bg-surface` + `inner-highlight-strong` +
+  `shadow-sm`. Used for hovered cards, dropdowns, popovers.
 - **Modal (level 3):** `bg-surface` + `shadow-lg` (4px blur, 12px y-offset)
   on top of `bg-overlay` (rgba(0,0,0,0.85)) full-screen scrim.
 - **Toast / tooltip (level 4):** `bg-surface` + `shadow-xl` (12px blur,
@@ -425,6 +462,63 @@ they read as different element classes. Mixing `rounded-xs` and `rounded-xl`
 on adjacent siblings (e.g. tag inside a card) is also fine — the size
 hierarchy makes scale obvious.
 
+## Motion
+
+Polisim uses **subtle, purposeful motion** — never decorative, always
+functional. The motion system is defined in `tokens.css` and bridged to
+Tailwind via `transitionDuration` and `transitionTimingFunction`.
+
+### Duration Scale
+
+| Token | Value | Use |
+|---|---|---|
+| `instant` | 50ms | Instant feedback (checkbox toggle, copy-to-clipboard) |
+| `fast` | 150ms | Hover transitions, button press feedback, focus ring appearance |
+| `normal` | 250ms | Card hover lift, panel expand/collapse, modal open/close |
+| `slow` | 500ms | Page-level transitions, large content reveal |
+| `slower` | 1000ms | Background animations (marquee, ambient glow) |
+
+### Easing Curves
+
+| Token | Curve | Use |
+|---|---|---|
+| `ease-out` | `cubic-bezier(0.16, 1, 0.3, 1)` | **Default for all UI transitions.** Linear-style deceleration — fast start, gentle settle. |
+| `ease-in` | `cubic-bezier(0.4, 0, 1, 1)` | Elements entering the screen (modals, drawers). |
+| `ease-in-out` | `cubic-bezier(0.65, 0, 0.35, 1)` | Symmetric transitions (accordion expand/collapse). |
+| `bounce` | `cubic-bezier(0.175, 0.885, 0.32, 1.275)` | Overshoot for celebratory moments (simulation complete checkmark). Rare. |
+
+### Micro-Interaction Patterns
+
+- **Button hover:** `hover:-translate-y-px` (1px lift) + `active:translate-y-0`
+  (return). Duration: `fast` (150ms). Creates physical "press" feel.
+- **Primary CTA hover:** `hover:scale-[1.015]` + `active:scale-[0.985]`.
+  Subtle scale feedback — never exceeds 2% to avoid layout shift.
+- **Card hover:** `hover:-translate-y-1` (4px lift) + inner-highlight
+  transition to `inner-highlight-strong`. Duration: `normal` (250ms).
+- **Status pulse:** `animate-pulse` on running (green dot) and paused
+  (yellow dot) status indicators. Signals "alive" without distracting.
+- **Focus ring:** `focus-visible:shadow-focus` — instant (`instant` 50ms)
+  appearance, no animation. Focus must be immediate for accessibility.
+- **Backdrop blur:** TopBar and ControlBar use `backdrop-blur-md` (12px)
+  for frosted-glass depth. The blur is static (no animation) — it's a
+  spatial cue, not a temporal one.
+
+### Principles
+
+- **Motion is earned.** Every animation must answer "what changed?" — state
+  transition (idle→hover), spatial relationship (card lifted above canvas),
+  or temporal status (running→paused pulse).
+- **Respect `prefers-reduced-motion`.** All animations must be wrapped in
+  `@media (prefers-reduced-motion: no-preference)` or use Tailwind's
+  `motion-safe:` prefix. (Not yet enforced in v0.2 — deferred to v0.3
+  accessibility pass.)
+- **No animation on critical path.** Focus rings appear instantly (0ms
+  transition on `shadow-focus`). Error states render immediately — never
+  fade in an error message.
+- **Duration hierarchy matches spatial distance.** Small elements (buttons)
+  use `fast`; medium elements (cards) use `normal`; large elements (pages)
+  use `slow`. This creates a natural physics feel.
+
 ## Components
 
 The component tokens above are the canonical specs. A handful of important
@@ -449,6 +543,17 @@ notes on usage:
 
 ## Do's and Don'ts
 
+- **Do** use `ease-out` (`cubic-bezier(0.16, 1, 0.3, 1)`) as the default
+  transition timing function for all UI interactions. This is the Linear-style
+  deceleration curve — fast start, gentle settle.
+- **Do** apply `shadow-inner-highlight` to every card and button on
+  `bg-surface`. The 1px top-edge white glow is the signature depth cue.
+- **Do** use `backdrop-blur-md` on sticky bars (TopBar, ControlBar) for
+  frosted-glass depth against scrolling content.
+- **Don't** animate focus rings — they must appear instantly (`duration-instant`
+  50ms or no transition) for accessibility compliance.
+- **Don't** use `hover:scale` > 2% on interactive elements — larger values
+  cause layout shift and feel cartoonish in a precision engineering tool.
 - **Do** reserve `accent` (#7170ff) for the single most important action on
   the current screen. The `polisim-tick-active` highlight uses the same color
   intentionally — there is only one "current tick" at any moment.

@@ -1,12 +1,12 @@
 /**
  * ControlBar —— 跑中页顶部控制条（mockup §4.4.1 + §11.4 C2）。
  *
- * PR4.1 范围：
- *   - tick 计数 + 状态 badge
+ * 职责：
+ *   - tick 计数 + 状态 badge（paused 时 pulse 呼吸灯）
  *   - 暂停 / 恢复 切换按钮（按 status 自动切换文案）
- *   - 单步按钮（仅 paused 时启用）
+ *   - 单步按钮（仅 paused 时启用；session 41 PR4-fix 后 server 自动 resume+step+pause）
  *   - 速度选择（4 档 0.5x / 1x / 2x / 4x，对接 zustand uiStore.speed）
- *   - 副区按钮（PR5 启用，当前 disabled 占位）
+ *   - 副区按钮（toggle FinishedSidePanel / MiniDashboard）
  *   - 退出按钮（fire-and-forget DELETE + navigate '/'）
  */
 import { useTranslation } from "react-i18next";
@@ -70,7 +70,7 @@ export function ControlBar({
 
   return (
     <div
-      className="sticky top-[var(--layout-header-height)] z-sticky flex flex-wrap items-center gap-3 border-b border-border-subtle bg-panel px-4 py-3"
+      className="sticky top-[var(--layout-header-height)] z-sticky flex flex-wrap items-center gap-3 border-b border-border-subtle bg-panel/90 px-4 py-3 shadow-inner-highlight backdrop-blur-md"
       style={{ height: "var(--layout-control-bar-height)" }}
     >
       {/* tick 计数 */}
@@ -81,10 +81,22 @@ export function ControlBar({
         })}
       </span>
 
-      {/* 状态 badge */}
+      {/* 状态 badge —— paused 时 yellow pulse 呼吸灯（session 44 视觉升级） */}
       <span
-        className={`rounded-sm bg-surface-active px-2 py-0.5 text-base font-medium ${STATUS_TONE[status]}`}
+        className={`flex items-center gap-1.5 rounded-sm bg-surface-active px-2 py-0.5 text-base font-medium transition-colors duration-normal ease-out ${STATUS_TONE[status]}`}
       >
+        {isPaused && (
+          <span
+            className="inline-block h-1.5 w-1.5 animate-pulse rounded-circle bg-polisim-paused"
+            aria-hidden="true"
+          />
+        )}
+        {isRunning && (
+          <span
+            className="inline-block h-1.5 w-1.5 animate-pulse rounded-circle bg-status-success"
+            aria-hidden="true"
+          />
+        )}
         {statusLabel}
       </span>
 
@@ -93,7 +105,7 @@ export function ControlBar({
         <button
           type="button"
           onClick={onPause}
-          className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-base font-medium text-fg-primary transition-colors duration-fast hover:border-accent hover:bg-surface-hover"
+          className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-base font-medium text-fg-primary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0"
         >
           ⏸ {t("control_bar.pause")}
         </button>
@@ -103,7 +115,7 @@ export function ControlBar({
           type="button"
           onClick={onResume}
           disabled={status === "connecting"}
-          className="rounded-md bg-accent px-3 py-1.5 text-base font-medium text-fg-on-accent transition-colors duration-fast hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted"
+          className="rounded-md bg-accent px-3 py-1.5 text-base font-medium text-fg-on-accent shadow-inner-highlight transition-all duration-fast ease-out hover:scale-[1.015] hover:bg-accent-hover focus-visible:shadow-focus focus-visible:outline-none active:scale-[0.985] disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted disabled:hover:scale-100"
         >
           ▶ {t("control_bar.resume")}
         </button>
@@ -114,7 +126,7 @@ export function ControlBar({
         type="button"
         onClick={onStep}
         disabled={!isPaused}
-        className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-base font-medium text-fg-primary transition-colors duration-fast hover:border-accent hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-base font-medium text-fg-primary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
       >
         ⏭ {t("control_bar.step")}
       </button>
@@ -132,9 +144,9 @@ export function ControlBar({
               key={opt}
               type="button"
               onClick={() => onSpeedChange(opt)}
-              className={`rounded-sm px-2 py-1 text-base font-mono transition-colors duration-fast ${
+              className={`rounded-sm px-2 py-1 text-base font-mono transition-all duration-fast ease-out focus-visible:shadow-focus focus-visible:outline-none ${
                 active
-                  ? "bg-accent text-fg-on-accent"
+                  ? "bg-accent text-fg-on-accent shadow-inner-highlight"
                   : "text-fg-tertiary hover:bg-surface-hover hover:text-fg-primary"
               }`}
               aria-pressed={active}
@@ -148,7 +160,7 @@ export function ControlBar({
       {/* 右侧 spacer */}
       <span className="ml-auto" aria-hidden="true" />
 
-      {/* 副区按钮（PR4.3 接通 MiniDashboard） */}
+      {/* 副区按钮（toggle MiniDashboard） */}
       <button
         type="button"
         onClick={onSidePanelToggle}
@@ -158,7 +170,7 @@ export function ControlBar({
             ? t("control_bar.side_panel_show")
             : t("control_bar.side_panel_hide")
         }
-        className={`rounded-md border px-3 py-1.5 text-base font-medium transition-colors duration-fast ${
+        className={`rounded-md border px-3 py-1.5 text-base font-medium shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0 ${
           !sidePanelCollapsed
             ? "border-accent bg-accent text-fg-on-accent hover:bg-accent-hover"
             : "border-border-default bg-surface text-fg-secondary hover:border-accent hover:bg-surface-hover hover:text-fg-primary"
@@ -171,7 +183,7 @@ export function ControlBar({
       <button
         type="button"
         onClick={onExit}
-        className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-base font-medium text-fg-secondary transition-colors duration-fast hover:border-status-danger hover:bg-surface-hover hover:text-status-danger"
+        className="rounded-md border border-border-default bg-surface px-3 py-1.5 text-base font-medium text-fg-secondary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-status-danger hover:bg-surface-hover hover:text-status-danger focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0"
       >
         🚪 {t("control_bar.exit")}
       </button>

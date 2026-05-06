@@ -52,7 +52,7 @@ export function ScenarioCard(props: ScenarioCardProps) {
     const layoutHint = t(`scenario_card.ui_layout_hint.${scenario.ui_layout}`);
 
     return (
-      <div className="group flex flex-col rounded-xl border border-border-default bg-surface p-6 shadow-md transition-all duration-fast hover:-translate-y-1 hover:border-accent hover:bg-surface-hover hover:shadow-lg">
+      <div className="group flex flex-col rounded-xl border border-border-default bg-surface p-6 shadow-[var(--inner-highlight),var(--shadow-md)] transition-all duration-normal ease-out hover:-translate-y-1 hover:border-accent hover:bg-surface-hover hover:shadow-[var(--inner-highlight-strong),var(--shadow-lg)]">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-3xl font-semibold tracking-tight text-fg-primary">
@@ -91,7 +91,7 @@ export function ScenarioCard(props: ScenarioCardProps) {
           type="button"
           onClick={onStart}
           disabled={disabled}
-          className="mt-6 self-start rounded-md bg-accent px-4 py-2 text-md font-medium text-fg-on-accent transition-colors duration-fast hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted"
+          className="mt-6 self-start rounded-md bg-accent px-4 py-2 text-md font-medium text-fg-on-accent shadow-inner-highlight transition-all duration-fast ease-out hover:scale-[1.015] hover:bg-accent-hover focus-visible:shadow-focus focus-visible:outline-none active:scale-[0.985] disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted disabled:hover:scale-100"
         >
           {t("scenario_card.start")}
         </button>
@@ -112,7 +112,7 @@ export function ScenarioCard(props: ScenarioCardProps) {
           onStart();
         }
       }}
-      className="flex cursor-pointer flex-col rounded-xl border border-dashed border-border-subtle bg-canvas p-6 transition-colors duration-fast hover:border-border-default hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+      className="flex cursor-pointer flex-col rounded-xl border border-dashed border-border-subtle bg-canvas p-6 transition-all duration-fast ease-out hover:-translate-y-0.5 hover:border-border-default hover:bg-surface focus-visible:shadow-focus focus-visible:outline-none"
     >
       <h3 className="text-3xl font-semibold tracking-tight text-fg-tertiary">
         <span aria-hidden="true">{emoji}</span> {name}

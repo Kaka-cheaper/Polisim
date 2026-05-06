@@ -88,16 +88,35 @@
    * 2. SEMANTIC（Polisim 业务层用，组件代码只引用此层）
    * ────────────────────────────────────────────────────────────────────── */
 
-  /* === 背景 === */
-  --bg-canvas: var(--color-bg-primary); /* 顶级画布（body）*/
-  --bg-surface: var(--color-bg-secondary); /* 卡片 / 区块 */
-  --bg-surface-hover: var(--color-bg-tertiary); /* 卡片悬停 */
-  --bg-surface-active: var(--color-bg-quaternary); /* 卡片激活 / 选中 */
-  --bg-panel: var(--color-bg-panel); /* sidebar / 顶栏底色 */
-  --bg-overlay: var(--color-overlay-primary); /* modal 遮罩 */
-  --bg-header: var(--color-header-bg); /* 顶栏（含 backdrop-filter）*/
-  --bg-input: rgba(255, 255, 255, 0.03); /* 输入框（linear 实际值）*/
+  /* === 背景（4-step surface ladder + 配套层；session 44 强化 Linear 用法语义）===
+   * Linear 严格规则：每档 surface 有专属用途，不允许跳级或滥用。
+   *   - bg-canvas       (#08090a) → 顶级画布（body）；最深的 0-elevation 层
+   *   - bg-surface      (#1c1c1f) → 默认卡片（resting state）；level 1
+   *   - bg-surface-hover(#232326) → hover 状态；level 1.5（悬停反馈，仅 transient）
+   *   - bg-surface-active(#28282c)→ 选中 / 激活 / dropdown 浮起；level 2
+   *   - bg-panel        (#0f1011) → sidebar / 顶栏底色（介于 canvas 与 surface 之间）
+   *
+   * 配套：
+   *   - bg-overlay → modal 遮罩（rgba 0,0,0,0.85）
+   *   - bg-header  → 顶栏半透明（与 backdrop-blur 配合）
+   *   - bg-input / bg-input-hover → 表单输入框（rgba white-tint，仅 surface 之上有效）
+   *
+   * 内部 highlight（session 44 加）：
+   *   - inner-highlight → 卡片顶边 1px 白光，让 dark surface 有"pixel-rendered"质感（Linear style）
+   */
+  --bg-canvas: var(--color-bg-primary);
+  --bg-surface: var(--color-bg-secondary);
+  --bg-surface-hover: var(--color-bg-tertiary);
+  --bg-surface-active: var(--color-bg-quaternary);
+  --bg-panel: var(--color-bg-panel);
+  --bg-overlay: var(--color-overlay-primary);
+  --bg-header: var(--color-header-bg);
+  --bg-input: rgba(255, 255, 255, 0.03);
   --bg-input-hover: rgba(255, 255, 255, 0.05);
+
+  /* Linear-style 顶边白光 highlight（仅在 dark surface 有效；inner shadow 实现 1px 顶光）*/
+  --inner-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  --inner-highlight-strong: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
 
   /* === 文字 === */
   --text-primary: var(--color-text-primary);
@@ -187,8 +206,17 @@
   --leading-relaxed: 1.5; /* body 主 */
   --leading-loose: 1.6; /* link / 长文 */
 
-  /* === Letter spacing（linear 大字负 spacing 基准）=== */
-  --tracking-tight: -0.022em; /* 大 heading */
+  /* === Letter spacing（linear 大字负 spacing 基准）===
+   * Linear / Vercel "minified-engineering" 美学：display 字号配极致负 tracking
+   * （-3% to -5% of font size）。session 44 加入 display 三档：
+   *   - display-xl（72-80px）→ -3.0px ≈ -0.042em
+   *   - display-lg（56-64px）→ -2.4px ≈ -0.0375em
+   *   - display-md（40-48px）→ -1.8px ≈ -0.0375em
+   */
+  --tracking-display-xl: -0.042em; /* 72-80px hero */
+  --tracking-display-lg: -0.0375em; /* 56-64px section opener */
+  --tracking-display-md: -0.0375em; /* 40-48px sub-section */
+  --tracking-tight: -0.022em; /* 24-32px heading */
   --tracking-normal: 0;
   --tracking-wide: 0.025em; /* uppercase 标签 */
 

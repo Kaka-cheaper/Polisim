@@ -98,7 +98,7 @@ export default function Finished() {
           <button
             type="button"
             onClick={handleBackToGallery}
-            className="rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-primary transition-colors hover:border-accent hover:bg-surface-hover"
+            className="rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-primary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0"
           >
             {t("finished.back_to_gallery")}
           </button>
@@ -113,7 +113,7 @@ export default function Finished() {
       {/* 顶部 header */}
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="flex items-center gap-3 text-4xl font-semibold tracking-tight text-fg-primary">
+          <h1 className="flex items-center gap-3 text-7xl font-semibold leading-tight tracking-display-md text-fg-primary">
             <span aria-hidden="true">✓</span>
             {t("finished.header.title")}
           </h1>
@@ -126,7 +126,7 @@ export default function Finished() {
           <button
             type="button"
             onClick={handleBackToGallery}
-            className="rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-primary transition-colors hover:border-accent hover:bg-surface-hover"
+            className="rounded-md border border-border-default bg-surface px-4 py-2 text-md font-medium text-fg-primary shadow-inner-highlight transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0"
           >
             {t("finished.back_to_gallery")}
           </button>
@@ -134,7 +134,7 @@ export default function Finished() {
             type="button"
             onClick={handleRerun}
             disabled={!scenarioPath || createRun.isPending || runLoading}
-            className="rounded-md bg-accent px-4 py-2 text-md font-medium text-fg-on-accent transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted"
+            className="rounded-md bg-accent px-4 py-2 text-md font-medium text-fg-on-accent shadow-inner-highlight transition-all duration-fast ease-out hover:scale-[1.015] hover:bg-accent-hover focus-visible:shadow-focus focus-visible:outline-none active:scale-[0.985] disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted disabled:hover:scale-100"
           >
             {t("finished.rerun")}
           </button>

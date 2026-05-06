@@ -131,7 +131,7 @@ export function EntityCard({ entry, onIntervene }: Props) {
       : null;
 
   return (
-    <div className="flex flex-col rounded-xl border border-border-default bg-surface p-4 shadow-md">
+    <div className="flex flex-col rounded-xl border border-border-default bg-surface p-4 shadow-[var(--inner-highlight),var(--shadow-md)] transition-shadow duration-normal ease-out">
       {/* 头部 */}
       <header className="flex items-center gap-2">
         <span className="text-2xl" aria-hidden="true">
@@ -214,7 +214,7 @@ export function EntityCard({ entry, onIntervene }: Props) {
         type="button"
         onClick={onIntervene}
         disabled={!onIntervene}
-        className="mt-4 self-start rounded-md border border-border-default bg-surface px-3 py-1.5 text-base font-medium text-fg-secondary transition-colors duration-fast hover:border-accent hover:bg-surface-hover hover:text-fg-primary disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-4 self-start rounded-md border border-border-default bg-surface px-3 py-1.5 text-base font-medium text-fg-secondary transition-all duration-fast ease-out hover:-translate-y-px hover:border-accent hover:bg-surface-hover hover:text-fg-primary focus-visible:shadow-focus focus-visible:outline-none active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
       >
         {t("entity_card.intervene")}
       </button>
