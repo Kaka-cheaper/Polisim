@@ -23,26 +23,23 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import cytoscape, { type Core, type ElementDefinition } from "cytoscape";
-import coseBilkent from "cytoscape-cose-bilkent";
 import CytoscapeComponent from "react-cytoscapejs";
 
 import type { EntityCardEntry } from "../components/EntityCard";
+import {
+  RELATION_GRAPH_COLORS as COLORS,
+  edgeColorByTrust,
+  edgeWidthByTrust,
+  ensureCytoscapeRegistered,
+  type RelationEntry as SharedRelationEntry,
+} from "../components/_relation_graph_shared";
 import type { EventRecord, RelationTypeSchema } from "../api/schema";
 
-// 注册一次（cytoscape.use 重复调安全 —— 内部 if (!registered) 守卫）
-let registered = false;
-if (!registered) {
-  cytoscape.use(coseBilkent as unknown as cytoscape.Ext);
-  registered = true;
-}
+ensureCytoscapeRegistered();
 
-/** Snapshot.relation_state_summary 的实际形状（D-017 server 保证）。*/
-export interface RelationEntry {
-  type: string;
-  source: string;
-  target: string;
-  value: number;
-}
+/** Snapshot.relation_state_summary 的实际形状（D-017 server 保证）。
+ *  re-export 仅为保持 PR4.5 阶段的外部 import 路径向后兼容（Running.tsx 从本文件 import）。 */
+export type RelationEntry = SharedRelationEntry;
 
 interface Props {
   entries: EntityCardEntry[];
@@ -52,32 +49,6 @@ interface Props {
   /** 最近一次 decision_proposed 事件（任一实体）—— 用于底部气泡。*/
   latestDecision?: EventRecord | null;
   onEntityClick?: (id: string) => void;
-}
-
-// CSS 变量值——cytoscape stylesheet 不能用 var()，需具体颜色
-// 取自 tokens.css（mockup §5.5 token 表 + index.css :root 段）
-const COLORS = {
-  llm: "#4ea7fc", // status-info
-  rule: "#8a8f98", // text-tertiary
-  random: "#7170ff", // accent
-  positive: "#27a644", // polisim-relation-positive
-  warning: "#f0bf00", // status-warning
-  negative: "#eb5757", // polisim-relation-negative
-  bgSurface: "#1c1d1f",
-  fgPrimary: "#f7f8f8",
-  fgTertiary: "#8a8f98",
-  borderDefault: "#23262b",
-} as const;
-
-function edgeColorByTrust(value: number): string {
-  if (value >= 70) return COLORS.positive;
-  if (value <= 40) return COLORS.negative;
-  return COLORS.warning;
-}
-
-function edgeWidthByTrust(value: number): number {
-  // 线性映射 0-100 → 1-4px
-  return Math.max(1, Math.min(4, 1 + (value / 100) * 3));
 }
 
 export function RelationGraphLayout({

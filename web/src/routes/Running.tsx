@@ -1,5 +1,5 @@
 /**
- * Running 路由 —— 跑中态势页（mockup §4.3 + §4.4 + §11.2 P3 + PR4.1 实施）。
+ * Running 路由 —— 跑中态势页（mockup §4.3 + §4.4 + §11.2 P3）。
  *
  * 数据流（mockup §11.9）：
  *   1. URL 拿 runId → useRun(runId) cache hit RunDetail
@@ -9,17 +9,20 @@
  *   5. ws 推 paused（断点 / pause）→ stop loop（status 切到 paused 时 effect 自动 cleanup）
  *   6. ws 推 run_finished → navigate /runs/:id/finished
  *
- * Layout dispatch：按 `runDetail.scenario.ui_layout`：
- *   - entity_card → EntityCardLayout（PR4.1 唯一可用）
- *   - relation_graph / event_stream → 占位提示「PR4.5 实施」
+ * Layout dispatch（按 `runDetail.scenario.ui_layout`）：
+ *   - entity_card    → EntityCardLayout（mockup §4.3.1）
+ *   - relation_graph → RelationGraphLayout（mockup §4.3.2 + cytoscape 力导向）
+ *   - event_stream   → EventStreamLayout（mockup §4.3.3 + 实体侧栏 + 事件瀑布）
+ *
+ * 副区（所有 layout 共用，可 sidePanelCollapsed 折叠）：
+ *   - MiniDashboard（属性折线 + 事件分布；mockup §4.4.2）
+ *
+ * 用户交互：
+ *   - 点实体卡片 / 关系图节点 / 事件流侧栏 → 自动 pause + 打开 InterventionDrawer
+ *   - LLM 实体的 [📋 看完整 prompt] → PromptContextModal（D-016 §2.2 6 段）
+ *   - PausedEvent reason toast（mockup §10.6 M3）
  *
  * 退出：fire-and-forget DELETE /runs/:id + navigate('/')
- *
- * 不在本组件做（PR4.2+）：
- *   - 干预面板（点实体卡片 → 自动暂停 → InterventionDrawer 表单 → 提交 → 恢复）
- *   - PromptContextModal（[📋 看完整 prompt] 展开 D-016 6 段）
- *   - MiniDashboard（属性折线 + 事件分布）副区
- *   - PausedEvent reason toast（mockup §10.6 M3）
  */
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

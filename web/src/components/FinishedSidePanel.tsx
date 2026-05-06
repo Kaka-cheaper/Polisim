@@ -2,9 +2,10 @@
  * FinishedSidePanel —— 跑完页副区 5 tabs 容器（mockup §4.5 + PR5.5-spec §二）。
  *
  * 职责：
- *   - 5 tab 切换（📈 / 🕸 / 📊 / 🎬 / 📋）
- *   - 统一上层 events / snapshots 数据拉取 —— 传给 ReplayPanel / RawDataView / FinalRelationGraph
- *   - events 采取一次性全拉策略（分页循环），共享给 ReplayPanel + RawDataView
+ *   - 5 tab 切换（📈 / 🕸 / 📊 / 🎬 / 📋）+ role="tab" + aria-selected 切换
+ *   - 一次性全拉 events（`useEvents(limit=5000)` 单次请求）共享给 ReplayPanel + RawDataView
+ *   - GraphLoader 内部 useAllSnapshots 共享 react-query 缓存给 AttributeChart + FinalRelationGraph
+ *   - 大场景（>5000 events）下 RawDataView 的下载走 useDownloadEventsJsonl 独立分页路径
  *
  * 不在本组件：
  *   - Tab 组件实现（各自拿自己的数据和展示）

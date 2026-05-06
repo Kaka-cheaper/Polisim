@@ -10,7 +10,8 @@
  *   - value: Partial<CreateRunRequest> —— 父组件 state 持有
  *   - onChange: 回调写入父 state
  *   - expanded / onExpandedChange: 折叠态受控
- *   - disabled: PR3 默认 true（输入框灰色，提示 "v0.2 占位"）
+ *   - disabled: 父组件传 true 表示展示态（输入框灰色 + tip 文案；当前 PreRun 默认 true，
+ *     [▶ 开始仿真] 不消费 advancedValue —— 等 v0.3+ 接通"重创 run"路径再 disabled=false）
  *
  * v0.2 仅暴露两字段：ticks_override（数字）/ llm_provider（mock|openai）。
  * 其他字段（random_seed / max_chain_depth / prompt_history_size 等）留给 PR4+。

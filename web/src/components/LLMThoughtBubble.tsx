@@ -1,10 +1,11 @@
 /**
  * LLMThoughtBubble —— 实体卡片内的 LLM 想法气泡（mockup §4.3.1 + §11.4）。
  *
- * PR4.1 范围：
+ * 范围：
  *   - 仅 LLM 模式渲染气泡（rule / random 在 EntityCard 内单独渲染简化提示行）
  *   - reason 来自 EventRecord(kind="decision_proposed").payload.reason
- *   - [📋 看完整 prompt] 按钮：PR4.1 disabled 占位（mockup §11.10 的 PromptContextModal 推 PR4.2）
+ *   - [📋 看完整 prompt] 按钮：传入 onClickViewPrompt 时启用 → 父组件挂 PromptContextModal
+ *     未传时 disabled，hover hint 解释为何无法查看（无 prompt_context）
  *
  * 视觉 token：
  *   - 气泡背景 = `--polisim-llm-bubble`（mockup §8.4 业务专属语义 token）
@@ -34,7 +35,11 @@ export function LLMThoughtBubble({ reason, onClickViewPrompt }: Props) {
         type="button"
         onClick={onClickViewPrompt}
         disabled={!onClickViewPrompt}
-        title={t("llm_thought.view_prompt_pr_4_2")}
+        title={
+          onClickViewPrompt
+            ? undefined
+            : t("llm_thought.view_prompt_no_context")
+        }
         className="mt-2 rounded-sm border border-border-subtle bg-surface px-2 py-0.5 text-base text-fg-tertiary transition-colors duration-fast disabled:cursor-not-allowed disabled:opacity-60"
       >
         {t("llm_thought.view_prompt")}

@@ -1,22 +1,24 @@
 /**
- * Finished —— 跑完报告页（PR5 精简版：4 段叙事 + 6 指标 + 重跑/回画廊）。
+ * Finished —— 跑完报告页（mockup §4.5）。
  *
- * mockup §4.5（精简，副区 tabs / 下载 / 关系图 / 折线 留 PR5.5+PR4.5）。
+ * 三段：
+ *   1. 6 指标卡片（FinishedMetricsCard，phaseA 必然可用）
+ *   2. 4 段叙事报告（NarrativeReport，enhanced ?? phaseA fallback）
+ *   3. 副区 5 tabs（FinishedSidePanel：📈 / 🕸 / 📊 / 🎬 / 📋）
  *
- * 数据流（mockup §10.5 M1）：
- *   1. useRun(runId)           → RunDetail（summary + scenario）
- *   2. useScenarios()          → 反查 scenario_path（RunSummary 不含 path）
- *   3. useAnalysis(runId, {enhance:true}) → 一次性请求增强版 AnalysisResult
+ * 数据流（mockup §10.5 M1 双查询模式 —— pitfalls P3 教训）：
+ *   1. useRun(runId)                         → RunDetail（summary + scenario）
+ *   2. useScenarios()                        → 反查 scenario_path（RunSummary 不含 path）
+ *   3. useAnalysis(runId, {enhance:false})   → phaseA：必然成功（rule-based）
+ *   4. useAnalysis(runId, {enhance:true})    → enhanced：可能失败（mock provider 不生成 narrative）
+ *      失败时显示 ⚠️ banner + NarrativeReport 用 phaseA fallback
  *
  * 用户交互：
  *   - [← 返回画廊] → navigate("/")
  *   - [🔄 重跑]    → useCreateRun({scenario_path}) + navigate(/runs/:newId/intro)
  *
- * v0.2 PR5 简化：
- *   - 不实现副区 tabs（PR5.5）
- *   - 不实现 enhance 失败回退到 Phase A（一次性请求；失败由 toast 处理）
- *   - 不实现 events.jsonl 下载（PR5.5）
- *   - 不实现 4 段中 tick 引用点击跳副区（依赖副区，PR5.5）
+ * 暂未实现（v0.3+）：
+ *   - NarrativeReport tick 引用点击 → 跳副区 ReplayPanel 对应 tick
  */
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";

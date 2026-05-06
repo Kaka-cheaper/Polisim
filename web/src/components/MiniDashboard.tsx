@@ -33,6 +33,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { ENTITY_PALETTE, collectNumericAttributes } from "./_chart_shared";
 import type { EntityCardEntry } from "./EntityCard";
 import type { EventRecord, Snapshot } from "../api/schema";
 
@@ -40,33 +41,6 @@ interface Props {
   entries: EntityCardEntry[];
   snapshots: Snapshot[];
   events: EventRecord[];
-}
-
-/** Polisim 业务色板（来自 design-system semantic tokens；循环用以区分实体）。 */
-const ENTITY_PALETTE = [
-  "var(--polisim-line-1, #3B82F6)",
-  "var(--polisim-line-2, #10B981)",
-  "var(--polisim-line-3, #F59E0B)",
-  "var(--polisim-line-4, #EF4444)",
-  "var(--polisim-line-5, #8B5CF6)",
-];
-
-/** 推断每个 entity 的 numeric attribute 名集合（来自最新 snapshot 而非 World Definition——
- *  允许场景对属性 schema 演化）。返回排序后的数组以保稳定渲染顺序。 */
-function collectNumericAttributes(snapshots: Snapshot[]): string[] {
-  const set = new Set<string>();
-  const last = snapshots.at(-1);
-  if (!last) return [];
-  const summary = last.entity_state_summary ?? {};
-  for (const attrs of Object.values(summary)) {
-    if (!attrs) continue;
-    for (const [k, v] of Object.entries(attrs)) {
-      if (typeof v === "number" && Number.isFinite(v)) {
-        set.add(k);
-      }
-    }
-  }
-  return Array.from(set).sort();
 }
 
 /** 把 snapshots × entities × attribute=A 的数据展平成 recharts 友好的形态：

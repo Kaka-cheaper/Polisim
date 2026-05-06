@@ -27,6 +27,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { ENTITY_PALETTE, collectNumericAttributes } from "./_chart_shared";
 import { useAllSnapshots, useSnapshotsList } from "../hooks/useSnapshot";
 import type { Snapshot } from "../api/schema";
 
@@ -36,33 +37,14 @@ interface Props {
   highlightTick?: number | null;
 }
 
-const ENTITY_PALETTE = [
-  "var(--polisim-line-1, #3B82F6)",
-  "var(--polisim-line-2, #10B981)",
-  "var(--polisim-line-3, #F59E0B)",
-  "var(--polisim-line-4, #EF4444)",
-  "var(--polisim-line-5, #8B5CF6)",
-];
-
+/** 提取 snapshots 集合中出现过的所有 entity_id。
+ *  与 _chart_shared.collectNumericAttributes 不同：后者只看末 snapshot（假设属性 schema 不变）；
+ *  entity 可能中途出现（未来 D-015 EntityCreate）所以要扫全集。 */
 function collectEntities(snapshots: Snapshot[]): string[] {
   const set = new Set<string>();
   for (const s of snapshots) {
     const summary = s.entity_state_summary ?? {};
     for (const id of Object.keys(summary)) set.add(id);
-  }
-  return Array.from(set).sort();
-}
-
-function collectNumericAttrs(snapshots: Snapshot[]): string[] {
-  const set = new Set<string>();
-  const last = snapshots.at(-1);
-  if (!last) return [];
-  const summary = last.entity_state_summary ?? {};
-  for (const attrs of Object.values(summary)) {
-    if (!attrs) continue;
-    for (const [k, v] of Object.entries(attrs)) {
-      if (typeof v === "number" && Number.isFinite(v)) set.add(k);
-    }
   }
   return Array.from(set).sort();
 }
@@ -105,7 +87,7 @@ export function AttributeChart({ runId, highlightTick }: Props) {
     [snapshots],
   );
   const allAttrs = useMemo(
-    () => collectNumericAttrs(snapshots ?? []),
+    () => collectNumericAttributes(snapshots ?? []),
     [snapshots],
   );
 

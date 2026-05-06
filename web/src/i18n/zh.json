@@ -10,9 +10,6 @@
     "running": "跑中态势",
     "finished": "跑完报告"
   },
-  "placeholder": {
-    "pr1_notice": "PR1 占位页 —— 业务组件将在 PR3 起逐步落地"
-  },
   "error": {
     "boundary": {
       "title": "页面渲染崩溃",
@@ -88,7 +85,7 @@
   },
   "advanced_options": {
     "title": "⚙️ 高级选项",
-    "tip": "v0.2 占位 —— 此处修改不会立即生效；下个 PR 接通到 [▶ 开始仿真] 流程",
+    "tip": "高级选项展示位 —— 修改不会立即生效；v0.3+ 将接通到 [▶ 开始仿真]（届时点击会重建 run 应用新参数）",
     "ticks_override": "覆盖 total_ticks",
     "ticks_override_placeholder": "默认按场景声明",
     "llm_provider": "LLM provider",
@@ -99,8 +96,7 @@
   },
   "running": {
     "loading": "加载 run 信息...",
-    "error_title": "加载失败",
-    "layout_not_implemented": "{{layout}} 布局将在 PR4.5 实施；当前仅 entity_card 可演示"
+    "error_title": "加载失败"
   },
   "control_bar": {
     "pause": "暂停",
@@ -137,13 +133,12 @@
     "no_decision_yet": "等待决策",
     "no_action_yet": "等待动作",
     "just_executed": "刚执行",
-    "intervene": "📌 干预",
-    "intervene_pr_4_2": "干预面板将在 PR4.2 实施"
+    "intervene": "📌 干预"
   },
   "llm_thought": {
     "title": "💭 LLM 想法",
     "view_prompt": "📋 看完整 prompt",
-    "view_prompt_pr_4_2": "Prompt 详情将在 PR4.2 实施"
+    "view_prompt_no_context": "本次决策未附带 prompt 上下文（可能为非 LLM 决策或 D-016 prompt_context 未持久化）"
   },
   "rule_thought": {
     "title": "🤐 规则决策",

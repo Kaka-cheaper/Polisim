@@ -1,15 +1,14 @@
 /**
  * EntityCardLayout —— 跑中主区"实体卡片"布局（mockup §4.3.1 + §11.3 L1）。
  *
- * PR4.1 范围：
+ * 职责：
  *   - 渲染 entries[]（已由 Running 组件预组装好，含 type / decision_mode / 当前+上一
  *     tick 属性 / 最新 decision/action event）—— 见 EntityCardEntry 定义
  *   - 底部 environment 行：列出环境变量 key=value
  *
- * 不在本组件里：
+ * 不在本组件里（职责划分）：
  *   - 数据组装（runDetail / stream → entries） —— Running 负责（避免 Layout 耦合 hooks）
- *   - 干预浮层（InterventionDrawer） —— PR4.2
- *   - prevSnapshotByRunId 跨页缓存（uiStore） —— PR4 后续阶段
+ *   - 干预 Drawer / Prompt Modal —— EntityCard 内部或 Running 顶层挂载
  *
  * 网格策略：1 列（mobile）/ 2 列（>=tablet 1024px）/ 3 列（>=desktop 1280px）。
  */
@@ -21,7 +20,7 @@ interface Props {
   entries: EntityCardEntry[];
   /** Snapshot.environment_state；可能为空。*/
   environment?: Record<string, unknown> | null | undefined;
-  /** 点击实体卡片回调（PR4.2 接通暂停 + 干预）。*/
+  /** 点击实体卡片回调（点击 → Running 父级自动 pause + 开 InterventionDrawer）。*/
   onEntityClick?: (id: string) => void;
 }
 

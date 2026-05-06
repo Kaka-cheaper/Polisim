@@ -106,13 +106,18 @@ test("mockup §6 + critical UI interactions full coverage", async ({ page }) => 
   // ============================================================
   // PART 3: 跑中页基础（步 5-7）
   // ============================================================
-  await test.step("step 5: start sim + 4 speed presets aria-pressed", async () => {
+  await test.step("step 5: start sim + immediate pause + 4 speed presets aria-pressed", async () => {
     await page.getByRole("button", { name: /开始仿真|Start simulation/ }).click();
     await expect(page).toHaveURL(/\/runs\/[\w-]+\/run/, { timeout: 10_000 });
-    await expect(page.getByText(/tick\s+\d+\/\d+/i)).toBeVisible({ timeout: 10_000 });
+    // 等 auto-step 推到 tick 1（step 6 前置条件）+ 立即 pause 防止 4 档循环期间 run 跑完
+    // session 43 修：原方案"末档 0.5x"在 machine 慢时仍可 race，改为先 pause 再切档
+    // （aria-pressed 不依赖 status，即使 paused 也能验证；speed 切换是纯 zustand state）
+    await expect(page.getByText(/tick\s+1\/\d+/i)).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("button", { name: /⏸\s*(暂停|Pause)/ }).click();
+    // 等 status badge 切到 paused（PausedEvent reason toast 可能弹）
+    await expect(page.getByRole("button", { name: /▶\s*(恢复|Resume)/ })).toBeVisible({ timeout: 5_000 });
 
-    // 4 档速度循环点击，每档 active 视觉用 aria-pressed=true 验证；
-    // **末档故意停在 0.5x** 防 4x×5tick=1.25s 跑完 → 自动 navigate /finished 影响后续 step
+    // 4 档循环点击 aria-pressed 验证（paused 状态下安全）
     for (const sp of ["1x", "2x", "4x", "0.5x"]) {
       const pattern = new RegExp(`^${sp.replace(".", "\\.")}$`);
       const btn = page.getByRole("button", { name: pattern });
@@ -120,11 +125,6 @@ test("mockup §6 + critical UI interactions full coverage", async ({ page }) => 
       await expect(btn).toHaveAttribute("aria-pressed", "true");
     }
     await page.screenshot({ path: `${SCREENSHOT_DIR}/03-running-4x.png`, fullPage: true });
-    // 暂停防 auto-step 在后续 step 期间跑完
-    const pauseBtn = page.getByRole("button", { name: /⏸\s*(暂停|Pause)/ });
-    if (await pauseBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await pauseBtn.click();
-    }
   });
 
   await test.step("step 6: paused single-step → tick++ + still paused (PR4-fix)", async () => {

@@ -7,7 +7,7 @@
  *
  * 主体：
  *   1. ScenarioIntroPanel —— 场景叙事 + 实体列表 + 预设事件
- *   2. AdvancedOptionsPanel —— 折叠式高级选项（PR3 占位，不接通业务）
+ *   2. AdvancedOptionsPanel —— 折叠式高级选项（展示位，disabled=true；v0.3+ 接通重建 run）
  *   3. 底部按钮：[▶ 开始仿真] → navigate `/runs/:runId/run`
  *               [← 选其他场景] → fire-and-forget DELETE 当前 run + 回画廊
  *

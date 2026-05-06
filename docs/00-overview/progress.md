@@ -6,7 +6,7 @@
 
 ## 一、当前位置
 
-**阶段**：**v0.2 PR5.5 跑完页副区（5 tabs + 3 新 hooks + 客户端 Blob 下载 + E2E step 15-18）交付**（session 42 末，2026-04-30）——`https://github.com/Kaka-cheaper/Polisim`
+**阶段**：**v0.2 架构清债（F1-F10 / docstring 重写 / 3 dead alias / 4 dead i18n keys / cytoscape + recharts 共用抽离 / playwright race fix）交付**（session 43 末，2026-05-06）——`https://github.com/Kaka-cheaper/Polisim`
 
 **进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 全量版 / D-016 + LLM 增强分析升级**已落地；**改名 SimEngine → Polisim**；**810 tests passing**（本 session 仅前端，0 后端测试变动）；**v0.2 阶段：D-017 spec（session 29）+ UI mockup v1（session 30）+ Server REST（session 31）+ WebSocket（session 32）+ 架构审查 F1-F10（session 33）+ mockup 第二阶段配套（session 34）+ PR1 web/ 项目骨架（session 35）+ PR2 API 层 + 7 hooks + ErrorBoundary（session 36）+ **PR3：routes/Gallery + routes/PreRun + components/{ScenarioCard, ScenarioIntroPanel, AdvancedOptionsPanel} + i18n 4 组 keys + schema.ts 加 6 嵌套类型别名**（session 37）**
 
@@ -1033,10 +1033,44 @@
       - **PR5.5-spec.md 作为开发前权威**——session 41 末花 1h 起草，session 42 开发按 8 子步 1:1 落地，减少 session 42 内决策分叉
       - **pitfalls.md 纪律**——踩坑立记 P2 条目（disabled + loading 语义混淆）
     - **新踩坑（pitfalls.md 已加 1 条 P2）**：RawDataView 按钮 `disabled={downloading || events.length === 0}` 混淆 loading 与业务空值，playwright 10s 超时
+72. **v0.2 架构清债 F1-F10**（session 43，2026-05-06）：类比 session 33 模式扫 PR4 / PR4.5 / PR5 / PR5.5 增量代码（session 38-42 共 5 PR），出 F1-F10 问题清单 + 全部修复 + 跑回归。**0 业务功能改动 / 0 v0.1 内核改动 / 0 server 改动**——纯前端代码健康度提升。
+    - **F-list 清单**：
+      - **F1-F2 [P2] 顶层 route docstring 严重过期**：`routes/Running.tsx` 4 处过期标注（"PR4.1 唯一可用" / "relation_graph / event_stream → 占位" / "不在本组件做（PR4.2+）"）+ `routes/Finished.tsx` 3 处过期（"v0.2 PR5 简化：不实现副区 tabs"）—— 实际 PR4.5 + PR5.5 后全部已实现。重写两份 docstring 反映当前真实结构 + 真实"暂未实现 v0.3+"段
+      - **F3 [P2] schema.ts 3 dead alias**：`WorldState` / `AnalyzeRequest` / `HealthResponse` 各自仅自身 export 无业务消费方（grep 结果 0 命中）。删 3 行
+      - **F4 [P2] i18n 4 dead/过期 keys**：(a) `placeholder.pr1_notice` / `running.layout_not_implemented` / `entity_card.intervene_pr_4_2` 三个 dead key（grep 唯一命中是 i18n 自己）→ 全删；(b) `llm_thought.view_prompt_pr_4_2` 文案过期但 LLMThoughtBubble.tsx 仍作 title 用（disabled hover hint）→ 改为 `view_prompt_no_context` + 文案"本次决策未附带 prompt 上下文（可能为非 LLM 决策或 D-016 prompt_context 未持久化）"+ LLMThoughtBubble.tsx 改 `title` 仅在 disabled 时显示
+      - **F5 [P3] cytoscape 工具函数 ~30 行重复**：`FinalRelationGraph` 与 `RelationGraphLayout` 重复 COLORS（11 字段）/ edgeColorByTrust / edgeWidthByTrust / RelationEntry / register guard。**抽 `web/src/components/_relation_graph_shared.ts`**——5 项工具集 + 注释充分；stylesheet 因字号/节点尺寸不同**未抽**（参数化收益 < 复杂度增加）。两文件接通；layouts/RelationGraphLayout.tsx re-export RelationEntry 保持 Running.tsx import 路径向后兼容
+      - **F6 [P3] recharts 工具函数重复**：`MiniDashboard` 与 `AttributeChart` 重复 ENTITY_PALETTE（5 行）+ collectNumericAttributes（10 行）。**抽 `web/src/components/_chart_shared.ts`**——2 项工具集；AttributeChart 原 collectNumericAttrs 改为复用 collectNumericAttributes
+      - **F7-F10 [P3] 措辞 / 注释清理**：(a) `PreRun.tsx` advancedValue state 写不读 → docstring 标"展示位 disabled=true; v0.3+ 接通重建 run"；(b) `i18n.advanced_options.tip` 文案"v0.2 占位/下个 PR 接通"→ "高级选项展示位/v0.3+ 将接通"；(c) `EntityCardLayout.tsx` "PR4.1 范围 / 不在本组件里 PR4.2" → 改"职责"中性表述；(d) `AdvancedOptionsPanel.tsx` "PR3 默认 true" → 当前 PreRun 默认 true; v0.3+ 接通"重创 run"路径再 disabled=false；(e) `FinishedSidePanel.tsx` 注释"分页循环"→ 实际单调用 limit=5000；(f) `LLMThoughtBubble.tsx` "PR4.1 范围"→ 中性"范围"
+    - **新文件清单**：
+      - `web/src/components/_relation_graph_shared.ts`（80 行，5 export：RELATION_GRAPH_COLORS / edgeColorByTrust / edgeWidthByTrust / ensureCytoscapeRegistered / RelationEntry）
+      - `web/src/components/_chart_shared.ts`（60 行，2 export：ENTITY_PALETTE / collectNumericAttributes）
+      - 文件名 `_xxx_shared.ts` 前缀表"内部共用工具"——不暴露给 routes / hooks，仅 components/ 内消费
+    - **playwright spec race 修复（同 session 第 2 阶段）**：跑回归时 step 5 失败：4 档循环 `1x→2x→4x→0.5x` 在 4x 期间 5 tick 跑完 → 自动 navigate /finished → 0.5x 按钮找不到。session 41/42 跑通是机器/vite optimize 偶然组合；session 43 重启服务后 first-run race 显形。修：进 /run 等 tick 1 + **立即 pause** + 再 4 档切档（aria-pressed 是纯 zustand state，paused 下完全可验证）。**spec 解锁 race 依赖，从 timing-sensitive 转 deterministic**
+    - **验收**：`tsc --noEmit` 0 错 / `playwright 2 passed 32.8s`（test 1 minimal_market 18 step / test 2 three_party_negotiation 4 step）：
+
+      ```text
+      验收对象：v0.2 架构清债 F1-F10 + spec race fix
+      对应验收项：类比 session 33 架构审查；F1-F2 docstring 反映真实状态 / F3 alias / F4 i18n / F5+F6 抽公用 / F7-F10 措辞 / playwright race
+      输入：手动启动 server (8000) + vite dev (5173) 后跑 npx playwright test
+      执行方式：tsc --noEmit + playwright 2 test
+      实际输出：
+        - tsc 0 错（含 cytoscape 类型 cast 在 IDE 显示警告但 tsc 实际通过；session 41 已确认 PR4.5 同状态）
+        - playwright 2 passed 32.8s（21.4s test1 + 3.7s test2 + spec re-encoding 缓冲；test1 step 1-18 全部通过含步 5 重构）
+      是否通过：通过
+      备注：F-list 全部修复 + 引入 2 个共用工具文件 + 修了一个 timing-sensitive race spec
+      ```
+
+    - **测试影响**：**0 后端测试变动 / 814 passed 不变**；playwright 2 passed 26.9s（session 42 末）→ 32.8s（session 43 末，+5.9s 因 step 5 加 pause + service restart 后 vite re-optimize first-run + recharts/cytoscape 挂载等待）
+    - **设计纪律遵守**：
+      - **MUST NOT 全员遵守**——0 v0.1 内核改动 / 0 server 改动 / 0 业务功能改动 / 0 mockup 之外新依赖
+      - **AGENTS.md 落点纪律**——抽公用文件落 `components/_xxx_shared.ts`（前缀 `_` 表内部工具），无新顶层目录 / 无 utils 垃圾桶
+      - **类比 session 33 模式**——扫问题 + 出 F-list + 全量修复 + 回归测试，0 引入新功能（避免清债与新功能交叉）
+      - **pitfalls.md 纪律**——race 现象立即记 P2 条目（playwright auto-step + UI 交互 race + page snapshot 诊断捷径）
+    - **新踩坑（pitfalls.md +1 P2）**：playwright spec step 5 4 档循环切档遇 auto-step race，机器/vite 状态变化时 finished 页提前出现；解法：先 pause 后切档，从 timing-sensitive 转 deterministic
 
 **进行中**：
 
-- v0.2 session 42 **PR5.5 跑完页副区**全部交付——**FinishedSidePanel + 5 tabs + 3 新 hooks + 客户端 Blob 下载 + E2E step 15-18 扩展**。`tsc 0 错 / playwright 2 passed 26.9s（test 1 minimal_market 18 step / test 2 three_party_negotiation 4 step） / pitfalls.md 加 1 条 P2 (disabled + loading 条件混淆)`。**v0.2 R 前端核心功能已全部交付**——Gallery → PreRun → Running (3 layouts) → Finished (4 段叙事 + 6 指标) → FinishedSidePanel (5 tabs + 下载) 完整用户流程闭环。
+- v0.2 session 43 **架构清债（类比 session 33 模式）**全部交付——F1-F10 清单 + 修复 + 抽 2 共用文件 + 修 playwright race。`tsc 0 错 / playwright 2 passed 32.8s（test 1 minimal_market 18 step + step 5 重构 / test 2 three_party_negotiation 4 step） / pitfalls.md +2 条 P2（playwright race + LLMThoughtBubble title）`。**v0.2 R 前端代码债清算阶段完成**，核心功能已 session 42 闭环；session 44+ 入口任务剩余 3 选 1（生产部署 / info_cascade 第三场景 / 第二阶段 LLM 辅助建模 PoC）。
 - **PR3 关键文件清单**（session 37 落地，全在 `web/src/`）：
   - `routes/Gallery.tsx`（重写——useScenarios + 3 段 grid）
   - `routes/PreRun.tsx`（重写——useRun + ScenarioIntroPanel + AdvancedOptionsPanel + 上下按钮）

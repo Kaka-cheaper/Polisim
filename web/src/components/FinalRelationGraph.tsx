@@ -15,9 +15,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import cytoscape, { type Core, type ElementDefinition } from "cytoscape";
-import coseBilkent from "cytoscape-cose-bilkent";
 import CytoscapeComponent from "react-cytoscapejs";
 
+import {
+  RELATION_GRAPH_COLORS as COLORS,
+  edgeColorByTrust,
+  edgeWidthByTrust,
+  ensureCytoscapeRegistered,
+  type RelationEntry,
+} from "./_relation_graph_shared";
 import type {
   RelationTypeSchema,
   Scenario,
@@ -25,42 +31,7 @@ import type {
   WorldDefinition,
 } from "../api/schema";
 
-// 一次性 register（与 RelationGraphLayout 共存安全——cytoscape.use 幂等）
-let registered = false;
-if (!registered) {
-  cytoscape.use(coseBilkent as unknown as cytoscape.Ext);
-  registered = true;
-}
-
-const COLORS = {
-  llm: "#4ea7fc",
-  rule: "#8a8f98",
-  random: "#7170ff",
-  positive: "#27a644",
-  warning: "#f0bf00",
-  negative: "#eb5757",
-  bgSurface: "#1c1d1f",
-  fgPrimary: "#f7f8f8",
-  fgTertiary: "#8a8f98",
-  borderDefault: "#23262b",
-} as const;
-
-function edgeColorByTrust(value: number): string {
-  if (value >= 70) return COLORS.positive;
-  if (value <= 40) return COLORS.negative;
-  return COLORS.warning;
-}
-
-function edgeWidthByTrust(value: number): number {
-  return Math.max(1, Math.min(4, 1 + (value / 100) * 3));
-}
-
-interface RelationEntry {
-  type: string;
-  source: string;
-  target: string;
-  value: number;
-}
+ensureCytoscapeRegistered();
 
 interface Props {
   world: WorldDefinition;

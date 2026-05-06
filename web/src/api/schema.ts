@@ -25,7 +25,6 @@ export type PauseResumeResponse = Schemas["PauseResumeResponse"];
 // === 运行时数据 ===
 export type TickResult = Schemas["TickResult"];
 export type Snapshot = Schemas["Snapshot"];
-export type WorldState = Schemas["WorldState"];
 export type EventRecord = Schemas["EventRecord"];
 export type Intervention = Schemas["Intervention"];
 
@@ -40,11 +39,9 @@ export type ScheduledEvent = Schemas["ScheduledEvent"];
 
 // === 配置 ===
 export type CreateRunRequest = Schemas["CreateRunRequest"];
-export type AnalyzeRequest = Schemas["AnalyzeRequest"];
 
 // === 元信息 ===
 export type ScenarioSummary = Schemas["ScenarioSummary"];
-export type HealthResponse = Schemas["HealthResponse"];
 
 // === 分析层 ===
 export type AnalysisResult = Schemas["AnalysisResult"];

@@ -40,6 +40,23 @@
 
 ## 五、踩坑清单
 
+### [P2] 2026-05-06 Playwright "auto-step 期间循环切档" race condition（session 43 架构清债踩坑）
+
+**✅ 已修**（session 43 spec step 5 重构）：mockup-flow.spec.ts step 5 原方案是"4 档循环 1x→2x→4x→0.5x，末档 0.5x 兜底降速"。session 41/42 跑通是因为机器恰好够快——session 43 同机器在重启 vite + recharts re-optimize 后**第一次跑**时 4x 档（250ms/tick）期间已推完 5 tick → 自动 navigate `/finished` → 0.5x 按钮不存在 → `aria-pressed` 断言超时 8s。改为"进 /run → 等 tick 1 → 立即 pause → 4 档循环切档"：paused 状态下 aria-pressed 仍能验证（speed 是纯 zustand state，不依赖 status）。
+
+- **现象**：playwright `getByRole("button", { name: /^0\.5x$/ }).toHaveAttribute("aria-pressed", "true")` 超时；error-context.md page snapshot 显示已在 finished 页（"仿真完成" + "LLM 增强失败" banner）
+- **根因链**：
+  1. 4x 档下 250ms/tick × 5 tick = 1.25s 跑完
+  2. playwright 4 档循环 click + aria-pressed 等待 ≈ 1-2s
+  3. **race**：4x 切到 0.5x 期间剩余 tick 数若 ≥ 1 必然命中 finished
+- **本质**：依赖"快速循环 + 最末档降速"的 spec 设计在 timing-sensitive race 下不稳；session 41/42 跑通是机器加载较空 + first-time 模块缓存缺失导致 vite 反而稍慢的偶然组合
+- **解法**（已落地）：进 /run 等 tick 1 出现后**立即 pause**，再 4 档切档——pause 后 auto-step useEffect cleanup，run 锁定不会跑完；speed 切换是纯 client state（`uiStore.speed`），paused 状态下完全可验证 aria-pressed
+- **相关文件**：`@web/tests/e2e/mockup-flow.spec.ts:109-128` step 5 重构后版本
+- **防再犯**：
+  - 写 E2E spec 涉及"auto-step + UI 交互"路径时，**优先 pause 锁定状态**再做 UI 验证；不要靠"末档降速兜底"
+  - 临界 race 在第一次写完 spec 时往往跑通，但**不同机器 / 不同 vite optimize 状态**可能反复触发；师不依赖 timing 的强 deterministic 路径优于"通常能过"
+  - playwright `error-context.md` 中 page snapshot 是诊断 race 的最快路径——一眼能看出实际 navigate 到何页
+
 ### [P2] 2026-04-30 disabled 条件把"加载中"和"业务空值"合并，playwright 等不到 enable（session 42 PR5.5 踩坑）
 
 **✅ 已修**（session 42 E2E step 17 修复）：`@web/src/components/RawDataView.tsx:59` 第一版 `disabled={downloading || events.length === 0}` —— playwright step 17 点"📥 下载 events.jsonl"时等 10s 超时：按钮始终 disabled。根因：上层 `FinishedSidePanel` 传 `events = eventsResp?.events ?? []`，react-query loading 期间 `eventsResp` 是 `undefined` → events=`[]` → 按钮 disabled；但"真的空 run" 也是 `events=[]` → 永远不可点击。改 `disabled={downloading}` 即可——空 run 下触发下载会拉回空分页 + 生成 0 行 jsonl（合法产物），不影响语义。

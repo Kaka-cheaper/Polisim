@@ -22,9 +22,12 @@ venv/
 env/
 .env
 
-# IDE
+# IDE / Coding agent local settings
 .idea/
 .vscode/
+.claude/
+.cursor/
+.windsurf/
 *.swp
 *.swo
 

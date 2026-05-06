@@ -10,9 +10,6 @@
     "running": "Running",
     "finished": "Finished Report"
   },
-  "placeholder": {
-    "pr1_notice": "PR1 placeholder —— business components arrive starting PR3"
-  },
   "error": {
     "boundary": {
       "title": "Render error",
@@ -88,7 +85,7 @@
   },
   "advanced_options": {
     "title": "⚙️ Advanced options",
-    "tip": "v0.2 placeholder —— changes are not yet wired to [▶ Start simulation]; next PR will connect them",
+    "tip": "Advanced options preview —— changes have no effect yet; v0.3+ will wire this into [▶ Start] (clicking will recreate the run with new params)",
     "ticks_override": "Override total_ticks",
     "ticks_override_placeholder": "use scenario default",
     "llm_provider": "LLM provider",
@@ -99,8 +96,7 @@
   },
   "running": {
     "loading": "Loading run info...",
-    "error_title": "Load failed",
-    "layout_not_implemented": "{{layout}} layout arrives in PR4.5; only entity_card is demoable for now"
+    "error_title": "Load failed"
   },
   "control_bar": {
     "pause": "Pause",
@@ -137,13 +133,12 @@
     "no_decision_yet": "awaiting decision",
     "no_action_yet": "awaiting action",
     "just_executed": "just executed",
-    "intervene": "📌 Intervene",
-    "intervene_pr_4_2": "Intervention panel arrives in PR4.2"
+    "intervene": "📌 Intervene"
   },
   "llm_thought": {
     "title": "💭 LLM thinks",
     "view_prompt": "📋 View full prompt",
-    "view_prompt_pr_4_2": "Prompt detail arrives in PR4.2"
+    "view_prompt_no_context": "This decision has no prompt context (likely a non-LLM decision or D-016 prompt_context not persisted)"
   },
   "rule_thought": {
     "title": "🤐 Rule decision",
