@@ -223,6 +223,9 @@
 | 设计怎么映射成代码 | `docs/02-design/实现映射设计.md` |
 | 最小例子长啥样 | `docs/01-requirements/最小示例Walkthrough.md` |
 | LLM 辅助建模长期规划 | `docs/00-overview/LLM辅助建模方案.md` |
+| 视觉设计系统（DESIGN.md spec） | `DESIGN.md`（仓库根；与本文件并列） |
+
+> **DESIGN.md 是什么**：基于 Google Stitch / `google-labs-code/design.md` 开源 spec 的 Polisim 视觉系统正式声明（YAML front matter tokens + 8 节 Markdown rationale）。**任何接手 UI 工作的 agent（重设计页面 / 加新场景 layout / 写新组件）必须先读它**——它取代了散落在 `tokens.css` + mockup §8.4 的视觉规范。Token 实际值的事实源仍是 `web/src/styles/tokens.css`；DESIGN.md 是给 AI agent 读的"为什么 + 怎么用"层。
 
 ## 七、本文件与 Harness 的关系
 
