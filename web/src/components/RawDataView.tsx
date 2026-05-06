@@ -57,7 +57,7 @@ export function RawDataView({ runId, events }: Props) {
             void trigger();
           }}
           disabled={downloading}
-          className="rounded-md bg-accent px-3 py-1.5 text-md font-medium text-fg-on-accent transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted"
+          className="rounded-full bg-accent px-3 py-1.5 text-md font-medium text-fg-on-accent transition-all duration-fast ease-out hover:bg-accent-hover hover:shadow-glow-accent disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted"
         >
           {downloading
             ? t("finished_side_panel.raw_data.downloading")

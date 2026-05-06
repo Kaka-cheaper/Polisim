@@ -173,7 +173,7 @@ export function PromptContextModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md bg-accent px-4 py-1.5 text-md font-medium text-fg-on-accent transition-colors duration-fast hover:bg-accent-hover"
+            className="rounded-full bg-accent px-4 py-1.5 text-md font-medium text-fg-on-accent transition-all duration-fast ease-out hover:bg-accent-hover hover:shadow-glow-accent"
           >
             {t("prompt_modal.close")}
           </button>

@@ -21,6 +21,7 @@ import { toast } from "sonner";
 
 import type { ScenarioSummary } from "../api/schema";
 import { ScenarioCard } from "../components/ScenarioCard";
+import BlurText from "../components/BlurText";
 import { useCreateRun } from "../hooks/useCreateRun";
 import { useScenarios } from "../hooks/useScenarios";
 
@@ -78,11 +79,28 @@ export default function Gallery() {
 
   return (
     <main className="mx-auto max-w-layout px-6 py-12">
-      <header className="text-center">
-        <h1 className="text-8xl font-semibold leading-tight tracking-display-lg text-fg-primary">
-          {t("gallery.title")}
-        </h1>
-        <p className="mt-4 text-xl text-fg-secondary">
+      {/* Hero section: radial glow + BlurText + glass badge (session 45) */}
+      <header
+        className="relative pb-8 pt-4 text-center"
+        style={{ background: "var(--gradient-hero-glow)" }}
+      >
+        {/* Glass badge */}
+        <div className="mb-6 inline-flex items-center gap-2 liquid-glass rounded-full px-1 py-1">
+          <span className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-fg-on-accent">
+            {t("gallery.badge_new", "New")}
+          </span>
+          <span className="pr-3 text-xs font-medium text-fg-secondary">
+            {t("gallery.badge_text", "AI-powered multi-agent simulation")}
+          </span>
+        </div>
+
+        <BlurText
+          text={t("gallery.title")}
+          className="mx-auto max-w-3xl font-heading text-7xl text-fg-primary leading-[0.9] tracking-tight"
+          italic
+          delay={100}
+        />
+        <p className="mt-5 text-xl text-fg-secondary">
           {t("gallery.subtitle")}
         </p>
         <p className="mt-2 text-md text-fg-tertiary">{t("gallery.tagline")}</p>

@@ -23,7 +23,7 @@ export default function TopBar() {
 
   return (
     <header
-      className="sticky top-0 z-sticky flex items-center justify-between border-b border-border-divider bg-header px-6 backdrop-blur-md"
+      className="sticky top-0 z-sticky flex items-center justify-between border-b border-border-divider px-6 liquid-glass"
       style={{ height: "var(--layout-header-height)" }}
     >
       <Link

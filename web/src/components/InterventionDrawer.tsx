@@ -501,7 +501,7 @@ export function InterventionDrawer({
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="rounded-md bg-accent px-4 py-1.5 text-md font-medium text-fg-on-accent transition-colors duration-fast hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted"
+            className="rounded-full bg-accent px-4 py-1.5 text-md font-medium text-fg-on-accent transition-all duration-fast ease-out hover:bg-accent-hover hover:shadow-glow-accent disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted"
           >
             {isSubmitting
               ? t("intervention.submitting")

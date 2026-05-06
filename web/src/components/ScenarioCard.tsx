@@ -52,7 +52,7 @@ export function ScenarioCard(props: ScenarioCardProps) {
     const layoutHint = t(`scenario_card.ui_layout_hint.${scenario.ui_layout}`);
 
     return (
-      <div className="group flex flex-col rounded-xl border border-border-default bg-surface p-6 shadow-[var(--inner-highlight),var(--shadow-md)] transition-all duration-normal ease-out hover:-translate-y-1 hover:border-accent hover:bg-surface-hover hover:shadow-[var(--inner-highlight-strong),var(--shadow-lg)]">
+      <div className="group liquid-glass flex flex-col rounded-xl border border-border-default p-6 transition-all duration-normal ease-out hover:-translate-y-1 hover:border-accent hover:shadow-[var(--inner-highlight-strong),var(--shadow-lg)]">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-3xl font-semibold tracking-tight text-fg-primary">
@@ -91,7 +91,7 @@ export function ScenarioCard(props: ScenarioCardProps) {
           type="button"
           onClick={onStart}
           disabled={disabled}
-          className="mt-6 self-start rounded-md bg-accent px-4 py-2 text-md font-medium text-fg-on-accent shadow-inner-highlight transition-all duration-fast ease-out hover:scale-[1.015] hover:bg-accent-hover focus-visible:shadow-focus focus-visible:outline-none active:scale-[0.985] disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted disabled:hover:scale-100"
+          className="mt-6 self-start rounded-full bg-accent px-4 py-2 text-md font-medium text-fg-on-accent shadow-inner-highlight transition-all duration-fast ease-out hover:scale-[1.015] hover:bg-accent-hover hover:shadow-glow-accent focus-visible:shadow-focus focus-visible:outline-none active:scale-[0.985] disabled:cursor-not-allowed disabled:bg-surface-active disabled:text-fg-muted disabled:hover:scale-100"
         >
           {t("scenario_card.start")}
         </button>

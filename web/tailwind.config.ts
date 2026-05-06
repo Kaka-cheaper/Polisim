@@ -70,6 +70,7 @@ const config: Config = {
       fontFamily: {
         sans: "var(--font-sans)",
         mono: "var(--font-mono)",
+        heading: ["'Instrument Serif'", "serif"],
       },
       fontSize: {
         // 字号映射 tokens.css 的 --text-* scale（10/11/12/13/14/15/16/17/18/20/24/32/48/64/72px）
@@ -141,6 +142,9 @@ const config: Config = {
         // session 44 加：Linear-style 顶边白光（用法：shadow-inner-highlight 或叠加在 card 上）
         "inner-highlight": "var(--inner-highlight)",
         "inner-highlight-strong": "var(--inner-highlight-strong)",
+        // session 45 加：Framer-style accent 辐射光晕（primary CTA hover / hero accent）
+        "glow-accent": "var(--shadow-glow-accent)",
+        "glow-accent-strong": "var(--shadow-glow-accent-strong)",
       },
       transitionDuration: {
         instant: "var(--motion-duration-instant)",

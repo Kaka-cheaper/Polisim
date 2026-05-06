@@ -471,7 +471,7 @@ Tailwind via `transitionDuration` and `transitionTimingFunction`.
 ### Duration Scale
 
 | Token | Value | Use |
-|---|---|---|
+| --- | --- | --- |
 | `instant` | 50ms | Instant feedback (checkbox toggle, copy-to-clipboard) |
 | `fast` | 150ms | Hover transitions, button press feedback, focus ring appearance |
 | `normal` | 250ms | Card hover lift, panel expand/collapse, modal open/close |
@@ -481,7 +481,7 @@ Tailwind via `transitionDuration` and `transitionTimingFunction`.
 ### Easing Curves
 
 | Token | Curve | Use |
-|---|---|---|
+| --- | --- | --- |
 | `ease-out` | `cubic-bezier(0.16, 1, 0.3, 1)` | **Default for all UI transitions.** Linear-style deceleration — fast start, gentle settle. |
 | `ease-in` | `cubic-bezier(0.4, 0, 1, 1)` | Elements entering the screen (modals, drawers). |
 | `ease-in-out` | `cubic-bezier(0.65, 0, 0.35, 1)` | Symmetric transitions (accordion expand/collapse). |
@@ -589,3 +589,36 @@ notes on usage:
 - **Don't** use `bg-input` (`rgba(255,255,255,0.03)`) outside of form
   controls. The 3% white tint is calibrated for input-on-surface; on
   `bg-canvas` it disappears.
+- **Do** use `rounded-full` (pill) for all primary accent CTAs. Secondary
+  actions keep `rounded-md`. This is the Framer vocabulary: pill = primary,
+  squared = secondary.
+- **Do** apply `hover:shadow-glow-accent` on primary CTAs — the accent
+  radial glow is the signature hover feedback (Framer spotlight style).
+- **Don't** use `shadow-glow-accent` on secondary/ghost buttons — glow is
+  exclusively for the single primary action per screen.
+- **Do** use the `--gradient-hero-glow` radial gradient as a subtle
+  atmospheric backdrop on hero sections (Gallery page). Keep it restrained —
+  one per page maximum (Framer's "gradient spotlight cards are scarce by
+  design" rule).
+- **Do** enable Inter OpenType features (`calt`, `kern`, `liga`, `cv01`,
+  `cv05`, `cv11`, `ss03`) via `--font-features`. The `ss03` alternate `g`
+  and `cv11` dotted `0` are brand-voice details for a simulation data tool.
+
+## Session 45: Visual Upgrade Changelog (Raycast + Framer Hybrid)
+
+Changes applied to elevate visual premium feel:
+
+1. **Font features enhanced** — `--font-features` now includes `calt`,
+   `kern`, `liga`, `cv01`, `cv05`, `cv11`, `ss03` (was `cv01`, `ss03`).
+   Branded Inter glyphs for simulation data readability.
+2. **Surface ladder deepened** — `--color-bg-primary` darkened from
+   `#08090a` to `#050506`; `--color-bg-panel` from `#0f1011` to `#0c0d0e`.
+   Greater delta between canvas and card surfaces.
+3. **Hero glow** — `--gradient-hero-glow` radial gradient token added;
+   applied to Gallery page header as atmospheric accent.
+4. **Primary CTA → pill** — All `bg-accent` buttons changed from
+   `rounded-md` to `rounded-full`. Framer pill vocabulary.
+5. **Ambient glow** — `--shadow-glow-accent` / `--shadow-glow-accent-strong`
+   tokens added; applied as `hover:shadow-glow-accent` on primary CTAs.
+6. **Inner highlight strengthened** — `--inner-highlight-strong` bumped to
+   `rgba(255,255,255,0.12)` for more visible card edge on deeper canvas.

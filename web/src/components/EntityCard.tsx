@@ -131,7 +131,7 @@ export function EntityCard({ entry, onIntervene }: Props) {
       : null;
 
   return (
-    <div className="flex flex-col rounded-xl border border-border-default bg-surface p-4 shadow-[var(--inner-highlight),var(--shadow-md)] transition-shadow duration-normal ease-out">
+    <div className="liquid-glass flex flex-col rounded-xl border border-border-default p-4 transition-shadow duration-normal ease-out">
       {/* 头部 */}
       <header className="flex items-center gap-2">
         <span className="text-2xl" aria-hidden="true">

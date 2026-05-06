@@ -119,7 +119,7 @@ export default function PreRun() {
             <button
               type="button"
               onClick={handleStart}
-              className="rounded-md bg-accent px-6 py-3 text-lg font-semibold text-fg-on-accent shadow-inner-highlight transition-all duration-fast ease-out hover:scale-[1.015] hover:bg-accent-hover focus-visible:shadow-focus focus-visible:outline-none active:scale-[0.985]"
+              className="rounded-full bg-accent px-6 py-3 text-lg font-semibold text-fg-on-accent shadow-inner-highlight transition-all duration-fast ease-out hover:scale-[1.015] hover:bg-accent-hover hover:shadow-glow-accent focus-visible:shadow-focus focus-visible:outline-none active:scale-[0.985]"
             >
               {t("pre_run.start")}
             </button>

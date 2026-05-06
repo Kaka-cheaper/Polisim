@@ -32,17 +32,17 @@
    * 1. PRIMITIVES（linear 原生命名，直接来自 raw.json cssVariables）
    * ────────────────────────────────────────────────────────────────────── */
 
-  /* === Linear · 背景层（深色基底 5 档） === */
+  /* === Linear · 背景层（深色基底 5 档；session 45 加深 canvas 拉大 ladder 对比）=== */
   --color-bg-marketing: #010102; /* 最深，营销页全黑 */
-  --color-bg-primary: #08090a; /* dashboard 主画布（最常用底色）*/
-  --color-bg-panel: #0f1011; /* 面板 / sidebar */
+  --color-bg-primary: #050506; /* dashboard 主画布（session 45 加深：原 #08090a → #050506，拉大与 surface 的 delta） */
+  --color-bg-panel: #0c0d0e; /* 面板 / sidebar（session 45：原 #0f1011 → #0c0d0e，维持相对关系）*/
   --color-bg-level-3: #191a1b; /* 浮起一级 */
   --color-bg-secondary: #1c1c1f; /* 卡片 */
   --color-bg-tertiary: #232326; /* 卡片悬停 */
   --color-bg-quaternary: #28282c; /* 卡片浮起 */
   --color-bg-quinary: #282828; /* 深色填充 chip */
   --color-overlay-primary: rgba(0, 0, 0, 0.85);
-  --color-header-bg: rgba(11, 11, 11, 0.8); /* 顶栏半透明（backdrop-filter 用）*/
+  --color-header-bg: rgba(5, 5, 6, 0.8); /* 顶栏半透明（session 45 对齐新 canvas #050506）*/
 
   /* === Linear · 边框 / 分隔线 === */
   --color-border-primary: #23252a;
@@ -154,8 +154,14 @@
     "JetBrains Mono", "Berkeley Mono", ui-monospace, "SF Mono", "Cascadia Mono",
     Menlo, Consolas, monospace;
 
-  /* === Font feature settings（linear 启用 cv01 + ss03 alt glyph 提升观感）=== */
-  --font-features: "cv01", "ss03";
+  /* === Font feature settings（session 45：Raycast/Framer 混合路线，branded Inter 字形）===
+   * cv01 = 替代数字 "1"（直线无衬线）
+   * cv05 = 替代小写 "l"（带尾避免与 I/1 混淆）
+   * cv11 = 替代数字 "0"（带圆点，适合仿真数据面板区分 0/O）
+   * ss03 = 替代 "g"（单层开口 g，Raycast 签名字形）
+   * calt + kern + liga = 标准连字 + 字距微调
+   */
+  --font-features: "calt", "kern", "liga", "cv01", "cv05", "cv11", "ss03";
 
   /* === Font sizes（10/11/12/13/14/15/16/17/18/20/24/32/48/64/72px）=== */
   --text-xs: 0.625rem; /* 10px - tag / micro caption */
@@ -256,6 +262,22 @@
 
   /* === Focus ring（linear 实际 outline 模式：3px 偏移 + accent 半透明）=== */
   --shadow-focus: 0 0 0 3px rgba(94, 105, 209, 0.4); /* --color-focus-ring 40% */
+
+  /* === Ambient glow（session 45 Framer 路线：accent 辐射光晕，用于 primary CTA hover）=== */
+  --shadow-glow-accent: 0 0 20px -4px rgba(113, 112, 255, 0.35);
+  --shadow-glow-accent-strong: 0 0 32px -4px rgba(113, 112, 255, 0.5);
+
+  /* === Inner highlight 强化（session 45：加深 surface-card 边界感）=== */
+  --inner-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  --inner-highlight-strong: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+
+  /* === Hero gradient（session 45 Framer spotlight 风格：radial 辐射光晕作为画廊 hero 背景）=== */
+  --gradient-hero-glow: radial-gradient(
+    ellipse 60% 50% at 50% 0%,
+    rgba(113, 112, 255, 0.08) 0%,
+    rgba(113, 112, 255, 0.03) 40%,
+    transparent 70%
+  );
 
   /* ──────────────────────────────────────────────────────────────────────
    * 7. MOTION（自定，linear 风格典型值：cubic-bezier 高内省感）

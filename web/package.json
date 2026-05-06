@@ -16,6 +16,7 @@
     "cytoscape": "^3.33.2",
     "cytoscape-cose-bilkent": "^4.1.0",
     "i18next": "^26.0.8",
+    "motion": "^12.38.0",
     "react": "^19.2.5",
     "react-cytoscapejs": "^2.0.0",
     "react-dom": "^19.2.5",
