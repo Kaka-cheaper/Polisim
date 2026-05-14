@@ -1,0 +1,4 @@
+# CodeSee keeps features.json under version control (it is the core data).
+# Only transient caches are ignored here.
+cache/
+*.tmp
