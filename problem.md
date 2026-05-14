@@ -19,3 +19,27 @@
 - cross_feature 41 条均有可指明的代码线索（不写模糊关系）
 - server 所有 HTTP/WS 路由均被 feature.triggers 覆盖（路由覆盖 lint 0 命中）
 用户反馈：途中要求把 features.json 移到 .codesee 目录（之前误建到 codesee/ 与 web/public/），按指令调整完毕
+
+---
+
+问题2：按评审清单自检后重新执行扫描，补上 epic_flow 并修正所有评审问题
+解决方案：基于评审反馈完全重写 features.json——
+1. 补 PreRun 介绍页 feature（f-pre-run-page）
+2. 合并 f-thought-bubble / f-mini-dashboard 为 f-running-page 的 step（不再平级立 feature）
+3. 合并三种干预为单个 f-intervene（后端只有一个 endpoint）
+4. 所有 ws 广播边标 kind=async；conditional 分支显式标注 condition
+5. 所有有外部输入的 feature 补 error 分支（404/400/500/502）
+6. cross_feature 补 publishes 关系（6 条，占 18%）
+7. confidence 差异化：0.75-0.95 五档分布
+8. 新增 epic_flow 8 条描述用户主线
+9. role 严格使用 Schema 定义的 11 种（不再用 init/cleanup/logic）
+修改的代码文件：.codesee/features.json（覆盖重写）
+应当达成的效果：
+- 10 epic / 34 feature / 33 cross_feature / 8 epic_flow
+- 平均 6.4 步，全部 3-10 范围内
+- step.name 标识符检查 0 命中
+- flow.kind 全部填写无缺失
+- 86 个 file ref 全部存在
+- cross_feature 引用全部有效
+- publishes 占比 18%（上一版仅 10%）
+- confidence 分布：0.75×2 / 0.8×4 / 0.85×7 / 0.9×13 / 0.95×8
