@@ -64,3 +64,20 @@
 - flow 边类型：next 144 + error 38 + conditional 21 + async 17 + loop 6
 - 105 个 file ref 全部真实存在
 - node 校验脚本严格模式通过
+
+
+---
+
+问题4：用户更新 prompt（epic.order 语义改为"阶段编号而非 Epic 序号，同阶段共享同一 order"），按新版重跑
+解决方案：
+1. 对比新旧 prompt：除 epic.order 语义外其他规则未变
+2. 现状是 6 个独立阶段（0/1/2/3/4/5）= 接近"全递增"反模式
+3. 按用户视角重新归并为 4 阶段：启动准备(0) → 配置(1) → 执行(2) → 分析(3)
+4. cli 也归到启动准备阶段（与 web 平行的入口路径）
+5. 跑校验严格模式 exit 0
+修改的代码文件：.codesee/features.json（仅修改 epics[].order 字段，其他不动）
+应当达成的效果：
+- 4 阶段分布：order=0 三个(platform/ui-shell/cli)，order=1 两个(scenario-gallery/run-lifecycle)，order=2 四个(simulation-control/realtime-stream/intervention/state-query)，order=3 一个(analysis)
+- 同阶段 Epic 共享 order，画布上能横排展开
+- 不再是 0,1,2,3,4,5 全递增反模式
+- 校验脚本严格模式通过
