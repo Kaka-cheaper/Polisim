@@ -17,7 +17,8 @@
       "id": "ui-shell",
       "name": "前端外壳",
       "summary": "顶栏/多语言/错误边界",
-      "order": 0
+      "order": 0,
+      "importance": "auxiliary"
     },
     {
       "id": "scenario-gallery",
@@ -35,13 +36,15 @@
       "id": "simulation-control",
       "name": "仿真控制",
       "summary": "step/pause/resume 驱动 tick 推进",
-      "order": 2
+      "order": 2,
+      "importance": "core"
     },
     {
       "id": "realtime-stream",
       "name": "实时事件流",
       "summary": "WebSocket 订阅广播+前端实时渲染",
-      "order": 2
+      "order": 2,
+      "importance": "core"
     },
     {
       "id": "intervention",
@@ -65,20 +68,21 @@
       "id": "cli",
       "name": "命令行",
       "summary": "polisim run/step/replay/serve 四个子命令",
-      "order": 0
+      "order": 0,
+      "importance": "auxiliary"
     }
   ],
   "epic_flow": [
     {
       "from": "platform",
       "to": "run-lifecycle",
-      "kind": "enables",
+      "kind": "depends_on",
       "note": "服务启动后才能创建 run"
     },
     {
       "from": "ui-shell",
       "to": "scenario-gallery",
-      "kind": "enables",
+      "kind": "depends_on",
       "note": "顶栏与路由就绪后才能展示画廊"
     },
     {

@@ -54,6 +54,12 @@
 - 阶段从用户视角划分：启动准备 → 配置 → 执行 → 监控/分析 → 工具/辅助
 - 不确定时宁可让多个 Epic 共享同一阶段，也不要全部错开
 
+**可选：给每个 Epic 标 `importance`** 帮助画布做视觉强调：
+- `core`：项目最核心的 1-2 个 Epic（用户最常用、最关键的功能）
+- `auxiliary`：边角辅助模块（日志、调试、国际化、CLI 工具等）
+- 不写或 `normal` = 普通模块（绝大多数 Epic 应该是这一类）
+- **不要把所有 Epic 都标 core**——那等于没标
+
 ### 1.3 列 Feature 骨架（只填 id/name/summary/epicId/triggers/tags）
 
 **不要填 steps / flow**。重型项目里这一步通常列出 **20-200 个 feature**。
@@ -189,29 +195,35 @@
 
 ## 阶段 3.5：epic_flow（Epic 之间的主线）
 
-在 cross_feature 写完后，站在全局视角分析 Epic 之间的宏观流向。
+在 cross_feature 写完后，站在**用户视角**分析 Epic 之间的旅程主线。
 
 ### 你要回答的问题
 
-- 用户使用这个系统的**主线**是什么？（如：配置 → 运行 → 查看结果）
-- 哪些 Epic 是**前置依赖**？（如：用户管理 → 所有业务 Epic）
-- 哪些 Epic 之间有**先后顺序**？（如：下单 → 支付 → 发货）
+- 用户使用这个系统的**主线**是什么？（如：登录 → 浏览 → 配置 → 运行 → 查看结果）
+- 把每条主线写成 epic_flow 的一条边
 
 ### 写入 `epic_flow` 数组
 
 ```json
 "epic_flow": [
-  { "from": "config", "to": "runtime", "kind": "next", "note": "配置完成后才能运行仿真" },
-  { "from": "runtime", "to": "analysis", "kind": "next", "note": "运行完成后查看分析结果" },
-  { "from": "infra", "to": "runtime", "kind": "enables", "note": "基础设施就绪后运行才可用" }
+  { "from": "ui-shell",       "to": "scenario-gallery", "kind": "next", "note": "进入应用后浏览场景" },
+  { "from": "scenario-gallery","to": "run-lifecycle",   "kind": "next", "note": "选定场景后创建运行" },
+  { "from": "run-lifecycle",  "to": "simulation-control","kind": "next", "note": "创建后开始仿真过程" },
+  { "from": "simulation-control","to": "analysis",      "kind": "next", "note": "仿真结束后查看分析" },
+  { "from": "platform",       "to": "run-lifecycle",    "kind": "depends_on", "note": "基础设施支撑业务运行" }
 ]
 ```
 
-### 三种 kind
+### 三种 kind（优先考虑 next）
 
-- `next`：A 完成后自然进入 B（用户主流程的顺序）
-- `depends_on`：B 依赖 A 存在才能工作（基础设施依赖）
-- `enables`：A 使 B 成为可能（权限 / 前置条件）
+- `next`：用户旅程的下一步 ★ 优先用这个
+  - 例：浏览画廊 → 选场景创建 → 看运行过程 → 查看分析
+  - 问自己："用户做完 A 之后会立刻去做 B 吗？" 是 → next
+- `depends_on`：A 是 B 的运行时前置（B 需要 A 一直存在）
+  - 适合基础设施依赖，不是用户旅程的一部分
+- `enables`：A 解锁 B 的能力，但 A、B 在用户旅程上不是顺序关系
+  - 例：登录 → 个人设置（登录了"才能"改设置，但用户不一定每次都改）
+  - ⚠ **不要把"先决条件"全写成 enables**——技术依赖用 depends_on，用户顺序用 next
 
 ### 硬约束
 

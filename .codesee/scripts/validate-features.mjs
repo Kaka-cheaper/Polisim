@@ -185,6 +185,13 @@ function validateEpic(e, i, epicIds) {
     if (!isArray(e.tags)) err(`${p}.tags`, '必须是字符串数组')
     else e.tags.forEach((t, ti) => { if (!isString(t)) err(`${p}.tags[${ti}]`, '必须是字符串') })
   }
+  if (e.order !== undefined && !isNumber(e.order)) err(`${p}.order`, '必须是数字')
+  if (e.importance !== undefined) {
+    const IMPORTANCES = ['core', 'normal', 'auxiliary']
+    if (!IMPORTANCES.includes(e.importance)) {
+      err(`${p}.importance`, `必须是 ${IMPORTANCES.join('/')}`)
+    }
+  }
 }
 
 function validateFeature(f, i, featureIds, epicIds) {
@@ -547,6 +554,35 @@ function detectFileLevelSmells(data) {
       warn(
         `$.features[${i}]`,
         `feature "${f.name}" 步骤多 (${steps.length})，且名字含"面板/看板/中心/详情页"，可能把多个 tab 或子区合并了。考虑拆成多个 feature。`,
+      )
+    }
+  }
+
+  /* 6. epic_flow next 比例（信息提示，不预设阈值） */
+  if (isArray(data.epic_flow) && data.epic_flow.length >= 3) {
+    const epicFlow = data.epic_flow
+    const counts = { next: 0, depends_on: 0, enables: 0 }
+    for (const ef of epicFlow) {
+      if (isObject(ef) && ef.kind in counts) counts[ef.kind]++
+    }
+    const total = epicFlow.length
+    const enablesRatio = counts.enables / total
+    // 只在 enables 异常多时提示——常见症状是 AI 把"先决条件"全写成 enables
+    if (enablesRatio > 0.5 && counts.enables >= 3) {
+      warn(
+        '$.epic_flow',
+        `epic_flow ${counts.next}/${total} next、${counts.depends_on}/${total} depends_on、${counts.enables}/${total} enables。enables 较多，请确认这些是否其实是"用户旅程下一步"（next）或"运行时依赖"（depends_on）——enables 仅适用于"解锁能力但非用户顺序"的场景。`,
+      )
+    }
+  }
+
+  /* 7. epic.importance core 太多 */
+  if (isArray(data.epics) && data.epics.length >= 4) {
+    const coreCount = data.epics.filter((e) => isObject(e) && e.importance === 'core').length
+    if (coreCount >= 3 && coreCount / data.epics.length > 0.5) {
+      warn(
+        '$.epics',
+        `${coreCount}/${data.epics.length} 个 Epic 标了 importance=core。core 应仅用于最核心的 1-2 个 Epic，全部标 core 等于没标。`,
       )
     }
   }

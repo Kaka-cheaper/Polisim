@@ -1,0 +1,302 @@
+{
+  "version": "0",
+  "views": {
+    "features": {
+      "feature:f-app-lifespan": {
+        "x": 345.23281836932324,
+        "y": 701.4459241189567
+      },
+      "feature:f-error-mapping": {
+        "x": 366.7361038059382,
+        "y": 894.3516247198943
+      },
+      "feature:f-health-check": {
+        "x": 6.402770472604885,
+        "y": 701.3516247198943
+      },
+      "feature:f-locale-switch": {
+        "x": 3066.3323383461616,
+        "y": 388.78664258967757
+      },
+      "feature:f-top-bar": {
+        "x": 2664.8263622742456,
+        "y": 396.11528965174716
+      },
+      "feature:f-error-boundary": {
+        "x": 2654.452197573557,
+        "y": 585.3933212948389
+      },
+      "feature:f-list-scenarios": {
+        "x": -196.01655867618686,
+        "y": 2531.3937124413987
+      },
+      "feature:f-gallery-page": {
+        "x": -898.6999857468909,
+        "y": 2272.095743422447
+      },
+      "feature:f-create-run": {
+        "x": 553.9166666666667,
+        "y": 2273
+      },
+      "feature:f-pre-run-page": {
+        "x": 154.0237525039068,
+        "y": 1965.1838044663064
+      },
+      "feature:f-list-runs": {
+        "x": 1230.9166666666667,
+        "y": 2282
+      },
+      "feature:f-get-run": {
+        "x": 925.9166666666667,
+        "y": 2282
+      },
+      "feature:f-delete-run": {
+        "x": 1312.25,
+        "y": 2475
+      },
+      "feature:f-step-tick": {
+        "x": 2075.5750518346804,
+        "y": 586.312383788532
+      },
+      "feature:f-pause-run": {
+        "x": 2209.872887056587,
+        "y": 390.7089452172686
+      },
+      "feature:f-resume-run": {
+        "x": 2037.1083084486872,
+        "y": 172.72133178682776
+      },
+      "feature:f-control-bar": {
+        "x": 1338.6032106683283,
+        "y": 372.6981338217411
+      },
+      "feature:f-ws-subscribe": {
+        "x": 2606.5563501322376,
+        "y": 1354.3378569496363
+      },
+      "feature:f-ws-broadcast": {
+        "x": 2584.5563501322376,
+        "y": 1152.3378569496363
+      },
+      "feature:f-running-page": {
+        "x": 2905.7563501322375,
+        "y": 1538.3378569496363
+      },
+      "feature:f-ws-reconnect": {
+        "x": 2565.7563501322375,
+        "y": 1538.3378569496363
+      },
+      "feature:f-get-state": {
+        "x": 2307.25,
+        "y": 2253
+      },
+      "feature:f-list-snapshots": {
+        "x": 1992.25,
+        "y": 2253
+      },
+      "feature:f-get-snapshot": {
+        "x": 2601.25,
+        "y": 2253
+      },
+      "feature:f-query-events": {
+        "x": 1693.25,
+        "y": 2253
+      },
+      "feature:f-intervene": {
+        "x": 2247.9790868227383,
+        "y": -205.6618636997878
+      },
+      "feature:f-intervention-drawer": {
+        "x": 1319.8404210880367,
+        "y": -206.25026410235546
+      },
+      "feature:f-analysis-get": {
+        "x": 431.2433414646955,
+        "y": 1649.0252535648997
+      },
+      "feature:f-analysis-rerun": {
+        "x": 782.2433414646957,
+        "y": 1649.0252535648997
+      },
+      "feature:f-finished-page": {
+        "x": 796.0433414646956,
+        "y": 1465.0252535648997
+      },
+      "feature:f-replay-panel": {
+        "x": 1061.2433414646957,
+        "y": 1649.0252535648997
+      },
+      "feature:f-cli-run": {
+        "x": 863.5040413709373,
+        "y": 355.12899837869236
+      },
+      "feature:f-cli-step": {
+        "x": 514.5040413709373,
+        "y": 355.12899837869236
+      },
+      "feature:f-cli-replay": {
+        "x": 209.50404137093722,
+        "y": 355.12899837869236
+      },
+      "feature:f-cli-serve": {
+        "x": -82.49595862906256,
+        "y": 355.12899837869236
+      }
+    },
+    "overview": {
+      "epic:platform": {
+        "x": -951.1886124782166,
+        "y": 26.482097402186838
+      },
+      "epic:ui-shell": {
+        "x": -912.8037640115489,
+        "y": 161.18464461616847
+      },
+      "epic:cli": {
+        "x": -937.6296114243088,
+        "y": -143.55376224743472
+      },
+      "epic:scenario-gallery": {
+        "x": -483.40432317186975,
+        "y": 159.73039347352614
+      },
+      "epic:run-lifecycle": {
+        "x": -73.86176669888228,
+        "y": 28.950761955542447
+      },
+      "epic:simulation-control": {
+        "x": 372.1069017493207,
+        "y": 29.616737523895125
+      },
+      "epic:realtime-stream": {
+        "x": 900.3810871997629,
+        "y": 25.795861159637624
+      },
+      "epic:intervention": {
+        "x": 693.2653200447395,
+        "y": -205.00140804079
+      },
+      "epic:state-query": {
+        "x": 1339.82591690579,
+        "y": 21.503774967612927
+      },
+      "epic:analysis": {
+        "x": 692.1006244840517,
+        "y": 233.9716559903223
+      }
+    },
+    "steps:f-cli-serve": {
+      "step:f-cli-serve:parse": {
+        "x": 16,
+        "y": 16
+      },
+      "step:f-cli-serve:config": {
+        "x": 276,
+        "y": 16
+      },
+      "step:f-cli-serve:create": {
+        "x": 536,
+        "y": 16
+      },
+      "step:f-cli-serve:run": {
+        "x": 796,
+        "y": 16
+      },
+      "step:f-cli-serve:shutdown": {
+        "x": 1056,
+        "y": 16
+      }
+    },
+    "steps:f-cli-replay": {
+      "step:f-cli-replay:parse": {
+        "x": 16,
+        "y": 25.166666666666664
+      },
+      "step:f-cli-replay:open": {
+        "x": 276,
+        "y": 25.166666666666664
+      },
+      "step:f-cli-replay:missing": {
+        "x": 536,
+        "y": 107
+      },
+      "step:f-cli-replay:iterate": {
+        "x": 536,
+        "y": 16
+      },
+      "step:f-cli-replay:filter": {
+        "x": 796,
+        "y": 16
+      },
+      "step:f-cli-replay:print": {
+        "x": 1056,
+        "y": 16
+      },
+      "step:f-cli-replay:summary": {
+        "x": 1316,
+        "y": 16
+      }
+    },
+    "steps:f-error-mapping": {
+      "step:f-error-mapping:register": {
+        "x": 16,
+        "y": 51.75
+      },
+      "step:f-error-mapping:catch": {
+        "x": 276,
+        "y": 51.75
+      },
+      "step:f-error-mapping:lookup": {
+        "x": 536,
+        "y": 51.75
+      },
+      "step:f-error-mapping:collect-issues": {
+        "x": 833.2707006369427,
+        "y": 157.86624203821657
+      },
+      "step:f-error-mapping:fallback": {
+        "x": 828.3694267515923,
+        "y": -111.515923566879
+      },
+      "step:f-error-mapping:build": {
+        "x": 1209.1847133757963,
+        "y": 46.29299363057324
+      },
+      "step:f-error-mapping:respond": {
+        "x": 1545.6942675159237,
+        "y": 52.178343949044574
+      }
+    },
+    "steps:f-gallery-page": {
+      "step:f-gallery-page:mount": {
+        "x": 16,
+        "y": 29.75
+      },
+      "step:f-gallery-page:fetch": {
+        "x": 276,
+        "y": 29.75
+      },
+      "step:f-gallery-page:skeleton": {
+        "x": 536,
+        "y": 16
+      },
+      "step:f-gallery-page:error-banner": {
+        "x": 534.4458598726114,
+        "y": 315.3375796178344
+      },
+      "step:f-gallery-page:render-cards": {
+        "x": 536,
+        "y": 107
+      },
+      "step:f-gallery-page:select-provider": {
+        "x": 796,
+        "y": 94
+      },
+      "step:f-gallery-page:click-start": {
+        "x": 1056,
+        "y": 107
+      }
+    }
+  },
+  "generated_at": "2026-05-15T06:47:25.850Z"
+}

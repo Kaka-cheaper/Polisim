@@ -25,6 +25,11 @@
      - 不要把 N 个 Epic 编成 0,1,2,...,N-1 这种全递增——那会让画布变成一条横线
      - 阶段从用户视角划分：启动准备 → 配置 → 执行 → 监控/分析 → 工具/辅助
      - 不确定时宁可让多个 Epic 共享同一阶段，也不要全部错开
+   - **可选：给每个 Epic 标 `importance`** 帮助画布做视觉强调：
+     - `core`：项目最核心的 1-2 个 Epic（用户最常用、最关键的功能）
+     - `auxiliary`：边角辅助模块（如日志、调试、国际化、CLI 工具等）
+     - 不写或 `normal` = 普通模块（绝大多数 Epic 应该是这一类）
+     - **不要把所有 Epic 都标 core**——那等于没标
 
 3. **抽 Feature（用户可感知的能力）**：
    - 一个 HTTP 端点 ≈ 一个 feature，CRUD 各拆开
@@ -81,15 +86,20 @@
    用 `triggers` 在对应 feature 之间画导航边。
 
 7. **epic_flow（Epic 之间的主线）**：
-   在所有 feature 写完后，站在全局视角分析 Epic 之间的宏观流向：
-   - 用户使用这个系统的主线是什么？（如：配置 → 运行 → 查看结果）
-   - 哪些 Epic 是前置依赖？（如：用户管理 → 所有业务 Epic）
-   - 哪些 Epic 之间有"先后"关系？（如：下单 → 支付 → 发货）
+   在所有 feature 写完后，站在**用户视角**分析 Epic 之间的旅程主线：
+   - 用户使用这个系统的主线是什么？（如：登录 → 浏览 → 配置 → 运行 → 查看结果）
+   - 把每条主线写成 epic_flow 的一条边
 
-   写入 `epic_flow` 数组，三种 kind：
-   - `next`：A 完成后自然进入 B（用户主流程的顺序）
-   - `depends_on`：B 依赖 A 存在才能工作（基础设施依赖）
-   - `enables`：A 使 B 成为可能（权限 / 前置条件）
+   写入 `epic_flow` 数组，三种 kind（**优先用 next**）：
+
+   - `next`：用户旅程的下一步 ★ 优先用这个
+     - 例：浏览画廊 → 选场景创建 → 看运行过程 → 查看分析
+     - 问自己："用户做完 A 之后会立刻去做 B 吗？" 是 → next
+   - `depends_on`：A 是 B 的运行时前置（B 需要 A 一直存在）
+     - 罕用，**全局只画 1-2 条**代表性的（如基础设施 → 核心业务）
+   - `enables`：A 解锁 B 的能力，但 A、B 在用户旅程上不是顺序关系
+     - 例：登录 → 个人设置（登录了"才能"改设置，但用户不一定每次都改）
+     - ⚠ **不要把"先决条件"全写成 enables**——技术依赖用 depends_on，用户顺序用 next
 
    硬约束：
    - 通常 3-8 条即可，不要把所有 Epic 都连起来。只画**用户能感知的主线**。
@@ -119,7 +129,7 @@ type FeaturesFile = {
   cross_feature?: CrossFeatureLink[]
 }
 
-type Epic = { id: string; name: string; summary?: string; tags?: string[]; order?: number }
+type Epic = { id: string; name: string; summary?: string; tags?: string[]; order?: number; importance?: 'core' | 'normal' | 'auxiliary' }
 
 type Feature = {
   id: string                          // 'f-xxx'
