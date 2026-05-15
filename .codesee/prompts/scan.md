@@ -92,4 +92,32 @@ type FeaturesFile = {
 }
 ```
 
+### 严格枚举（不要编造其他值）
+
+```
+trigger.kind:  http | cli | cron | event | ui | manual | startup | unknown
+step.role:     input | validation | auth | data-read | data-write
+               | compute | transform | side-effect | output | error | other
+flow.kind:     next | async | conditional | loop | error    ⚠ 必填，不能省略
+cross.kind:    depends_on | publishes | subscribes | triggers
+epic_flow.kind: next | depends_on | enables
+epic_flow.note: ⚠ 必填，中文语义短句（如"配置完成后运行"），不要写技术词
+epic.order:    数字，从 0 开始，表示用户旅程顺序；同 order 横排
+provenance:    ai | user
+```
+
+常见编造误区与正确归类：
+
+```
+| 你想表达                    | 正确归类                       |
+| --------------------------- | ------------------------------ |
+| 业务计算 / 算法 (logic)     | step.role = 'compute'          |
+| 初始化 / 清理 / 加载资源    | step.role = 'other'            |
+| WebSocket / SSE 连接        | trigger.kind = 'http'          |
+| 应用启动 / 模块加载         | trigger.kind = 'startup'       |
+| 内部触发（不属于上述）       | trigger.kind = 'event'         |
+| 不确定                      | trigger.kind = 'unknown'       |
+| 顺序步骤（最常见）           | flow.kind = 'next'             |
+```
+
 完整字段约束写在 `.codesee/prompts/scan-light.md` / `.codesee/prompts/scan-heavy.md` 里。

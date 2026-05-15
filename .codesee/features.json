@@ -1,72 +1,4055 @@
-{"version":"0","manifest":{"repo":"Polisim","commit":"f4e1c03","generated_at":"2026-05-14T21:00:00Z","generator":"ai@claude-opus-4.6"},"epics":[{"id":"scenario-gallery","name":"场景画廊","summary":"浏览可用场景并选择一个开始仿真"},{"id":"run-lifecycle","name":"Run 生命周期","summary":"创建、查询、删除仿真 run"},{"id":"simulation-control","name":"仿真控制","summary":"step/pause/resume 驱动 tick 推进"},{"id":"state-query","name":"状态与事件查询","summary":"查询 WorldState/快照/事件流"},{"id":"intervention","name":"人工干预","summary":"暂停期间注入消息/强制动作/修改属性"},{"id":"realtime-stream","name":"实时事件流","summary":"WebSocket 订阅广播+前端实时渲染"},{"id":"analysis","name":"分析报告","summary":"Phase A 纯规则+Phase C LLM 增强双轨分析"},{"id":"cli","name":"命令行","summary":"polisim run/step/replay/serve 四个子命令"},{"id":"platform","name":"平台基础设施","summary":"Server 启动关闭/错误映射/健康检查"},{"id":"ui-shell","name":"前端外壳","summary":"顶栏/多语言/错误边界"}],"epic_flow":[{"from":"platform","to":"run-lifecycle","kind":"enables","note":"server 启动后 CRUD 才可用"},{"from":"scenario-gallery","to":"run-lifecycle","kind":"next","note":"用户选场景→创建 run"},{"from":"run-lifecycle","to":"simulation-control","kind":"next","note":"创建后进入仿真"},{"from":"simulation-control","to":"realtime-stream","kind":"enables","note":"step 产生事件才有推送"},{"from":"simulation-control","to":"intervention","kind":"enables","note":"暂停后才能干预"},{"from":"simulation-control","to":"analysis","kind":"next","note":"跑完进入分析"},{"from":"realtime-stream","to":"state-query","kind":"enables","note":"推送驱动按需查询"},{"from":"ui-shell","to":"scenario-gallery","kind":"enables","note":"路由/i18n 是前置"}],"features":[
-{"id":"f-list-scenarios","name":"列出可用场景","summary":"扫描目录组装画廊摘要","epicId":"scenario-gallery","triggers":[{"kind":"http","detail":"GET /api/v1/scenarios"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/meta.py"}]},{"id":"scan","name":"遍历子目录","role":"data-read"},{"id":"parse","name":"解析场景文件","role":"transform"},{"id":"skip","name":"跳过损坏文件","role":"error"},{"id":"build","name":"组装摘要列表","role":"transform","refs":[{"file":"server/api/v1/schemas.py"}]},{"id":"respond","name":"返回排序结果","role":"output"}],"flow":[{"from":"receive","to":"scan","kind":"next"},{"from":"scan","to":"parse","kind":"loop"},{"from":"parse","to":"skip","kind":"error"},{"from":"parse","to":"build","kind":"next"},{"from":"build","to":"respond","kind":"next"}],"confidence":0.95,"provenance":"ai","tags":["scenario"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-gallery-page","name":"场景画廊页","summary":"拉取场景列表渲染卡片网格","epicId":"scenario-gallery","triggers":[{"kind":"ui","detail":"导航到 /"}],"steps":[{"id":"mount","name":"进入画廊","role":"input","refs":[{"file":"web/src/routes/Gallery.tsx"}]},{"id":"fetch","name":"拉取场景列表","role":"side-effect","refs":[{"file":"web/src/hooks/useScenarios.ts"}]},{"id":"error-banner","name":"显示错误横幅","role":"error"},{"id":"render","name":"渲染场景卡片","role":"output","refs":[{"file":"web/src/components/ScenarioCard.tsx"}]},{"id":"select","name":"选择模型档位","role":"input"},{"id":"click","name":"点击开始","role":"input"}],"flow":[{"from":"mount","to":"fetch","kind":"next"},{"from":"fetch","to":"error-banner","kind":"error"},{"from":"fetch","to":"render","kind":"next"},{"from":"render","to":"select","kind":"next"},{"from":"select","to":"click","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["frontend"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-create-run","name":"创建仿真 run","summary":"加载配置构造运行时注册到内存表","epicId":"run-lifecycle","triggers":[{"kind":"http","detail":"POST /api/v1/runs"}],"steps":[{"id":"receive","name":"接收创建请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"resolve","name":"解析文件路径","role":"compute","refs":[{"file":"server/services/run_service.py"}]},{"id":"load","name":"加载并校验配置","role":"data-read","refs":[{"file":"core/definition_loader.py"},{"file":"core/scenario_loader.py"}]},{"id":"provider","name":"构造决策提供者","role":"compute"},{"id":"instantiate","name":"实例化运行时","role":"compute","refs":[{"file":"core/runtime.py"}]},{"id":"register","name":"注册到内存表","role":"side-effect","refs":[{"file":"server/runtime_registry.py"}]},{"id":"full","name":"并发上限拒绝","role":"error","note":"503"},{"id":"respond","name":"返回详情","role":"output"}],"flow":[{"from":"receive","to":"resolve","kind":"next"},{"from":"resolve","to":"load","kind":"next"},{"from":"load","to":"provider","kind":"next"},{"from":"provider","to":"instantiate","kind":"next"},{"from":"instantiate","to":"register","kind":"next"},{"from":"register","to":"full","kind":"error"},{"from":"register","to":"respond","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["run"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-pre-run-page","name":"跑前介绍页","summary":"展示场景叙事后进入仿真","epicId":"run-lifecycle","triggers":[{"kind":"ui","detail":"导航到 /runs/:runId/intro"}],"steps":[{"id":"load","name":"拉取详情","role":"data-read","refs":[{"file":"web/src/hooks/useRun.ts"}]},{"id":"intro","name":"渲染场景介绍","role":"output","refs":[{"file":"web/src/components/ScenarioIntroPanel.tsx"}]},{"id":"start","name":"点击开始仿真","role":"input"},{"id":"nav","name":"跳转运行页","role":"output"},{"id":"back","name":"返回画廊","role":"input"},{"id":"delete","name":"删除并回退","role":"side-effect"}],"flow":[{"from":"load","to":"intro","kind":"next"},{"from":"intro","to":"start","kind":"next"},{"from":"start","to":"nav","kind":"next"},{"from":"intro","to":"back","kind":"next"},{"from":"back","to":"delete","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["frontend"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-list-runs","name":"列出 run","summary":"按状态过滤分页返回摘要","epicId":"run-lifecycle","triggers":[{"kind":"http","detail":"GET /api/v1/runs"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"validate","name":"校验参数","role":"validation"},{"id":"bad","name":"参数非法拒绝","role":"error"},{"id":"enum","name":"枚举注册表","role":"data-read","refs":[{"file":"server/runtime_registry.py"}]},{"id":"filter","name":"过滤并分页","role":"transform"},{"id":"respond","name":"返回列表","role":"output"}],"flow":[{"from":"receive","to":"validate","kind":"next"},{"from":"validate","to":"bad","kind":"error"},{"from":"validate","to":"enum","kind":"next"},{"from":"enum","to":"filter","kind":"next"},{"from":"filter","to":"respond","kind":"next"}],"confidence":0.95,"provenance":"ai","tags":["run"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-get-run","name":"查询 run 详情","summary":"返回完整配置与状态","epicId":"run-lifecycle","triggers":[{"kind":"http","detail":"GET /api/v1/runs/{run_id}"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"lookup","name":"查注册表","role":"data-read"},{"id":"miss","name":"不存在返回 404","role":"error"},{"id":"compose","name":"组装详情","role":"transform"},{"id":"respond","name":"返回结果","role":"output"}],"flow":[{"from":"receive","to":"lookup","kind":"next"},{"from":"lookup","to":"miss","kind":"error"},{"from":"lookup","to":"compose","kind":"next"},{"from":"compose","to":"respond","kind":"next"}],"confidence":0.95,"provenance":"ai","tags":["run"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-delete-run","name":"关闭并移除 run","summary":"从注册表卸载并关闭句柄","epicId":"run-lifecycle","triggers":[{"kind":"http","detail":"DELETE /api/v1/runs/{run_id}"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"shutdown","name":"关闭运行时","role":"side-effect","refs":[{"file":"server/runtime_registry.py"}]},{"id":"respond","name":"返回 204","role":"output"}],"flow":[{"from":"receive","to":"shutdown","kind":"next"},{"from":"shutdown","to":"respond","kind":"next"}],"confidence":0.95,"provenance":"ai","tags":["run"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-step-tick","name":"推进一 tick","summary":"决策→规则→落事件→广播","epicId":"simulation-control","triggers":[{"kind":"http","detail":"POST /api/v1/runs/{run_id}/step"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"lookup","name":"查注册表","role":"data-read"},{"id":"miss","name":"不存在返回 404","role":"error"},{"id":"resume-if","name":"暂停态临时恢复","role":"compute","refs":[{"file":"server/services/run_service.py"}]},{"id":"advance","name":"执行一轮决策","role":"compute","refs":[{"file":"core/runtime.py"}]},{"id":"err","name":"规则求解失败","role":"error","note":"500"},{"id":"repause","name":"手动单步后再暂停","role":"compute"},{"id":"broadcast","name":"广播进度事件","role":"side-effect","refs":[{"file":"server/services/stream_service.py"}]},{"id":"respond","name":"返回结果","role":"output"}],"flow":[{"from":"receive","to":"lookup","kind":"next"},{"from":"lookup","to":"miss","kind":"error"},{"from":"lookup","to":"resume-if","kind":"next"},{"from":"resume-if","to":"advance","kind":"next"},{"from":"advance","to":"err","kind":"error"},{"from":"advance","to":"repause","kind":"conditional","condition":"原为手动暂停"},{"from":"advance","to":"broadcast","kind":"next"},{"from":"repause","to":"broadcast","kind":"next"},{"from":"broadcast","to":"respond","kind":"async"}],"confidence":0.8,"provenance":"ai","tags":["tick"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-pause-run","name":"暂停 run","summary":"标记暂停并推送事件","epicId":"simulation-control","triggers":[{"kind":"http","detail":"POST /api/v1/runs/{run_id}/pause"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"lookup","name":"查注册表","role":"data-read"},{"id":"miss","name":"不存在返回 404","role":"error"},{"id":"set","name":"标记暂停","role":"side-effect"},{"id":"broadcast","name":"推送暂停事件","role":"side-effect"},{"id":"respond","name":"返回状态","role":"output"}],"flow":[{"from":"receive","to":"lookup","kind":"next"},{"from":"lookup","to":"miss","kind":"error"},{"from":"lookup","to":"set","kind":"next"},{"from":"set","to":"broadcast","kind":"conditional","condition":"原非暂停态"},{"from":"set","to":"respond","kind":"next"},{"from":"broadcast","to":"respond","kind":"async"}],"confidence":0.9,"provenance":"ai","tags":["pause"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-resume-run","name":"恢复 run","summary":"解除暂停并推送恢复事件","epicId":"simulation-control","triggers":[{"kind":"http","detail":"POST /api/v1/runs/{run_id}/resume"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"lookup","name":"查注册表","role":"data-read"},{"id":"miss","name":"不存在返回 404","role":"error"},{"id":"clear","name":"清除暂停标志","role":"side-effect"},{"id":"broadcast","name":"推送恢复事件","role":"side-effect"},{"id":"respond","name":"返回状态","role":"output"}],"flow":[{"from":"receive","to":"lookup","kind":"next"},{"from":"lookup","to":"miss","kind":"error"},{"from":"lookup","to":"clear","kind":"next"},{"from":"clear","to":"broadcast","kind":"conditional","condition":"原为暂停态"},{"from":"clear","to":"respond","kind":"next"},{"from":"broadcast","to":"respond","kind":"async"}],"confidence":0.9,"provenance":"ai","tags":["resume"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-running-page","name":"实时运行页","summary":"订阅事件流+自动推进+三种布局渲染","epicId":"realtime-stream","triggers":[{"kind":"ui","detail":"导航到 /runs/:runId/run"}],"steps":[{"id":"load","name":"拉取详情","role":"data-read","refs":[{"file":"web/src/hooks/useRun.ts"}]},{"id":"subscribe","name":"订阅事件流","role":"side-effect","refs":[{"file":"web/src/hooks/useRunStream.ts"}]},{"id":"auto-step","name":"自动推进循环","role":"side-effect","note":"按速度档节奏调 step","refs":[{"file":"web/src/routes/Running.tsx"}]},{"id":"render","name":"渲染态势布局","role":"output","refs":[{"file":"web/src/routes/Running.tsx"}]},{"id":"render-dash","name":"渲染迷你仪表盘","role":"output","refs":[{"file":"web/src/components/MiniDashboard.tsx"}]},{"id":"render-bubble","name":"渲染决策气泡","role":"output","refs":[{"file":"web/src/components/LLMThoughtBubble.tsx"}]},{"id":"paused-toast","name":"暂停原因提示","role":"output"},{"id":"nav-finished","name":"完成后跳转","role":"output"},{"id":"exit","name":"退出清理","role":"side-effect"}],"flow":[{"from":"load","to":"subscribe","kind":"next"},{"from":"subscribe","to":"auto-step","kind":"next"},{"from":"subscribe","to":"render","kind":"next"},{"from":"render","to":"render-dash","kind":"next"},{"from":"render","to":"render-bubble","kind":"next"},{"from":"subscribe","to":"paused-toast","kind":"conditional","condition":"收到暂停事件"},{"from":"subscribe","to":"nav-finished","kind":"conditional","condition":"收到完成事件"},{"from":"render","to":"exit","kind":"next"}],"confidence":0.75,"provenance":"ai","tags":["frontend","realtime"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-ws-subscribe","name":"订阅事件流","summary":"客户端建连后分配队列并发推送","epicId":"realtime-stream","triggers":[{"kind":"http","detail":"WS /api/v1/runs/{run_id}/stream"}],"steps":[{"id":"connect","name":"客户端建连","role":"input","refs":[{"file":"web/src/api/ws.ts"}]},{"id":"accept","name":"接受连接","role":"side-effect","refs":[{"file":"server/api/v1/routes/ws.py"}]},{"id":"guard","name":"校验 run 存在","role":"validation"},{"id":"reject","name":"不存在关闭 4004","role":"error"},{"id":"alloc","name":"分配消息队列","role":"side-effect","refs":[{"file":"server/services/stream_service.py"}]},{"id":"loops","name":"并发推送与接收","role":"side-effect"},{"id":"cleanup","name":"释放订阅","role":"other"}],"flow":[{"from":"connect","to":"accept","kind":"next"},{"from":"accept","to":"guard","kind":"next"},{"from":"guard","to":"reject","kind":"error"},{"from":"guard","to":"alloc","kind":"next"},{"from":"alloc","to":"loops","kind":"next"},{"from":"loops","to":"cleanup","kind":"next"}],"confidence":0.85,"provenance":"ai","tags":["websocket"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-ws-broadcast","name":"广播事件到订阅者","summary":"跨线程投递事件到每个订阅者队列","epicId":"realtime-stream","triggers":[{"kind":"event","detail":"RunService 调用 broadcast"}],"steps":[{"id":"trigger","name":"业务层触发","role":"input","refs":[{"file":"server/services/run_service.py"}]},{"id":"serialize","name":"序列化事件","role":"transform","refs":[{"file":"server/services/stream_service.py"}]},{"id":"ser-fail","name":"序列化失败降级","role":"error","note":"静默丢弃不阻断主流程"},{"id":"snapshot","name":"锁内取订阅者快照","role":"data-read"},{"id":"put","name":"跨线程入队","role":"side-effect"},{"id":"drop","name":"队列满时丢弃","role":"error"}],"flow":[{"from":"trigger","to":"serialize","kind":"next"},{"from":"serialize","to":"ser-fail","kind":"error"},{"from":"serialize","to":"snapshot","kind":"next"},{"from":"snapshot","to":"put","kind":"loop"},{"from":"put","to":"drop","kind":"error"}],"confidence":0.8,"provenance":"ai","tags":["websocket"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-control-bar","name":"运行中控制条","summary":"提供暂停/恢复/单步/速度/退出按钮","epicId":"simulation-control","triggers":[{"kind":"ui","detail":"Running 页顶部"}],"steps":[{"id":"render","name":"渲染状态徽章","role":"output","refs":[{"file":"web/src/components/ControlBar.tsx"}]},{"id":"pause","name":"点击暂停","role":"input"},{"id":"resume","name":"点击恢复","role":"input"},{"id":"step","name":"点击单步","role":"input"},{"id":"speed","name":"切换速度","role":"input"},{"id":"exit","name":"点击退出","role":"input"},{"id":"feedback","name":"界面反馈","role":"output"}],"flow":[{"from":"render","to":"pause","kind":"next"},{"from":"render","to":"resume","kind":"next"},{"from":"render","to":"step","kind":"next"},{"from":"render","to":"speed","kind":"next"},{"from":"render","to":"exit","kind":"next"},{"from":"pause","to":"feedback","kind":"async"},{"from":"resume","to":"feedback","kind":"async"},{"from":"step","to":"feedback","kind":"async"}],"confidence":0.85,"provenance":"ai","tags":["frontend"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-get-state","name":"查询当前状态","summary":"返回实体/关系/环境全量","epicId":"state-query","triggers":[{"kind":"http","detail":"GET /api/v1/runs/{run_id}/state"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"lookup","name":"查注册表","role":"data-read"},{"id":"miss","name":"不存在返回 404","role":"error"},{"id":"snapshot","name":"取实时状态","role":"data-read","refs":[{"file":"core/runtime.py"}]},{"id":"respond","name":"返回结果","role":"output"}],"flow":[{"from":"receive","to":"lookup","kind":"next"},{"from":"lookup","to":"miss","kind":"error"},{"from":"lookup","to":"snapshot","kind":"next"},{"from":"snapshot","to":"respond","kind":"next"}],"confidence":0.95,"provenance":"ai","tags":["state"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-list-snapshots","name":"列出已存 tick","summary":"扫描快照目录提取编号列表","epicId":"state-query","triggers":[{"kind":"http","detail":"GET /api/v1/runs/{run_id}/snapshots"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"lookup","name":"查注册表","role":"data-read"},{"id":"miss","name":"不存在返回 404","role":"error"},{"id":"scan","name":"扫描快照目录","role":"data-read","refs":[{"file":"server/services/run_service.py"}]},{"id":"respond","name":"返回升序列表","role":"output"}],"flow":[{"from":"receive","to":"lookup","kind":"next"},{"from":"lookup","to":"miss","kind":"error"},{"from":"lookup","to":"scan","kind":"next"},{"from":"scan","to":"respond","kind":"next"}],"confidence":0.95,"provenance":"ai","tags":["snapshot"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-get-snapshot","name":"查询指定快照","summary":"读取指定 tick 的快照","epicId":"state-query","triggers":[{"kind":"http","detail":"GET /api/v1/runs/{run_id}/snapshots/{tick}"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"lookup","name":"查注册表","role":"data-read"},{"id":"miss-run","name":"run 不存在","role":"error"},{"id":"read","name":"读取快照文件","role":"data-read","refs":[{"file":"core/runtime.py"}]},{"id":"miss-tick","name":"tick 缺失返回 404","role":"error"},{"id":"respond","name":"返回快照","role":"output"}],"flow":[{"from":"receive","to":"lookup","kind":"next"},{"from":"lookup","to":"miss-run","kind":"error"},{"from":"lookup","to":"read","kind":"next"},{"from":"read","to":"miss-tick","kind":"error"},{"from":"read","to":"respond","kind":"next"}],"confidence":0.95,"provenance":"ai","tags":["snapshot"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-query-events","name":"事件查询","summary":"按条件过滤分页返回事件","epicId":"state-query","triggers":[{"kind":"http","detail":"GET /api/v1/runs/{run_id}/events"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/runs.py"}]},{"id":"validate","name":"校验参数","role":"validation","refs":[{"file":"server/services/run_service.py"}]},{"id":"bad","name":"参数非法拒绝","role":"error"},{"id":"lookup","name":"查注册表","role":"data-read"},{"id":"miss","name":"不存在返回 404","role":"error"},{"id":"filter","name":"过滤事件","role":"data-read","refs":[{"file":"core/events.py"}]},{"id":"page","name":"分页切片","role":"transform"},{"id":"respond","name":"返回事件列表","role":"output"}],"flow":[{"from":"receive","to":"validate","kind":"next"},{"from":"validate","to":"bad","kind":"error"},{"from":"validate","to":"lookup","kind":"next"},{"from":"lookup","to":"miss","kind":"error"},{"from":"lookup","to":"filter","kind":"next"},{"from":"filter","to":"page","kind":"next"},{"from":"page","to":"respond","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["event"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-intervene","name":"应用人工干预","summary":"注入消息/强制动作/覆盖属性三种","epicId":"intervention","triggers":[{"kind":"http","detail":"POST /api/v1/runs/{run_id}/intervene"}],"steps":[{"id":"receive","name":"接收干预请求","role":"input","refs":[{"file":"server/api/v1/routes/interventions.py"}]},{"id":"validate","name":"校验干预体","role":"validation","refs":[{"file":"models/runtime_models.py"}]},{"id":"bad","name":"校验失败拒绝","role":"error","note":"400"},{"id":"lookup","name":"查注册表","role":"data-read"},{"id":"miss","name":"不存在返回 404","role":"error"},{"id":"apply","name":"应用干预效果","role":"side-effect","refs":[{"file":"core/runtime.py"}]},{"id":"record","name":"写干预事件","role":"data-write"},{"id":"respond","name":"返回事件记录","role":"output"}],"flow":[{"from":"receive","to":"validate","kind":"next"},{"from":"validate","to":"bad","kind":"error"},{"from":"validate","to":"lookup","kind":"next"},{"from":"lookup","to":"miss","kind":"error"},{"from":"lookup","to":"apply","kind":"next"},{"from":"apply","to":"record","kind":"next"},{"from":"record","to":"respond","kind":"next"}],"confidence":0.85,"provenance":"ai","tags":["intervention"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-intervention-drawer","name":"干预抽屉","summary":"三 tab 表单填写+自动暂停恢复桥接","epicId":"intervention","triggers":[{"kind":"ui","detail":"Running 页点击实体"}],"steps":[{"id":"click","name":"点击实体","role":"input","refs":[{"file":"web/src/routes/Running.tsx"}]},{"id":"auto-pause","name":"自动暂停","role":"side-effect","refs":[{"file":"web/src/hooks/usePause.ts"}]},{"id":"open","name":"打开抽屉","role":"output","refs":[{"file":"web/src/components/InterventionDrawer.tsx"}]},{"id":"fill","name":"填写表单","role":"input"},{"id":"validate","name":"客户端校验","role":"validation"},{"id":"fail-validate","name":"校验失败提示","role":"error"},{"id":"submit","name":"提交干预","role":"side-effect","refs":[{"file":"web/src/hooks/useIntervene.ts"}]},{"id":"auto-resume","name":"成功后自动恢复","role":"side-effect"},{"id":"success","name":"提示成功关抽屉","role":"output"},{"id":"fail-submit","name":"失败保留抽屉","role":"error"}],"flow":[{"from":"click","to":"auto-pause","kind":"conditional","condition":"当前为运行态"},{"from":"click","to":"open","kind":"next"},{"from":"auto-pause","to":"open","kind":"next"},{"from":"open","to":"fill","kind":"next"},{"from":"fill","to":"validate","kind":"next"},{"from":"validate","to":"fail-validate","kind":"error"},{"from":"validate","to":"submit","kind":"next"},{"from":"submit","to":"fail-submit","kind":"error"},{"from":"submit","to":"auto-resume","kind":"conditional","condition":"原非手动暂停"},{"from":"submit","to":"success","kind":"next"},{"from":"auto-resume","to":"success","kind":"next"}],"confidence":0.75,"provenance":"ai","tags":["frontend","intervention"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-analysis-get","name":"获取分析报告","summary":"跑 Phase A 可选 Phase C 返回结果","epicId":"analysis","triggers":[{"kind":"http","detail":"GET /api/v1/runs/{run_id}/analysis"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/analysis.py"}]},{"id":"lookup","name":"查注册表","role":"data-read"},{"id":"miss","name":"不存在返回 404","role":"error"},{"id":"guard","name":"校验落盘模式","role":"validation"},{"id":"no-persist","name":"内存模式拒绝","role":"error","note":"400"},{"id":"phase-a","name":"执行纯规则分析","role":"compute","refs":[{"file":"core/analysis.py"}]},{"id":"check-mock","name":"检查是否为模拟提供者","role":"compute"},{"id":"phase-c","name":"执行增强分析","role":"side-effect","refs":[{"file":"core/analysis.py"}]},{"id":"llm-fail","name":"增强失败降级","role":"error","note":"502"},{"id":"persist","name":"落盘结果","role":"data-write"},{"id":"respond","name":"返回分析结果","role":"output"}],"flow":[{"from":"receive","to":"lookup","kind":"next"},{"from":"lookup","to":"miss","kind":"error"},{"from":"lookup","to":"guard","kind":"next"},{"from":"guard","to":"no-persist","kind":"error"},{"from":"guard","to":"phase-a","kind":"next"},{"from":"phase-a","to":"check-mock","kind":"conditional","condition":"enhance=true"},{"from":"check-mock","to":"phase-c","kind":"conditional","condition":"非模拟提供者"},{"from":"check-mock","to":"persist","kind":"next"},{"from":"phase-c","to":"llm-fail","kind":"error"},{"from":"phase-c","to":"persist","kind":"next"},{"from":"phase-a","to":"persist","kind":"next"},{"from":"persist","to":"respond","kind":"next"}],"confidence":0.8,"provenance":"ai","tags":["analysis"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-analysis-rerun","name":"重跑分析","summary":"前端重跑增强按钮触发","epicId":"analysis","triggers":[{"kind":"http","detail":"POST /api/v1/runs/{run_id}/analyze"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/analysis.py"}]},{"id":"validate","name":"校验请求体","role":"validation","refs":[{"file":"server/api/v1/schemas.py"}]},{"id":"delegate","name":"委托分析服务","role":"compute","refs":[{"file":"server/services/analysis_service.py"}]},{"id":"respond","name":"返回结果","role":"output"}],"flow":[{"from":"receive","to":"validate","kind":"next"},{"from":"validate","to":"delegate","kind":"next"},{"from":"delegate","to":"respond","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["analysis"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-finished-page","name":"已结束页面","summary":"双查询拉分析结果+指标卡+叙事+副区","epicId":"analysis","triggers":[{"kind":"ui","detail":"导航到 /runs/:runId/finished"}],"steps":[{"id":"load","name":"拉取详情与分析","role":"data-read","refs":[{"file":"web/src/routes/Finished.tsx"}]},{"id":"fatal","name":"分析失败兜底","role":"error"},{"id":"metrics","name":"渲染指标卡","role":"output","refs":[{"file":"web/src/components/FinishedMetricsCard.tsx"}]},{"id":"narrative","name":"渲染叙事报告","role":"output","refs":[{"file":"web/src/components/NarrativeReport.tsx"}]},{"id":"side","name":"渲染副区面板","role":"output","refs":[{"file":"web/src/components/FinishedSidePanel.tsx"}]},{"id":"rerun","name":"点击重跑","role":"input"},{"id":"create-new","name":"创建新 run 并跳转","role":"side-effect"}],"flow":[{"from":"load","to":"fatal","kind":"error"},{"from":"load","to":"metrics","kind":"next"},{"from":"load","to":"narrative","kind":"next"},{"from":"load","to":"side","kind":"next"},{"from":"metrics","to":"rerun","kind":"next"},{"from":"rerun","to":"create-new","kind":"next"}],"confidence":0.8,"provenance":"ai","tags":["frontend","analysis"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-replay-panel","name":"事件重放面板","summary":"tick 滑块+按 tick 显示事件","epicId":"analysis","triggers":[{"kind":"ui","detail":"Finished 副区重放 tab"}],"steps":[{"id":"load","name":"接收全部事件","role":"data-read","refs":[{"file":"web/src/hooks/useEvents.ts"}]},{"id":"bucket","name":"按 tick 分桶","role":"transform","refs":[{"file":"web/src/components/ReplayPanel.tsx"}]},{"id":"render","name":"渲染控制按钮","role":"output"},{"id":"scrub","name":"拖动时间轴","role":"input"},{"id":"show","name":"显示当前事件","role":"output"}],"flow":[{"from":"load","to":"bucket","kind":"next"},{"from":"bucket","to":"render","kind":"next"},{"from":"render","to":"scrub","kind":"next"},{"from":"scrub","to":"show","kind":"next"}],"confidence":0.85,"provenance":"ai","tags":["frontend","replay"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-cli-run","name":"端到端运行","summary":"加载→跑 tick→落盘→分析","epicId":"cli","triggers":[{"kind":"cli","detail":"python -m cli run <scenario.yaml>"}],"steps":[{"id":"parse","name":"解析命令行","role":"input","refs":[{"file":"cli/run.py"}]},{"id":"load","name":"加载配置","role":"data-read","refs":[{"file":"cli/run.py"}]},{"id":"provider","name":"构造提供者","role":"compute"},{"id":"loop","name":"推进 tick 循环","role":"compute","refs":[{"file":"cli/run.py"}]},{"id":"print","name":"打印摘要","role":"output"},{"id":"phase-a","name":"自动跑分析","role":"side-effect","refs":[{"file":"core/analysis.py"}]},{"id":"phase-c","name":"可选增强分析","role":"side-effect"},{"id":"enhance-fail","name":"增强失败保留基础版","role":"error"},{"id":"exit","name":"返回退出码","role":"output"}],"flow":[{"from":"parse","to":"load","kind":"next"},{"from":"load","to":"provider","kind":"next"},{"from":"provider","to":"loop","kind":"next"},{"from":"loop","to":"print","kind":"loop"},{"from":"print","to":"phase-a","kind":"next"},{"from":"phase-a","to":"phase-c","kind":"conditional","condition":"--llm-enhance"},{"from":"phase-c","to":"enhance-fail","kind":"error"},{"from":"phase-c","to":"exit","kind":"next"},{"from":"phase-a","to":"exit","kind":"next"},{"from":"enhance-fail","to":"exit","kind":"next"}],"confidence":0.85,"provenance":"ai","tags":["cli"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-cli-step","name":"交互式单步","summary":"REPL 逐 tick 推进","epicId":"cli","triggers":[{"kind":"cli","detail":"python -m cli step <scenario.yaml>"}],"steps":[{"id":"parse","name":"解析命令行","role":"input","refs":[{"file":"cli/run.py"}]},{"id":"init","name":"初始化运行时","role":"compute"},{"id":"prompt","name":"等待用户输入","role":"input"},{"id":"dispatch","name":"分派命令","role":"compute"},{"id":"execute","name":"执行命令","role":"side-effect"},{"id":"unknown","name":"未知命令提示","role":"error"},{"id":"quit","name":"退出","role":"output"}],"flow":[{"from":"parse","to":"init","kind":"next"},{"from":"init","to":"prompt","kind":"next"},{"from":"prompt","to":"dispatch","kind":"next"},{"from":"dispatch","to":"execute","kind":"next"},{"from":"dispatch","to":"unknown","kind":"error"},{"from":"execute","to":"prompt","kind":"loop"},{"from":"unknown","to":"prompt","kind":"next"},{"from":"prompt","to":"quit","kind":"conditional","condition":"EOF 或 quit"}],"confidence":0.85,"provenance":"ai","tags":["cli","repl"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-cli-replay","name":"事件重放","summary":"读 events.jsonl 流式打印","epicId":"cli","triggers":[{"kind":"cli","detail":"python -m cli replay <run_dir>"}],"steps":[{"id":"parse","name":"解析命令行","role":"input","refs":[{"file":"cli/run.py"}]},{"id":"open","name":"打开事件文件","role":"data-read"},{"id":"missing","name":"文件缺失退出","role":"error"},{"id":"iterate","name":"逐行解析","role":"transform"},{"id":"filter","name":"应用过滤条件","role":"transform"},{"id":"print","name":"格式化打印","role":"output"},{"id":"summary","name":"打印总数","role":"output"}],"flow":[{"from":"parse","to":"open","kind":"next"},{"from":"open","to":"missing","kind":"error"},{"from":"open","to":"iterate","kind":"next"},{"from":"iterate","to":"filter","kind":"loop"},{"from":"filter","to":"print","kind":"next"},{"from":"print","to":"summary","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["cli"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-cli-serve","name":"启动 server","summary":"构造应用并运行 uvicorn","epicId":"cli","triggers":[{"kind":"cli","detail":"python -m cli serve"}],"steps":[{"id":"parse","name":"解析命令行","role":"input","refs":[{"file":"cli/serve.py"}]},{"id":"config","name":"构造应用配置","role":"compute","refs":[{"file":"server/app.py"}]},{"id":"create","name":"构造应用","role":"compute"},{"id":"run","name":"运行服务器","role":"side-effect"},{"id":"shutdown","name":"优雅关闭","role":"other","refs":[{"file":"server/app.py"}]}],"flow":[{"from":"parse","to":"config","kind":"next"},{"from":"config","to":"create","kind":"next"},{"from":"create","to":"run","kind":"next"},{"from":"run","to":"shutdown","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["cli","server"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-health-check","name":"健康检查","summary":"返回状态与活跃数","epicId":"platform","triggers":[{"kind":"http","detail":"GET /api/v1/health"}],"steps":[{"id":"receive","name":"接收请求","role":"input","refs":[{"file":"server/api/v1/routes/meta.py"}]},{"id":"count","name":"查询活跃数","role":"data-read","refs":[{"file":"server/runtime_registry.py"}]},{"id":"respond","name":"返回健康响应","role":"output"}],"flow":[{"from":"receive","to":"count","kind":"next"},{"from":"count","to":"respond","kind":"next"}],"confidence":0.95,"provenance":"ai","tags":["health"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-app-lifespan","name":"应用启动与关闭","summary":"构造注册表/服务/推流，关闭时优雅清理","epicId":"platform","triggers":[{"kind":"startup","detail":"FastAPI lifespan"}],"steps":[{"id":"env","name":"加载环境变量","role":"other","refs":[{"file":"server/app.py"}]},{"id":"dirs","name":"建 runs 目录","role":"side-effect"},{"id":"registry","name":"构造注册表","role":"other","refs":[{"file":"server/runtime_registry.py"}]},{"id":"attach","name":"绑定事件循环","role":"side-effect","refs":[{"file":"server/services/stream_service.py"}]},{"id":"services","name":"装配业务服务","role":"other"},{"id":"serve","name":"对外服务","role":"output"},{"id":"close-ws","name":"广播关闭信号","role":"side-effect"},{"id":"shutdown","name":"关闭所有 run","role":"side-effect"},{"id":"detach","name":"解绑事件循环","role":"other"}],"flow":[{"from":"env","to":"dirs","kind":"next"},{"from":"dirs","to":"registry","kind":"next"},{"from":"registry","to":"attach","kind":"next"},{"from":"attach","to":"services","kind":"next"},{"from":"services","to":"serve","kind":"next"},{"from":"serve","to":"close-ws","kind":"next"},{"from":"close-ws","to":"shutdown","kind":"next"},{"from":"shutdown","to":"detach","kind":"next"}],"confidence":0.85,"provenance":"ai","tags":["lifecycle"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-error-mapping","name":"错误码映射","summary":"业务异常统一映射为结构化错误响应","epicId":"platform","triggers":[{"kind":"event","detail":"FastAPI 异常 handler"}],"steps":[{"id":"register","name":"注册处理器","role":"other","refs":[{"file":"server/api/v1/errors.py"}]},{"id":"catch","name":"捕获异常","role":"input"},{"id":"lookup","name":"查映射表","role":"compute","refs":[{"file":"server/api/v1/errors.py"}]},{"id":"fallback","name":"未识别异常降级","role":"error","note":"500"},{"id":"build","name":"组装错误响应","role":"transform"},{"id":"respond","name":"返回错误体","role":"output"}],"flow":[{"from":"register","to":"catch","kind":"next"},{"from":"catch","to":"lookup","kind":"next"},{"from":"lookup","to":"fallback","kind":"error"},{"from":"lookup","to":"build","kind":"next"},{"from":"fallback","to":"build","kind":"next"},{"from":"build","to":"respond","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["error"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-locale-switch","name":"中英语言切换","summary":"写 store 同步 i18n 并持久化","epicId":"ui-shell","triggers":[{"kind":"ui","detail":"点击顶栏语言按钮"}],"steps":[{"id":"click","name":"点击切换","role":"input","refs":[{"file":"web/src/components/TopBar.tsx"}]},{"id":"write","name":"写入偏好","role":"side-effect","refs":[{"file":"web/src/store/ui_store.ts"}]},{"id":"sync","name":"同步到国际化","role":"side-effect","refs":[{"file":"web/src/App.tsx"}]},{"id":"rerender","name":"界面文案更新","role":"output"}],"flow":[{"from":"click","to":"write","kind":"next"},{"from":"write","to":"sync","kind":"next"},{"from":"sync","to":"rerender","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["i18n"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-top-bar","name":"顶栏导航","summary":"品牌链接+语言按钮常驻顶部","epicId":"ui-shell","triggers":[{"kind":"ui","detail":"所有页面顶部"}],"steps":[{"id":"mount","name":"挂载顶栏","role":"output","refs":[{"file":"web/src/components/TopBar.tsx"}]},{"id":"brand","name":"渲染品牌链接","role":"output"},{"id":"toggle","name":"渲染语言按钮","role":"output"},{"id":"delegate","name":"委派语言切换","role":"other"}],"flow":[{"from":"mount","to":"brand","kind":"next"},{"from":"mount","to":"toggle","kind":"next"},{"from":"toggle","to":"delegate","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["shell"],"updated_at":"2026-05-14T21:00:00Z"},
-{"id":"f-error-boundary","name":"全局错误边界","summary":"捕获渲染异常显示降级面板","epicId":"ui-shell","triggers":[{"kind":"event","detail":"React 渲染抛错"}],"steps":[{"id":"wrap","name":"包裹应用根","role":"other","refs":[{"file":"web/src/main.tsx"}]},{"id":"catch","name":"捕获渲染异常","role":"input","refs":[{"file":"web/src/components/ErrorBoundary.tsx"}]},{"id":"log","name":"记录控制台","role":"side-effect"},{"id":"fallback","name":"渲染降级面板","role":"output"},{"id":"retry","name":"局部重试","role":"output"},{"id":"reload","name":"整页刷新","role":"output"}],"flow":[{"from":"wrap","to":"catch","kind":"next"},{"from":"catch","to":"log","kind":"next"},{"from":"log","to":"fallback","kind":"next"},{"from":"fallback","to":"retry","kind":"next"},{"from":"fallback","to":"reload","kind":"next"}],"confidence":0.9,"provenance":"ai","tags":["error"],"updated_at":"2026-05-14T21:00:00Z"}
-],
+{
+  "version": "0",
+  "manifest": {
+    "repo": "Polisim",
+    "commit": "858724a",
+    "generated_at": "2026-05-14T22:00:00Z",
+    "generator": "ai@claude-opus-4.6"
+  },
+  "epics": [
+    {
+      "id": "platform",
+      "name": "平台基础设施",
+      "summary": "Server 启动关闭/错误映射/健康检查",
+      "order": 0
+    },
+    {
+      "id": "ui-shell",
+      "name": "前端外壳",
+      "summary": "顶栏/多语言/错误边界",
+      "order": 0
+    },
+    {
+      "id": "scenario-gallery",
+      "name": "场景画廊",
+      "summary": "浏览可用场景并选择一个开始",
+      "order": 1
+    },
+    {
+      "id": "run-lifecycle",
+      "name": "Run 生命周期",
+      "summary": "创建/查询/删除仿真 run",
+      "order": 2
+    },
+    {
+      "id": "simulation-control",
+      "name": "仿真控制",
+      "summary": "step/pause/resume 驱动 tick 推进",
+      "order": 3
+    },
+    {
+      "id": "realtime-stream",
+      "name": "实时事件流",
+      "summary": "WebSocket 订阅广播+前端实时渲染",
+      "order": 3
+    },
+    {
+      "id": "intervention",
+      "name": "人工干预",
+      "summary": "暂停期间注入消息/强制动作/修改属性",
+      "order": 4
+    },
+    {
+      "id": "state-query",
+      "name": "状态与事件查询",
+      "summary": "查询当前状态/快照/事件流",
+      "order": 4
+    },
+    {
+      "id": "analysis",
+      "name": "分析报告",
+      "summary": "纯规则+LLM 增强双轨分析",
+      "order": 5
+    },
+    {
+      "id": "cli",
+      "name": "命令行",
+      "summary": "polisim run/step/replay/serve 四个子命令",
+      "order": 0
+    }
+  ],
+  "epic_flow": [
+    {
+      "from": "platform",
+      "to": "run-lifecycle",
+      "kind": "enables",
+      "note": "服务启动后才能创建 run"
+    },
+    {
+      "from": "ui-shell",
+      "to": "scenario-gallery",
+      "kind": "enables",
+      "note": "顶栏与路由就绪后才能展示画廊"
+    },
+    {
+      "from": "scenario-gallery",
+      "to": "run-lifecycle",
+      "kind": "next",
+      "note": "选定场景后创建 run"
+    },
+    {
+      "from": "run-lifecycle",
+      "to": "simulation-control",
+      "kind": "next",
+      "note": "创建后进入仿真过程"
+    },
+    {
+      "from": "simulation-control",
+      "to": "realtime-stream",
+      "kind": "enables",
+      "note": "推进过程产生事件才有内容可推送"
+    },
+    {
+      "from": "simulation-control",
+      "to": "intervention",
+      "kind": "enables",
+      "note": "暂停后才能干预"
+    },
+    {
+      "from": "realtime-stream",
+      "to": "state-query",
+      "kind": "enables",
+      "note": "推送驱动按需查询历史"
+    },
+    {
+      "from": "simulation-control",
+      "to": "analysis",
+      "kind": "next",
+      "note": "仿真结束后查看分析结果"
+    }
+  ],
+  "features": [
+    {
+      "id": "f-app-lifespan",
+      "name": "应用启动与关闭",
+      "summary": "构造注册表/服务/推流绑定循环，关闭时优雅清理订阅与事件流",
+      "epicId": "platform",
+      "triggers": [
+        {
+          "kind": "startup",
+          "detail": "FastAPI lifespan"
+        }
+      ],
+      "steps": [
+        {
+          "id": "load-env",
+          "name": "加载环境变量",
+          "role": "other",
+          "refs": [
+            {
+              "file": "server/app.py"
+            }
+          ],
+          "note": "dotenv 幂等加载，server.app 与 cli/run 都会调"
+        },
+        {
+          "id": "ensure-dir",
+          "name": "建仿真产物目录",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "server/app.py"
+            }
+          ]
+        },
+        {
+          "id": "build-registry",
+          "name": "构造运行时注册表",
+          "role": "other",
+          "refs": [
+            {
+              "file": "server/runtime_registry.py"
+            }
+          ]
+        },
+        {
+          "id": "attach-loop",
+          "name": "绑定推流事件循环",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "server/services/stream_service.py"
+            }
+          ],
+          "note": "跨线程经 call_soon_threadsafe 投递的前置"
+        },
+        {
+          "id": "wire-services",
+          "name": "装配业务服务",
+          "role": "other",
+          "refs": [
+            {
+              "file": "server/app.py"
+            }
+          ]
+        },
+        {
+          "id": "serve",
+          "name": "对外提供请求",
+          "role": "output"
+        },
+        {
+          "id": "close-ws",
+          "name": "广播关闭信号",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "server/services/stream_service.py"
+            }
+          ],
+          "note": "先发结束 sentinel 再断开避免客户端报错"
+        },
+        {
+          "id": "shutdown-runtimes",
+          "name": "关闭所有活跃 run",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "server/runtime_registry.py"
+            }
+          ]
+        },
+        {
+          "id": "detach-loop",
+          "name": "解绑事件循环",
+          "role": "other"
+        }
+      ],
+      "flow": [
+        {
+          "from": "load-env",
+          "to": "ensure-dir",
+          "kind": "next"
+        },
+        {
+          "from": "ensure-dir",
+          "to": "build-registry",
+          "kind": "next"
+        },
+        {
+          "from": "build-registry",
+          "to": "attach-loop",
+          "kind": "next"
+        },
+        {
+          "from": "attach-loop",
+          "to": "wire-services",
+          "kind": "next"
+        },
+        {
+          "from": "wire-services",
+          "to": "serve",
+          "kind": "next"
+        },
+        {
+          "from": "serve",
+          "to": "close-ws",
+          "kind": "next"
+        },
+        {
+          "from": "close-ws",
+          "to": "shutdown-runtimes",
+          "kind": "next"
+        },
+        {
+          "from": "shutdown-runtimes",
+          "to": "detach-loop",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.85,
+      "provenance": "ai",
+      "tags": [
+        "lifecycle"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-error-mapping",
+      "name": "错误码映射",
+      "summary": "把业务异常+运维异常+内置异常统一映射为结构化错误响应体",
+      "epicId": "platform",
+      "triggers": [
+        {
+          "kind": "event",
+          "detail": "FastAPI 异常 handler"
+        }
+      ],
+      "steps": [
+        {
+          "id": "register",
+          "name": "注册处理器",
+          "role": "other",
+          "refs": [
+            {
+              "file": "server/api/v1/errors.py"
+            },
+            {
+              "file": "server/app.py"
+            }
+          ]
+        },
+        {
+          "id": "catch",
+          "name": "捕获异常",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/errors.py"
+            }
+          ]
+        },
+        {
+          "id": "lookup",
+          "name": "查映射表",
+          "role": "compute",
+          "refs": [
+            {
+              "file": "server/api/v1/errors.py"
+            }
+          ]
+        },
+        {
+          "id": "collect-issues",
+          "name": "收集结构化问题条目",
+          "role": "transform",
+          "refs": [
+            {
+              "file": "server/api/v1/errors.py"
+            }
+          ],
+          "note": "语义校验失败时携带字段路径列表"
+        },
+        {
+          "id": "fallback",
+          "name": "未识别异常降级",
+          "role": "error",
+          "refs": [
+            {
+              "file": "server/api/v1/errors.py"
+            }
+          ],
+          "note": "未在映射表的 SimEngineError 子类降级 500"
+        },
+        {
+          "id": "build",
+          "name": "组装错误体",
+          "role": "transform"
+        },
+        {
+          "id": "respond",
+          "name": "返回错误响应",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "register",
+          "to": "catch",
+          "kind": "next"
+        },
+        {
+          "from": "catch",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "fallback",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "collect-issues",
+          "kind": "conditional",
+          "condition": "属于语义校验失败"
+        },
+        {
+          "from": "lookup",
+          "to": "build",
+          "kind": "next"
+        },
+        {
+          "from": "collect-issues",
+          "to": "build",
+          "kind": "next"
+        },
+        {
+          "from": "fallback",
+          "to": "build",
+          "kind": "next"
+        },
+        {
+          "from": "build",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "error"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-health-check",
+      "name": "健康检查",
+      "summary": "返回服务状态、版本、活跃 run 数",
+      "epicId": "platform",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "GET /api/v1/health"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收探针请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/meta.py"
+            }
+          ]
+        },
+        {
+          "id": "count",
+          "name": "查询活跃数量",
+          "role": "data-read",
+          "refs": [
+            {
+              "file": "server/runtime_registry.py"
+            }
+          ]
+        },
+        {
+          "id": "compose",
+          "name": "组装健康响应",
+          "role": "transform",
+          "refs": [
+            {
+              "file": "server/api/v1/schemas.py"
+            }
+          ]
+        },
+        {
+          "id": "respond",
+          "name": "返回 200",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "count",
+          "kind": "next"
+        },
+        {
+          "from": "count",
+          "to": "compose",
+          "kind": "next"
+        },
+        {
+          "from": "compose",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.95,
+      "provenance": "ai",
+      "tags": [
+        "health"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z",
+      "note": "无显式 error 分支：内部聚合操作不依赖外部输入"
+    },
+    {
+      "id": "f-locale-switch",
+      "name": "中英语言切换",
+      "summary": "顶栏按钮写偏好同步多语言并跨会话持久化",
+      "epicId": "ui-shell",
+      "triggers": [
+        {
+          "kind": "ui",
+          "detail": "点击顶栏语言按钮"
+        }
+      ],
+      "steps": [
+        {
+          "id": "click",
+          "name": "点击切换",
+          "role": "input",
+          "refs": [
+            {
+              "file": "web/src/components/TopBar.tsx"
+            }
+          ]
+        },
+        {
+          "id": "write-store",
+          "name": "写入用户偏好",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/store/ui_store.ts"
+            }
+          ],
+          "note": "zustand persist 中间件落 localStorage"
+        },
+        {
+          "id": "sync-i18n",
+          "name": "同步到多语言",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/App.tsx"
+            }
+          ]
+        },
+        {
+          "id": "rerender",
+          "name": "界面文案更新",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "click",
+          "to": "write-store",
+          "kind": "next"
+        },
+        {
+          "from": "write-store",
+          "to": "sync-i18n",
+          "kind": "async"
+        },
+        {
+          "from": "sync-i18n",
+          "to": "rerender",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "i18n"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-top-bar",
+      "name": "顶栏导航",
+      "summary": "品牌链接与语言按钮常驻所有页面顶部",
+      "epicId": "ui-shell",
+      "triggers": [
+        {
+          "kind": "ui",
+          "detail": "应用根渲染"
+        }
+      ],
+      "steps": [
+        {
+          "id": "mount",
+          "name": "挂载顶栏",
+          "role": "input",
+          "refs": [
+            {
+              "file": "web/src/components/TopBar.tsx"
+            }
+          ]
+        },
+        {
+          "id": "render-brand",
+          "name": "渲染品牌链接",
+          "role": "output"
+        },
+        {
+          "id": "render-toggle",
+          "name": "渲染语言按钮",
+          "role": "output"
+        },
+        {
+          "id": "delegate",
+          "name": "委派语言切换",
+          "role": "other",
+          "note": "点击事件转交语言切换 feature 处理"
+        }
+      ],
+      "flow": [
+        {
+          "from": "mount",
+          "to": "render-brand",
+          "kind": "next"
+        },
+        {
+          "from": "mount",
+          "to": "render-toggle",
+          "kind": "next"
+        },
+        {
+          "from": "render-toggle",
+          "to": "delegate",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.95,
+      "provenance": "ai",
+      "tags": [
+        "shell"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-error-boundary",
+      "name": "全局错误边界",
+      "summary": "捕获前端渲染异常并显示降级面板",
+      "epicId": "ui-shell",
+      "triggers": [
+        {
+          "kind": "event",
+          "detail": "React 渲染抛错"
+        }
+      ],
+      "steps": [
+        {
+          "id": "wrap",
+          "name": "包裹应用根",
+          "role": "other",
+          "refs": [
+            {
+              "file": "web/src/main.tsx"
+            }
+          ]
+        },
+        {
+          "id": "catch",
+          "name": "捕获渲染异常",
+          "role": "input",
+          "refs": [
+            {
+              "file": "web/src/components/ErrorBoundary.tsx"
+            }
+          ]
+        },
+        {
+          "id": "log",
+          "name": "记录控制台",
+          "role": "side-effect"
+        },
+        {
+          "id": "fallback",
+          "name": "渲染降级面板",
+          "role": "output"
+        },
+        {
+          "id": "retry",
+          "name": "局部重试",
+          "role": "output",
+          "note": "清空错误状态让子树重新挂载"
+        },
+        {
+          "id": "reload",
+          "name": "整页刷新",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "wrap",
+          "to": "catch",
+          "kind": "next"
+        },
+        {
+          "from": "catch",
+          "to": "log",
+          "kind": "next"
+        },
+        {
+          "from": "log",
+          "to": "fallback",
+          "kind": "next"
+        },
+        {
+          "from": "fallback",
+          "to": "retry",
+          "kind": "conditional",
+          "condition": "用户点击重试"
+        },
+        {
+          "from": "fallback",
+          "to": "reload",
+          "kind": "conditional",
+          "condition": "用户点击刷新"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "error"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-list-scenarios",
+      "name": "列出可用场景",
+      "summary": "扫描场景目录组装画廊摘要列表",
+      "epicId": "scenario-gallery",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "GET /api/v1/scenarios"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收画廊请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/meta.py"
+            }
+          ]
+        },
+        {
+          "id": "scan",
+          "name": "遍历场景子目录",
+          "role": "data-read",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/meta.py"
+            }
+          ]
+        },
+        {
+          "id": "parse",
+          "name": "解析单个场景文件",
+          "role": "transform"
+        },
+        {
+          "id": "skip",
+          "name": "跳过损坏文件",
+          "role": "error",
+          "note": "容忍 yaml 语法错保证整体不报 500"
+        },
+        {
+          "id": "build",
+          "name": "组装摘要",
+          "role": "transform",
+          "refs": [
+            {
+              "file": "server/api/v1/schemas.py"
+            }
+          ]
+        },
+        {
+          "id": "respond",
+          "name": "返回排序结果",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "scan",
+          "kind": "next"
+        },
+        {
+          "from": "scan",
+          "to": "parse",
+          "kind": "loop",
+          "condition": "对每个子目录"
+        },
+        {
+          "from": "parse",
+          "to": "skip",
+          "kind": "error"
+        },
+        {
+          "from": "parse",
+          "to": "build",
+          "kind": "next"
+        },
+        {
+          "from": "skip",
+          "to": "scan",
+          "kind": "next"
+        },
+        {
+          "from": "build",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.95,
+      "provenance": "ai",
+      "tags": [
+        "scenario"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-gallery-page",
+      "name": "场景画廊页",
+      "summary": "拉取场景列表渲染卡片网格并支持模型档位选择",
+      "epicId": "scenario-gallery",
+      "triggers": [
+        {
+          "kind": "ui",
+          "detail": "导航到 /"
+        }
+      ],
+      "steps": [
+        {
+          "id": "mount",
+          "name": "进入画廊",
+          "role": "input",
+          "refs": [
+            {
+              "file": "web/src/routes/Gallery.tsx"
+            }
+          ]
+        },
+        {
+          "id": "fetch",
+          "name": "拉取场景列表",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/hooks/useScenarios.ts"
+            }
+          ]
+        },
+        {
+          "id": "skeleton",
+          "name": "显示加载骨架",
+          "role": "output"
+        },
+        {
+          "id": "error-banner",
+          "name": "显示错误横幅",
+          "role": "error",
+          "note": "提供重试按钮重新发起"
+        },
+        {
+          "id": "render-cards",
+          "name": "渲染场景卡片",
+          "role": "output",
+          "refs": [
+            {
+              "file": "web/src/components/ScenarioCard.tsx"
+            }
+          ]
+        },
+        {
+          "id": "select-provider",
+          "name": "选择模型档位",
+          "role": "input",
+          "note": "模拟或真实模型二选一"
+        },
+        {
+          "id": "click-start",
+          "name": "点击开始",
+          "role": "input"
+        }
+      ],
+      "flow": [
+        {
+          "from": "mount",
+          "to": "fetch",
+          "kind": "async"
+        },
+        {
+          "from": "fetch",
+          "to": "skeleton",
+          "kind": "next"
+        },
+        {
+          "from": "fetch",
+          "to": "error-banner",
+          "kind": "error"
+        },
+        {
+          "from": "fetch",
+          "to": "render-cards",
+          "kind": "next"
+        },
+        {
+          "from": "render-cards",
+          "to": "select-provider",
+          "kind": "next"
+        },
+        {
+          "from": "select-provider",
+          "to": "click-start",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "frontend"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-create-run",
+      "name": "创建仿真 run",
+      "summary": "加载世界与场景配置构造运行时并注册到内存表",
+      "epicId": "run-lifecycle",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "POST /api/v1/runs"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收创建请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "resolve",
+          "name": "解析配置文件路径",
+          "role": "compute",
+          "refs": [
+            {
+              "file": "server/services/run_service.py"
+            }
+          ]
+        },
+        {
+          "id": "load",
+          "name": "加载并校验配置",
+          "role": "data-read",
+          "refs": [
+            {
+              "file": "core/definition_loader.py"
+            },
+            {
+              "file": "core/scenario_loader.py"
+            }
+          ],
+          "note": "JSON Schema+Pydantic+跨层语义三道闸"
+        },
+        {
+          "id": "config-bad",
+          "name": "配置校验失败",
+          "role": "error",
+          "note": "语义校验失败抛 422 携带字段问题列表"
+        },
+        {
+          "id": "not-found",
+          "name": "配置文件不存在",
+          "role": "error",
+          "note": "返 404"
+        },
+        {
+          "id": "build-provider",
+          "name": "构造决策提供者",
+          "role": "compute",
+          "refs": [
+            {
+              "file": "server/services/run_service.py"
+            }
+          ]
+        },
+        {
+          "id": "instantiate",
+          "name": "实例化运行时",
+          "role": "compute",
+          "refs": [
+            {
+              "file": "core/runtime.py"
+            }
+          ]
+        },
+        {
+          "id": "register",
+          "name": "注册到内存表",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "server/runtime_registry.py"
+            }
+          ]
+        },
+        {
+          "id": "registry-full",
+          "name": "并发上限拒绝",
+          "role": "error",
+          "note": "返 503 让用户等待或调高上限"
+        },
+        {
+          "id": "respond",
+          "name": "返回详情",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "resolve",
+          "kind": "next"
+        },
+        {
+          "from": "resolve",
+          "to": "not-found",
+          "kind": "error"
+        },
+        {
+          "from": "resolve",
+          "to": "load",
+          "kind": "next"
+        },
+        {
+          "from": "load",
+          "to": "config-bad",
+          "kind": "error"
+        },
+        {
+          "from": "load",
+          "to": "build-provider",
+          "kind": "next"
+        },
+        {
+          "from": "build-provider",
+          "to": "instantiate",
+          "kind": "next"
+        },
+        {
+          "from": "instantiate",
+          "to": "register",
+          "kind": "next"
+        },
+        {
+          "from": "register",
+          "to": "registry-full",
+          "kind": "error"
+        },
+        {
+          "from": "register",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "run"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-pre-run-page",
+      "name": "跑前介绍页",
+      "summary": "展示场景叙事与实体列表后用户确认开始仿真",
+      "epicId": "run-lifecycle",
+      "triggers": [
+        {
+          "kind": "ui",
+          "detail": "导航到 /runs/{id}/intro"
+        }
+      ],
+      "steps": [
+        {
+          "id": "load",
+          "name": "拉取详情",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/hooks/useRun.ts"
+            }
+          ],
+          "note": "react-query 通常命中创建时塞入的缓存"
+        },
+        {
+          "id": "error-state",
+          "name": "请求失败兜底",
+          "role": "error",
+          "refs": [
+            {
+              "file": "web/src/routes/PreRun.tsx"
+            }
+          ]
+        },
+        {
+          "id": "render-intro",
+          "name": "渲染场景介绍",
+          "role": "output",
+          "refs": [
+            {
+              "file": "web/src/components/ScenarioIntroPanel.tsx"
+            }
+          ]
+        },
+        {
+          "id": "render-options",
+          "name": "渲染高级选项",
+          "role": "output",
+          "refs": [
+            {
+              "file": "web/src/components/AdvancedOptionsPanel.tsx"
+            }
+          ],
+          "note": "v0.2 仅展示位"
+        },
+        {
+          "id": "click-start",
+          "name": "点击开始仿真",
+          "role": "input"
+        },
+        {
+          "id": "nav-running",
+          "name": "跳转运行页",
+          "role": "output"
+        },
+        {
+          "id": "click-back",
+          "name": "返回画廊",
+          "role": "input"
+        },
+        {
+          "id": "delete-bg",
+          "name": "后台删除并回退",
+          "role": "side-effect",
+          "note": "无等待发起删除请求避免阻塞导航"
+        }
+      ],
+      "flow": [
+        {
+          "from": "load",
+          "to": "error-state",
+          "kind": "error"
+        },
+        {
+          "from": "load",
+          "to": "render-intro",
+          "kind": "next"
+        },
+        {
+          "from": "render-intro",
+          "to": "render-options",
+          "kind": "next"
+        },
+        {
+          "from": "render-options",
+          "to": "click-start",
+          "kind": "next"
+        },
+        {
+          "from": "click-start",
+          "to": "nav-running",
+          "kind": "next"
+        },
+        {
+          "from": "render-options",
+          "to": "click-back",
+          "kind": "next"
+        },
+        {
+          "from": "click-back",
+          "to": "delete-bg",
+          "kind": "async"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "frontend"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-list-runs",
+      "name": "列出 run",
+      "summary": "按状态过滤分页返回运行摘要",
+      "epicId": "run-lifecycle",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "GET /api/v1/runs"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收列表请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "validate",
+          "name": "校验分页参数",
+          "role": "validation",
+          "refs": [
+            {
+              "file": "server/services/run_service.py"
+            }
+          ]
+        },
+        {
+          "id": "bad-params",
+          "name": "参数非法拒绝",
+          "role": "error",
+          "note": "返 400"
+        },
+        {
+          "id": "enumerate",
+          "name": "枚举注册表摘要",
+          "role": "data-read",
+          "refs": [
+            {
+              "file": "server/runtime_registry.py"
+            }
+          ]
+        },
+        {
+          "id": "filter",
+          "name": "按状态过滤",
+          "role": "transform"
+        },
+        {
+          "id": "paginate",
+          "name": "分页切片",
+          "role": "transform"
+        },
+        {
+          "id": "respond",
+          "name": "返回摘要列表",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "validate",
+          "kind": "next"
+        },
+        {
+          "from": "validate",
+          "to": "bad-params",
+          "kind": "error"
+        },
+        {
+          "from": "validate",
+          "to": "enumerate",
+          "kind": "next"
+        },
+        {
+          "from": "enumerate",
+          "to": "filter",
+          "kind": "next"
+        },
+        {
+          "from": "filter",
+          "to": "paginate",
+          "kind": "next"
+        },
+        {
+          "from": "paginate",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.95,
+      "provenance": "ai",
+      "tags": [
+        "run"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-get-run",
+      "name": "查询 run 详情",
+      "summary": "返回完整世界配置场景配置与状态",
+      "epicId": "run-lifecycle",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "GET /api/v1/runs/{run_id}"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收详情请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "lookup",
+          "name": "查注册表",
+          "role": "data-read",
+          "refs": [
+            {
+              "file": "server/services/run_service.py"
+            }
+          ]
+        },
+        {
+          "id": "not-found",
+          "name": "未命中返 404",
+          "role": "error"
+        },
+        {
+          "id": "compose",
+          "name": "组装详情",
+          "role": "transform"
+        },
+        {
+          "id": "respond",
+          "name": "返回结果",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "not-found",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "compose",
+          "kind": "next"
+        },
+        {
+          "from": "compose",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.95,
+      "provenance": "ai",
+      "tags": [
+        "run"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-delete-run",
+      "name": "关闭并移除 run",
+      "summary": "从注册表卸载并关闭事件文件句柄",
+      "epicId": "run-lifecycle",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "DELETE /api/v1/runs/{run_id}"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收删除请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "shutdown",
+          "name": "关闭运行时",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "server/runtime_registry.py"
+            }
+          ],
+          "note": "句柄关闭失败仅警告日志，仍清理槽位"
+        },
+        {
+          "id": "respond",
+          "name": "返回 204",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "shutdown",
+          "kind": "next"
+        },
+        {
+          "from": "shutdown",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.95,
+      "provenance": "ai",
+      "tags": [
+        "run"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z",
+      "note": "无显式 error 分支：缺失时按幂等成功处理；句柄关闭失败仅日志降级"
+    },
+    {
+      "id": "f-step-tick",
+      "name": "推进一 tick",
+      "summary": "决策→规则→落事件→广播一轮仿真步进",
+      "epicId": "simulation-control",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "POST /api/v1/runs/{run_id}/step"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收推进请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "lookup",
+          "name": "查注册表",
+          "role": "data-read"
+        },
+        {
+          "id": "not-found",
+          "name": "未命中返 404",
+          "role": "error"
+        },
+        {
+          "id": "temp-resume",
+          "name": "暂停态临时恢复",
+          "role": "compute",
+          "refs": [
+            {
+              "file": "server/services/run_service.py"
+            }
+          ],
+          "note": "绕开运行时暂停断言"
+        },
+        {
+          "id": "advance",
+          "name": "执行一轮决策与求解",
+          "role": "compute",
+          "refs": [
+            {
+              "file": "core/runtime.py"
+            }
+          ]
+        },
+        {
+          "id": "rules-error",
+          "name": "规则求解失败",
+          "role": "error",
+          "note": "返 500"
+        },
+        {
+          "id": "repause",
+          "name": "手动单步后再次暂停",
+          "role": "compute",
+          "note": "改写结果中的暂停标志后才广播给客户端"
+        },
+        {
+          "id": "broadcast-tick",
+          "name": "广播进度事件",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "server/services/stream_service.py"
+            }
+          ],
+          "note": "经事件循环跨线程投递到订阅者队列"
+        },
+        {
+          "id": "broadcast-paused",
+          "name": "广播暂停事件",
+          "role": "side-effect",
+          "note": "按断点或定步触发"
+        },
+        {
+          "id": "broadcast-finished",
+          "name": "广播完成事件",
+          "role": "side-effect",
+          "note": "跑到总轮次时自动跑分析后推送"
+        },
+        {
+          "id": "respond",
+          "name": "返回本轮结果",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "not-found",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "temp-resume",
+          "kind": "next"
+        },
+        {
+          "from": "temp-resume",
+          "to": "advance",
+          "kind": "next"
+        },
+        {
+          "from": "advance",
+          "to": "rules-error",
+          "kind": "error"
+        },
+        {
+          "from": "advance",
+          "to": "repause",
+          "kind": "conditional",
+          "condition": "原为手动暂停"
+        },
+        {
+          "from": "advance",
+          "to": "broadcast-tick",
+          "kind": "next"
+        },
+        {
+          "from": "repause",
+          "to": "broadcast-tick",
+          "kind": "next"
+        },
+        {
+          "from": "broadcast-tick",
+          "to": "broadcast-paused",
+          "kind": "async"
+        },
+        {
+          "from": "broadcast-tick",
+          "to": "broadcast-finished",
+          "kind": "async"
+        },
+        {
+          "from": "broadcast-tick",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.75,
+      "provenance": "ai",
+      "tags": [
+        "tick"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-pause-run",
+      "name": "暂停 run",
+      "summary": "标记暂停并向订阅者推送暂停事件",
+      "epicId": "simulation-control",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "POST /api/v1/runs/{run_id}/pause"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收暂停请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "lookup",
+          "name": "查注册表",
+          "role": "data-read"
+        },
+        {
+          "id": "not-found",
+          "name": "未命中返 404",
+          "role": "error"
+        },
+        {
+          "id": "set-flag",
+          "name": "标记暂停",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "core/runtime.py"
+            }
+          ]
+        },
+        {
+          "id": "broadcast",
+          "name": "推送暂停事件",
+          "role": "side-effect",
+          "note": "状态从运行切到暂停才发送，避免重复"
+        },
+        {
+          "id": "respond",
+          "name": "返回当前状态",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "not-found",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "set-flag",
+          "kind": "next"
+        },
+        {
+          "from": "set-flag",
+          "to": "broadcast",
+          "kind": "conditional",
+          "condition": "原非暂停态"
+        },
+        {
+          "from": "set-flag",
+          "to": "respond",
+          "kind": "next"
+        },
+        {
+          "from": "broadcast",
+          "to": "respond",
+          "kind": "async"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "pause"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-resume-run",
+      "name": "恢复 run",
+      "summary": "解除暂停并推送恢复事件避免客户端死锁",
+      "epicId": "simulation-control",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "POST /api/v1/runs/{run_id}/resume"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收恢复请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "lookup",
+          "name": "查注册表",
+          "role": "data-read"
+        },
+        {
+          "id": "not-found",
+          "name": "未命中返 404",
+          "role": "error"
+        },
+        {
+          "id": "clear-flag",
+          "name": "清除暂停标志",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "core/runtime.py"
+            }
+          ]
+        },
+        {
+          "id": "broadcast",
+          "name": "推送恢复事件",
+          "role": "side-effect",
+          "note": "必须推送否则前端状态机一直停在暂停"
+        },
+        {
+          "id": "respond",
+          "name": "返回运行状态",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "not-found",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "clear-flag",
+          "kind": "next"
+        },
+        {
+          "from": "clear-flag",
+          "to": "broadcast",
+          "kind": "conditional",
+          "condition": "原为暂停态"
+        },
+        {
+          "from": "clear-flag",
+          "to": "respond",
+          "kind": "next"
+        },
+        {
+          "from": "broadcast",
+          "to": "respond",
+          "kind": "async"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "resume"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-control-bar",
+      "name": "运行中控制条",
+      "summary": "提供暂停恢复单步速度档位与退出按钮",
+      "epicId": "simulation-control",
+      "triggers": [
+        {
+          "kind": "ui",
+          "detail": "运行页顶部"
+        }
+      ],
+      "steps": [
+        {
+          "id": "render",
+          "name": "渲染状态徽章",
+          "role": "output",
+          "refs": [
+            {
+              "file": "web/src/components/ControlBar.tsx"
+            }
+          ]
+        },
+        {
+          "id": "click-pause",
+          "name": "点击暂停",
+          "role": "input"
+        },
+        {
+          "id": "click-resume",
+          "name": "点击恢复",
+          "role": "input"
+        },
+        {
+          "id": "click-step",
+          "name": "点击单步",
+          "role": "input"
+        },
+        {
+          "id": "change-speed",
+          "name": "切换速度档位",
+          "role": "input",
+          "note": "写入用户偏好驱动循环节奏"
+        },
+        {
+          "id": "click-exit",
+          "name": "点击退出",
+          "role": "input"
+        },
+        {
+          "id": "dispatch",
+          "name": "分派调用对应接口",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/hooks/usePause.ts"
+            },
+            {
+              "file": "web/src/hooks/useResume.ts"
+            },
+            {
+              "file": "web/src/hooks/useStep.ts"
+            }
+          ]
+        },
+        {
+          "id": "toast-error",
+          "name": "调用失败提示",
+          "role": "error"
+        }
+      ],
+      "flow": [
+        {
+          "from": "render",
+          "to": "click-pause",
+          "kind": "next"
+        },
+        {
+          "from": "render",
+          "to": "click-resume",
+          "kind": "next"
+        },
+        {
+          "from": "render",
+          "to": "click-step",
+          "kind": "next"
+        },
+        {
+          "from": "render",
+          "to": "change-speed",
+          "kind": "next"
+        },
+        {
+          "from": "render",
+          "to": "click-exit",
+          "kind": "next"
+        },
+        {
+          "from": "click-pause",
+          "to": "dispatch",
+          "kind": "async"
+        },
+        {
+          "from": "click-resume",
+          "to": "dispatch",
+          "kind": "async"
+        },
+        {
+          "from": "click-step",
+          "to": "dispatch",
+          "kind": "async"
+        },
+        {
+          "from": "dispatch",
+          "to": "toast-error",
+          "kind": "error"
+        }
+      ],
+      "confidence": 0.85,
+      "provenance": "ai",
+      "tags": [
+        "frontend"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-ws-subscribe",
+      "name": "订阅事件流",
+      "summary": "客户端建连后分配队列并发推送与接收",
+      "epicId": "realtime-stream",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "WS /api/v1/runs/{run_id}/stream"
+        }
+      ],
+      "steps": [
+        {
+          "id": "connect",
+          "name": "客户端建连",
+          "role": "input",
+          "refs": [
+            {
+              "file": "web/src/api/ws.ts"
+            }
+          ]
+        },
+        {
+          "id": "accept",
+          "name": "接受连接",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/ws.py"
+            }
+          ]
+        },
+        {
+          "id": "guard",
+          "name": "校验 run 存在",
+          "role": "validation"
+        },
+        {
+          "id": "reject",
+          "name": "未命中关闭 4004",
+          "role": "error",
+          "note": "自定义关闭码 4004 表示资源不存在"
+        },
+        {
+          "id": "alloc",
+          "name": "分配消息队列",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "server/services/stream_service.py"
+            }
+          ]
+        },
+        {
+          "id": "loops",
+          "name": "并发推送与接收循环",
+          "role": "side-effect",
+          "note": "任一任务结束都触发清理"
+        },
+        {
+          "id": "internal-error",
+          "name": "内部异常关 4500",
+          "role": "error"
+        },
+        {
+          "id": "cleanup",
+          "name": "释放订阅与队列",
+          "role": "other",
+          "refs": [
+            {
+              "file": "server/services/stream_service.py"
+            }
+          ]
+        }
+      ],
+      "flow": [
+        {
+          "from": "connect",
+          "to": "accept",
+          "kind": "async"
+        },
+        {
+          "from": "accept",
+          "to": "guard",
+          "kind": "next"
+        },
+        {
+          "from": "guard",
+          "to": "reject",
+          "kind": "error"
+        },
+        {
+          "from": "guard",
+          "to": "alloc",
+          "kind": "next"
+        },
+        {
+          "from": "alloc",
+          "to": "loops",
+          "kind": "next"
+        },
+        {
+          "from": "loops",
+          "to": "internal-error",
+          "kind": "error"
+        },
+        {
+          "from": "loops",
+          "to": "cleanup",
+          "kind": "next"
+        },
+        {
+          "from": "internal-error",
+          "to": "cleanup",
+          "kind": "next"
+        },
+        {
+          "from": "reject",
+          "to": "cleanup",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.8,
+      "provenance": "ai",
+      "tags": [
+        "websocket"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-ws-broadcast",
+      "name": "广播事件到订阅者",
+      "summary": "同步业务调用经事件循环跨线程投递到每个订阅者",
+      "epicId": "realtime-stream",
+      "triggers": [
+        {
+          "kind": "event",
+          "detail": "业务层调用 broadcast"
+        }
+      ],
+      "steps": [
+        {
+          "id": "trigger",
+          "name": "业务层触发",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/services/run_service.py"
+            }
+          ]
+        },
+        {
+          "id": "serialize",
+          "name": "序列化事件载荷",
+          "role": "transform",
+          "refs": [
+            {
+              "file": "server/services/stream_service.py"
+            }
+          ]
+        },
+        {
+          "id": "ser-fail",
+          "name": "序列化失败降级",
+          "role": "error",
+          "note": "日志告警后丢弃，绝不阻断业务主流程"
+        },
+        {
+          "id": "snapshot",
+          "name": "锁内取订阅者快照",
+          "role": "data-read",
+          "note": "loop 引用与订阅者列表同锁内读避免竞争"
+        },
+        {
+          "id": "schedule",
+          "name": "跨线程入队",
+          "role": "side-effect",
+          "note": "经事件循环安全调度避免死锁"
+        },
+        {
+          "id": "drop",
+          "name": "队列满时丢弃",
+          "role": "error",
+          "note": "保护慢客户端不拖累整体推送"
+        }
+      ],
+      "flow": [
+        {
+          "from": "trigger",
+          "to": "serialize",
+          "kind": "next"
+        },
+        {
+          "from": "serialize",
+          "to": "ser-fail",
+          "kind": "error"
+        },
+        {
+          "from": "serialize",
+          "to": "snapshot",
+          "kind": "next"
+        },
+        {
+          "from": "snapshot",
+          "to": "schedule",
+          "kind": "loop",
+          "condition": "对每个订阅者"
+        },
+        {
+          "from": "schedule",
+          "to": "drop",
+          "kind": "error"
+        }
+      ],
+      "confidence": 0.75,
+      "provenance": "ai",
+      "tags": [
+        "websocket"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-running-page",
+      "name": "实时运行页",
+      "summary": "订阅事件流自动推进按布局渲染态势并支持干预入口",
+      "epicId": "realtime-stream",
+      "triggers": [
+        {
+          "kind": "ui",
+          "detail": "导航到 /runs/{id}/run"
+        }
+      ],
+      "steps": [
+        {
+          "id": "load",
+          "name": "拉取详情",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/hooks/useRun.ts"
+            }
+          ]
+        },
+        {
+          "id": "subscribe",
+          "name": "订阅事件流",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/hooks/useRunStream.ts"
+            }
+          ]
+        },
+        {
+          "id": "auto-step",
+          "name": "自动推进循环",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/routes/Running.tsx"
+            }
+          ],
+          "note": "按速度档节奏循环调推进接口"
+        },
+        {
+          "id": "render-layout",
+          "name": "按场景渲染态势布局",
+          "role": "output",
+          "note": "实体卡片 关系图 事件流 三种之一"
+        },
+        {
+          "id": "render-side",
+          "name": "渲染副区仪表盘",
+          "role": "output",
+          "refs": [
+            {
+              "file": "web/src/components/MiniDashboard.tsx"
+            }
+          ]
+        },
+        {
+          "id": "render-bubble",
+          "name": "渲染决策气泡",
+          "role": "output",
+          "refs": [
+            {
+              "file": "web/src/components/LLMThoughtBubble.tsx"
+            }
+          ]
+        },
+        {
+          "id": "paused-toast",
+          "name": "暂停原因提示",
+          "role": "output"
+        },
+        {
+          "id": "nav-finished",
+          "name": "完成后跳转",
+          "role": "output",
+          "note": "收到完成事件后自动导航到结束页"
+        },
+        {
+          "id": "exit",
+          "name": "退出清理",
+          "role": "side-effect",
+          "note": "关闭订阅并删除 run"
+        }
+      ],
+      "flow": [
+        {
+          "from": "load",
+          "to": "subscribe",
+          "kind": "async"
+        },
+        {
+          "from": "subscribe",
+          "to": "auto-step",
+          "kind": "loop",
+          "condition": "运行态时按节奏调用"
+        },
+        {
+          "from": "subscribe",
+          "to": "render-layout",
+          "kind": "next"
+        },
+        {
+          "from": "render-layout",
+          "to": "render-side",
+          "kind": "next"
+        },
+        {
+          "from": "render-layout",
+          "to": "render-bubble",
+          "kind": "next"
+        },
+        {
+          "from": "subscribe",
+          "to": "paused-toast",
+          "kind": "conditional",
+          "condition": "收到暂停事件"
+        },
+        {
+          "from": "subscribe",
+          "to": "nav-finished",
+          "kind": "conditional",
+          "condition": "收到完成事件"
+        },
+        {
+          "from": "render-layout",
+          "to": "exit",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.7,
+      "provenance": "ai",
+      "tags": [
+        "frontend",
+        "realtime"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-ws-reconnect",
+      "name": "断线重连",
+      "summary": "网络异常时按指数退避自动重连恢复推送",
+      "epicId": "realtime-stream",
+      "triggers": [
+        {
+          "kind": "event",
+          "detail": "WebSocket 异常关闭"
+        }
+      ],
+      "steps": [
+        {
+          "id": "detect-close",
+          "name": "检测连接关闭",
+          "role": "input",
+          "refs": [
+            {
+              "file": "web/src/api/ws.ts"
+            }
+          ]
+        },
+        {
+          "id": "classify",
+          "name": "区分关闭原因",
+          "role": "compute",
+          "note": "正常关闭与资源不存在不重连"
+        },
+        {
+          "id": "give-up",
+          "name": "无法恢复放弃",
+          "role": "error"
+        },
+        {
+          "id": "backoff",
+          "name": "按退避节奏等待",
+          "role": "compute",
+          "note": "0.5/1/2/5/10 秒五次"
+        },
+        {
+          "id": "notify",
+          "name": "通知组件重连中",
+          "role": "output",
+          "note": "顶部状态徽章变橙色提示"
+        },
+        {
+          "id": "reconnect",
+          "name": "重新建连",
+          "role": "side-effect"
+        },
+        {
+          "id": "recovered",
+          "name": "重连成功恢复",
+          "role": "output",
+          "note": "连续失败用尽退避序列后才放弃"
+        }
+      ],
+      "flow": [
+        {
+          "from": "detect-close",
+          "to": "classify",
+          "kind": "next"
+        },
+        {
+          "from": "classify",
+          "to": "give-up",
+          "kind": "conditional",
+          "condition": "正常关闭或资源不存在"
+        },
+        {
+          "from": "classify",
+          "to": "backoff",
+          "kind": "conditional",
+          "condition": "可恢复"
+        },
+        {
+          "from": "backoff",
+          "to": "notify",
+          "kind": "async"
+        },
+        {
+          "from": "backoff",
+          "to": "reconnect",
+          "kind": "next"
+        },
+        {
+          "from": "reconnect",
+          "to": "recovered",
+          "kind": "next"
+        },
+        {
+          "from": "reconnect",
+          "to": "give-up",
+          "kind": "error"
+        }
+      ],
+      "confidence": 0.85,
+      "provenance": "ai",
+      "tags": [
+        "websocket",
+        "frontend"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-get-state",
+      "name": "查询当前状态",
+      "summary": "返回实时世界状态全量快照",
+      "epicId": "state-query",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "GET /api/v1/runs/{run_id}/state"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "lookup",
+          "name": "查注册表",
+          "role": "data-read"
+        },
+        {
+          "id": "not-found",
+          "name": "未命中返 404",
+          "role": "error"
+        },
+        {
+          "id": "snapshot",
+          "name": "取实时状态",
+          "role": "data-read",
+          "refs": [
+            {
+              "file": "core/runtime.py"
+            }
+          ]
+        },
+        {
+          "id": "respond",
+          "name": "返回结果",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "not-found",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "snapshot",
+          "kind": "next"
+        },
+        {
+          "from": "snapshot",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.95,
+      "provenance": "ai",
+      "tags": [
+        "state"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-list-snapshots",
+      "name": "列出已存 tick",
+      "summary": "扫描快照目录提取已落盘 tick 编号",
+      "epicId": "state-query",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "GET /api/v1/runs/{run_id}/snapshots"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "lookup",
+          "name": "查注册表",
+          "role": "data-read"
+        },
+        {
+          "id": "not-found",
+          "name": "未命中返 404",
+          "role": "error"
+        },
+        {
+          "id": "scan",
+          "name": "扫描快照目录",
+          "role": "data-read",
+          "refs": [
+            {
+              "file": "server/services/run_service.py"
+            }
+          ]
+        },
+        {
+          "id": "respond",
+          "name": "返回升序列表",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "not-found",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "scan",
+          "kind": "next"
+        },
+        {
+          "from": "scan",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.95,
+      "provenance": "ai",
+      "tags": [
+        "snapshot"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-get-snapshot",
+      "name": "查询指定 tick 快照",
+      "summary": "读取指定 tick 编号的快照内容",
+      "epicId": "state-query",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "GET /api/v1/runs/{run_id}/snapshots/{tick}"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "lookup",
+          "name": "查注册表",
+          "role": "data-read"
+        },
+        {
+          "id": "miss-run",
+          "name": "run 不存在",
+          "role": "error"
+        },
+        {
+          "id": "read",
+          "name": "读取快照文件",
+          "role": "data-read",
+          "refs": [
+            {
+              "file": "core/runtime.py"
+            }
+          ]
+        },
+        {
+          "id": "miss-tick",
+          "name": "tick 缺失返 404",
+          "role": "error"
+        },
+        {
+          "id": "respond",
+          "name": "返回快照内容",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "miss-run",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "read",
+          "kind": "next"
+        },
+        {
+          "from": "read",
+          "to": "miss-tick",
+          "kind": "error"
+        },
+        {
+          "from": "read",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.95,
+      "provenance": "ai",
+      "tags": [
+        "snapshot"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-query-events",
+      "name": "事件查询",
+      "summary": "按条件过滤分页返回事件流",
+      "epicId": "state-query",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "GET /api/v1/runs/{run_id}/events"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收查询请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/runs.py"
+            }
+          ]
+        },
+        {
+          "id": "validate",
+          "name": "校验参数",
+          "role": "validation",
+          "refs": [
+            {
+              "file": "server/services/run_service.py"
+            }
+          ]
+        },
+        {
+          "id": "bad-params",
+          "name": "参数非法拒绝",
+          "role": "error"
+        },
+        {
+          "id": "lookup",
+          "name": "查注册表",
+          "role": "data-read"
+        },
+        {
+          "id": "not-found",
+          "name": "未命中返 404",
+          "role": "error"
+        },
+        {
+          "id": "filter",
+          "name": "过滤事件",
+          "role": "data-read",
+          "refs": [
+            {
+              "file": "core/events.py"
+            }
+          ]
+        },
+        {
+          "id": "paginate",
+          "name": "分页切片",
+          "role": "transform"
+        },
+        {
+          "id": "respond",
+          "name": "返回事件列表",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "validate",
+          "kind": "next"
+        },
+        {
+          "from": "validate",
+          "to": "bad-params",
+          "kind": "error"
+        },
+        {
+          "from": "validate",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "not-found",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "filter",
+          "kind": "next"
+        },
+        {
+          "from": "filter",
+          "to": "paginate",
+          "kind": "next"
+        },
+        {
+          "from": "paginate",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "event"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-intervene",
+      "name": "应用人工干预",
+      "summary": "三种干预通过同一接口进入并写入事件轨迹",
+      "epicId": "intervention",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "POST /api/v1/runs/{run_id}/intervene"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收干预请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/interventions.py"
+            }
+          ]
+        },
+        {
+          "id": "validate",
+          "name": "校验干预体",
+          "role": "validation",
+          "refs": [
+            {
+              "file": "models/runtime_models.py"
+            }
+          ],
+          "note": "按种类分派校验注入消息或强制动作或覆盖属性"
+        },
+        {
+          "id": "bad-body",
+          "name": "校验失败拒绝",
+          "role": "error"
+        },
+        {
+          "id": "lookup",
+          "name": "查注册表",
+          "role": "data-read"
+        },
+        {
+          "id": "not-found",
+          "name": "未命中返 404",
+          "role": "error"
+        },
+        {
+          "id": "apply",
+          "name": "应用干预效果",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "core/runtime.py"
+            }
+          ],
+          "note": "走与规则层一致的属性边界与冲突解决"
+        },
+        {
+          "id": "record",
+          "name": "写干预事件",
+          "role": "data-write"
+        },
+        {
+          "id": "respond",
+          "name": "返回事件记录",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "validate",
+          "kind": "next"
+        },
+        {
+          "from": "validate",
+          "to": "bad-body",
+          "kind": "error"
+        },
+        {
+          "from": "validate",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "not-found",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "apply",
+          "kind": "next"
+        },
+        {
+          "from": "apply",
+          "to": "record",
+          "kind": "next"
+        },
+        {
+          "from": "record",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.85,
+      "provenance": "ai",
+      "tags": [
+        "intervention"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-intervention-drawer",
+      "name": "干预抽屉",
+      "summary": "三类表单填写并桥接自动暂停与恢复流程",
+      "epicId": "intervention",
+      "triggers": [
+        {
+          "kind": "ui",
+          "detail": "运行页点击实体或干预按钮"
+        }
+      ],
+      "steps": [
+        {
+          "id": "click",
+          "name": "点击实体",
+          "role": "input",
+          "refs": [
+            {
+              "file": "web/src/routes/Running.tsx"
+            }
+          ]
+        },
+        {
+          "id": "auto-pause",
+          "name": "自动暂停",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/hooks/usePause.ts"
+            }
+          ]
+        },
+        {
+          "id": "open",
+          "name": "打开抽屉",
+          "role": "output",
+          "refs": [
+            {
+              "file": "web/src/components/InterventionDrawer.tsx"
+            }
+          ]
+        },
+        {
+          "id": "fill",
+          "name": "填写表单",
+          "role": "input"
+        },
+        {
+          "id": "validate-client",
+          "name": "客户端校验",
+          "role": "validation"
+        },
+        {
+          "id": "client-bad",
+          "name": "校验失败提示",
+          "role": "error"
+        },
+        {
+          "id": "submit",
+          "name": "提交干预",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/hooks/useIntervene.ts"
+            }
+          ]
+        },
+        {
+          "id": "submit-fail",
+          "name": "提交失败保留抽屉",
+          "role": "error"
+        },
+        {
+          "id": "auto-resume",
+          "name": "成功后自动恢复",
+          "role": "side-effect"
+        },
+        {
+          "id": "close",
+          "name": "关闭抽屉提示成功",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "click",
+          "to": "auto-pause",
+          "kind": "conditional",
+          "condition": "原为运行态"
+        },
+        {
+          "from": "click",
+          "to": "open",
+          "kind": "next"
+        },
+        {
+          "from": "auto-pause",
+          "to": "open",
+          "kind": "async"
+        },
+        {
+          "from": "open",
+          "to": "fill",
+          "kind": "next"
+        },
+        {
+          "from": "fill",
+          "to": "validate-client",
+          "kind": "next"
+        },
+        {
+          "from": "validate-client",
+          "to": "client-bad",
+          "kind": "error"
+        },
+        {
+          "from": "validate-client",
+          "to": "submit",
+          "kind": "async"
+        },
+        {
+          "from": "submit",
+          "to": "submit-fail",
+          "kind": "error"
+        },
+        {
+          "from": "submit",
+          "to": "auto-resume",
+          "kind": "conditional",
+          "condition": "原非手动暂停"
+        },
+        {
+          "from": "submit",
+          "to": "close",
+          "kind": "next"
+        },
+        {
+          "from": "auto-resume",
+          "to": "close",
+          "kind": "async"
+        }
+      ],
+      "confidence": 0.7,
+      "provenance": "ai",
+      "tags": [
+        "frontend",
+        "intervention"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-analysis-get",
+      "name": "获取分析报告",
+      "summary": "执行纯规则分析可选触发模型增强返回结果",
+      "epicId": "analysis",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "GET /api/v1/runs/{run_id}/analysis"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收分析请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/analysis.py"
+            }
+          ]
+        },
+        {
+          "id": "lookup",
+          "name": "查注册表",
+          "role": "data-read"
+        },
+        {
+          "id": "not-found",
+          "name": "未命中返 404",
+          "role": "error"
+        },
+        {
+          "id": "guard",
+          "name": "校验落盘模式",
+          "role": "validation"
+        },
+        {
+          "id": "no-persist",
+          "name": "内存模式拒绝",
+          "role": "error",
+          "note": "未落盘的 run 无法做事后分析"
+        },
+        {
+          "id": "phase-a",
+          "name": "执行纯规则分析",
+          "role": "compute",
+          "refs": [
+            {
+              "file": "core/analysis.py"
+            }
+          ],
+          "note": "读事件流加快照算转折点轨迹环境演化"
+        },
+        {
+          "id": "check-mock",
+          "name": "判断决策提供者类型",
+          "role": "compute",
+          "note": "模拟提供者无法生成叙事段落"
+        },
+        {
+          "id": "phase-c",
+          "name": "执行模型增强",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "core/analysis.py"
+            }
+          ]
+        },
+        {
+          "id": "llm-fail",
+          "name": "增强失败降级",
+          "role": "error",
+          "note": "保留纯规则结果不打断"
+        },
+        {
+          "id": "persist",
+          "name": "落盘报告文件",
+          "role": "data-write"
+        },
+        {
+          "id": "respond",
+          "name": "返回分析结果",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "lookup",
+          "kind": "next"
+        },
+        {
+          "from": "lookup",
+          "to": "not-found",
+          "kind": "error"
+        },
+        {
+          "from": "lookup",
+          "to": "guard",
+          "kind": "next"
+        },
+        {
+          "from": "guard",
+          "to": "no-persist",
+          "kind": "error"
+        },
+        {
+          "from": "guard",
+          "to": "phase-a",
+          "kind": "next"
+        },
+        {
+          "from": "phase-a",
+          "to": "check-mock",
+          "kind": "conditional",
+          "condition": "请求增强且非模拟"
+        },
+        {
+          "from": "phase-a",
+          "to": "persist",
+          "kind": "conditional",
+          "condition": "未请求增强"
+        },
+        {
+          "from": "check-mock",
+          "to": "phase-c",
+          "kind": "conditional",
+          "condition": "非模拟提供者"
+        },
+        {
+          "from": "check-mock",
+          "to": "persist",
+          "kind": "conditional",
+          "condition": "模拟提供者跳过"
+        },
+        {
+          "from": "phase-c",
+          "to": "llm-fail",
+          "kind": "error"
+        },
+        {
+          "from": "phase-c",
+          "to": "persist",
+          "kind": "next"
+        },
+        {
+          "from": "persist",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.8,
+      "provenance": "ai",
+      "tags": [
+        "analysis"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-analysis-rerun",
+      "name": "重跑分析",
+      "summary": "前端按钮强制重新生成报告",
+      "epicId": "analysis",
+      "triggers": [
+        {
+          "kind": "http",
+          "detail": "POST /api/v1/runs/{run_id}/analyze"
+        }
+      ],
+      "steps": [
+        {
+          "id": "receive",
+          "name": "接收重跑请求",
+          "role": "input",
+          "refs": [
+            {
+              "file": "server/api/v1/routes/analysis.py"
+            }
+          ]
+        },
+        {
+          "id": "validate",
+          "name": "校验请求体",
+          "role": "validation",
+          "refs": [
+            {
+              "file": "server/api/v1/schemas.py"
+            }
+          ]
+        },
+        {
+          "id": "bad-body",
+          "name": "校验失败拒绝",
+          "role": "error"
+        },
+        {
+          "id": "delegate",
+          "name": "委托分析服务",
+          "role": "compute",
+          "refs": [
+            {
+              "file": "server/services/analysis_service.py"
+            }
+          ]
+        },
+        {
+          "id": "respond",
+          "name": "返回结果",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "receive",
+          "to": "validate",
+          "kind": "next"
+        },
+        {
+          "from": "validate",
+          "to": "bad-body",
+          "kind": "error"
+        },
+        {
+          "from": "validate",
+          "to": "delegate",
+          "kind": "next"
+        },
+        {
+          "from": "delegate",
+          "to": "respond",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "analysis"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-finished-page",
+      "name": "已结束页面",
+      "summary": "双查询拉分析结果指标卡叙事与副区面板",
+      "epicId": "analysis",
+      "triggers": [
+        {
+          "kind": "ui",
+          "detail": "导航到 /runs/{id}/finished"
+        }
+      ],
+      "steps": [
+        {
+          "id": "load",
+          "name": "拉取详情与分析",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/routes/Finished.tsx"
+            }
+          ]
+        },
+        {
+          "id": "fatal",
+          "name": "纯规则结果失败兜底",
+          "role": "error",
+          "note": "该结果失败才是致命错"
+        },
+        {
+          "id": "warn-banner",
+          "name": "增强失败提示",
+          "role": "output",
+          "note": "模型增强失败仅显示横幅不阻塞"
+        },
+        {
+          "id": "metrics",
+          "name": "渲染指标卡",
+          "role": "output",
+          "refs": [
+            {
+              "file": "web/src/components/FinishedMetricsCard.tsx"
+            }
+          ]
+        },
+        {
+          "id": "narrative",
+          "name": "渲染叙事报告",
+          "role": "output",
+          "refs": [
+            {
+              "file": "web/src/components/NarrativeReport.tsx"
+            }
+          ]
+        },
+        {
+          "id": "side",
+          "name": "渲染副区面板",
+          "role": "output",
+          "refs": [
+            {
+              "file": "web/src/components/FinishedSidePanel.tsx"
+            }
+          ]
+        },
+        {
+          "id": "click-rerun",
+          "name": "点击重跑",
+          "role": "input"
+        },
+        {
+          "id": "create-new",
+          "name": "创建新 run 并跳转",
+          "role": "side-effect"
+        }
+      ],
+      "flow": [
+        {
+          "from": "load",
+          "to": "fatal",
+          "kind": "error"
+        },
+        {
+          "from": "load",
+          "to": "warn-banner",
+          "kind": "conditional",
+          "condition": "增强失败"
+        },
+        {
+          "from": "load",
+          "to": "metrics",
+          "kind": "next"
+        },
+        {
+          "from": "load",
+          "to": "narrative",
+          "kind": "next"
+        },
+        {
+          "from": "load",
+          "to": "side",
+          "kind": "next"
+        },
+        {
+          "from": "metrics",
+          "to": "click-rerun",
+          "kind": "next"
+        },
+        {
+          "from": "click-rerun",
+          "to": "create-new",
+          "kind": "async"
+        }
+      ],
+      "confidence": 0.8,
+      "provenance": "ai",
+      "tags": [
+        "frontend"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-replay-panel",
+      "name": "事件重放面板",
+      "summary": "时间轴拖动查看每个 tick 当时事件",
+      "epicId": "analysis",
+      "triggers": [
+        {
+          "kind": "ui",
+          "detail": "结束页副区重放页签"
+        }
+      ],
+      "steps": [
+        {
+          "id": "load",
+          "name": "接收全部事件",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "web/src/hooks/useEvents.ts"
+            }
+          ]
+        },
+        {
+          "id": "bucket",
+          "name": "按 tick 分桶",
+          "role": "transform",
+          "refs": [
+            {
+              "file": "web/src/components/ReplayPanel.tsx"
+            }
+          ]
+        },
+        {
+          "id": "render",
+          "name": "渲染控制按钮",
+          "role": "output"
+        },
+        {
+          "id": "scrub",
+          "name": "拖动时间轴",
+          "role": "input"
+        },
+        {
+          "id": "show",
+          "name": "显示当前事件",
+          "role": "output"
+        },
+        {
+          "id": "empty",
+          "name": "空 tick 占位",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "load",
+          "to": "bucket",
+          "kind": "next"
+        },
+        {
+          "from": "bucket",
+          "to": "render",
+          "kind": "next"
+        },
+        {
+          "from": "render",
+          "to": "scrub",
+          "kind": "next"
+        },
+        {
+          "from": "scrub",
+          "to": "show",
+          "kind": "conditional",
+          "condition": "存在事件"
+        },
+        {
+          "from": "scrub",
+          "to": "empty",
+          "kind": "conditional",
+          "condition": "该 tick 无事件"
+        }
+      ],
+      "confidence": 0.85,
+      "provenance": "ai",
+      "tags": [
+        "frontend"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-cli-run",
+      "name": "端到端运行",
+      "summary": "命令行加载配置跑完仿真并自动分析",
+      "epicId": "cli",
+      "triggers": [
+        {
+          "kind": "cli",
+          "detail": "python -m cli run <scenario.yaml>"
+        }
+      ],
+      "steps": [
+        {
+          "id": "parse",
+          "name": "解析命令行",
+          "role": "input",
+          "refs": [
+            {
+              "file": "cli/run.py"
+            }
+          ]
+        },
+        {
+          "id": "load",
+          "name": "加载配置",
+          "role": "data-read"
+        },
+        {
+          "id": "config-bad",
+          "name": "配置错误退出",
+          "role": "error"
+        },
+        {
+          "id": "provider",
+          "name": "构造决策提供者",
+          "role": "compute"
+        },
+        {
+          "id": "loop",
+          "name": "推进 tick 循环",
+          "role": "compute"
+        },
+        {
+          "id": "print",
+          "name": "打印每轮摘要",
+          "role": "output"
+        },
+        {
+          "id": "phase-a",
+          "name": "自动跑纯规则分析",
+          "role": "side-effect",
+          "refs": [
+            {
+              "file": "core/analysis.py"
+            }
+          ]
+        },
+        {
+          "id": "phase-c",
+          "name": "可选模型增强",
+          "role": "side-effect"
+        },
+        {
+          "id": "enhance-fail",
+          "name": "增强失败保留基础版",
+          "role": "error"
+        },
+        {
+          "id": "exit",
+          "name": "返回退出码",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "parse",
+          "to": "load",
+          "kind": "next"
+        },
+        {
+          "from": "load",
+          "to": "config-bad",
+          "kind": "error"
+        },
+        {
+          "from": "load",
+          "to": "provider",
+          "kind": "next"
+        },
+        {
+          "from": "provider",
+          "to": "loop",
+          "kind": "next"
+        },
+        {
+          "from": "loop",
+          "to": "print",
+          "kind": "loop",
+          "condition": "对每个 tick"
+        },
+        {
+          "from": "print",
+          "to": "phase-a",
+          "kind": "next"
+        },
+        {
+          "from": "phase-a",
+          "to": "phase-c",
+          "kind": "conditional",
+          "condition": "请求增强"
+        },
+        {
+          "from": "phase-c",
+          "to": "enhance-fail",
+          "kind": "error"
+        },
+        {
+          "from": "phase-a",
+          "to": "exit",
+          "kind": "next"
+        },
+        {
+          "from": "phase-c",
+          "to": "exit",
+          "kind": "next"
+        },
+        {
+          "from": "enhance-fail",
+          "to": "exit",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.85,
+      "provenance": "ai",
+      "tags": [
+        "cli"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-cli-step",
+      "name": "交互式单步",
+      "summary": "REPL 环境下按命令逐 tick 推进或查看状态",
+      "epicId": "cli",
+      "triggers": [
+        {
+          "kind": "cli",
+          "detail": "python -m cli step <scenario.yaml>"
+        }
+      ],
+      "steps": [
+        {
+          "id": "parse",
+          "name": "解析命令行",
+          "role": "input",
+          "refs": [
+            {
+              "file": "cli/run.py"
+            }
+          ]
+        },
+        {
+          "id": "init",
+          "name": "初始化运行时",
+          "role": "compute"
+        },
+        {
+          "id": "prompt",
+          "name": "等待用户输入",
+          "role": "input"
+        },
+        {
+          "id": "dispatch",
+          "name": "分派命令",
+          "role": "compute"
+        },
+        {
+          "id": "execute",
+          "name": "执行命令",
+          "role": "side-effect"
+        },
+        {
+          "id": "unknown",
+          "name": "未知命令提示",
+          "role": "error"
+        },
+        {
+          "id": "quit",
+          "name": "退出",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "parse",
+          "to": "init",
+          "kind": "next"
+        },
+        {
+          "from": "init",
+          "to": "prompt",
+          "kind": "next"
+        },
+        {
+          "from": "prompt",
+          "to": "dispatch",
+          "kind": "next"
+        },
+        {
+          "from": "dispatch",
+          "to": "unknown",
+          "kind": "error"
+        },
+        {
+          "from": "dispatch",
+          "to": "execute",
+          "kind": "next"
+        },
+        {
+          "from": "execute",
+          "to": "prompt",
+          "kind": "loop",
+          "condition": "未退出时返回提示符"
+        },
+        {
+          "from": "unknown",
+          "to": "prompt",
+          "kind": "next"
+        },
+        {
+          "from": "prompt",
+          "to": "quit",
+          "kind": "conditional",
+          "condition": "用户退出或文件结束"
+        }
+      ],
+      "confidence": 0.85,
+      "provenance": "ai",
+      "tags": [
+        "cli",
+        "repl"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-cli-replay",
+      "name": "事件重放",
+      "summary": "读取已存档事件流按条件流式打印",
+      "epicId": "cli",
+      "triggers": [
+        {
+          "kind": "cli",
+          "detail": "python -m cli replay <run_dir>"
+        }
+      ],
+      "steps": [
+        {
+          "id": "parse",
+          "name": "解析命令行",
+          "role": "input",
+          "refs": [
+            {
+              "file": "cli/run.py"
+            }
+          ]
+        },
+        {
+          "id": "open",
+          "name": "打开事件文件",
+          "role": "data-read"
+        },
+        {
+          "id": "missing",
+          "name": "文件缺失退出",
+          "role": "error"
+        },
+        {
+          "id": "iterate",
+          "name": "逐行解析",
+          "role": "transform"
+        },
+        {
+          "id": "filter",
+          "name": "应用过滤条件",
+          "role": "transform"
+        },
+        {
+          "id": "print",
+          "name": "格式化打印",
+          "role": "output"
+        },
+        {
+          "id": "summary",
+          "name": "打印总数",
+          "role": "output"
+        }
+      ],
+      "flow": [
+        {
+          "from": "parse",
+          "to": "open",
+          "kind": "next"
+        },
+        {
+          "from": "open",
+          "to": "missing",
+          "kind": "error"
+        },
+        {
+          "from": "open",
+          "to": "iterate",
+          "kind": "next"
+        },
+        {
+          "from": "iterate",
+          "to": "filter",
+          "kind": "loop",
+          "condition": "对每行事件"
+        },
+        {
+          "from": "filter",
+          "to": "print",
+          "kind": "next"
+        },
+        {
+          "from": "print",
+          "to": "summary",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "cli"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    },
+    {
+      "id": "f-cli-serve",
+      "name": "启动服务",
+      "summary": "构造应用并运行服务器进程",
+      "epicId": "cli",
+      "triggers": [
+        {
+          "kind": "cli",
+          "detail": "python -m cli serve"
+        }
+      ],
+      "steps": [
+        {
+          "id": "parse",
+          "name": "解析命令行",
+          "role": "input",
+          "refs": [
+            {
+              "file": "cli/serve.py"
+            }
+          ]
+        },
+        {
+          "id": "config",
+          "name": "构造应用配置",
+          "role": "compute",
+          "refs": [
+            {
+              "file": "server/app.py"
+            }
+          ]
+        },
+        {
+          "id": "create",
+          "name": "构造应用",
+          "role": "compute"
+        },
+        {
+          "id": "run",
+          "name": "运行服务器",
+          "role": "side-effect"
+        },
+        {
+          "id": "shutdown",
+          "name": "优雅关闭",
+          "role": "other",
+          "refs": [
+            {
+              "file": "server/app.py"
+            }
+          ]
+        }
+      ],
+      "flow": [
+        {
+          "from": "parse",
+          "to": "config",
+          "kind": "next"
+        },
+        {
+          "from": "config",
+          "to": "create",
+          "kind": "next"
+        },
+        {
+          "from": "create",
+          "to": "run",
+          "kind": "next"
+        },
+        {
+          "from": "run",
+          "to": "shutdown",
+          "kind": "next"
+        }
+      ],
+      "confidence": 0.9,
+      "provenance": "ai",
+      "tags": [
+        "cli",
+        "server"
+      ],
+      "updated_at": "2026-05-14T22:00:00Z"
+    }
+  ],
   "cross_feature": [
-    {"from":"f-gallery-page","to":"f-list-scenarios","kind":"triggers","note":"useScenarios 调 GET /scenarios"},
-    {"from":"f-gallery-page","to":"f-create-run","kind":"triggers","note":"点击开始调 POST /runs"},
-    {"from":"f-gallery-page","to":"f-pre-run-page","kind":"triggers","note":"创建成功后导航到介绍页"},
-    {"from":"f-pre-run-page","to":"f-running-page","kind":"triggers","note":"点击开始仿真导航到运行页"},
-    {"from":"f-pre-run-page","to":"f-delete-run","kind":"triggers","note":"返回画廊时删除 run"},
-    {"from":"f-running-page","to":"f-ws-subscribe","kind":"triggers","note":"mount 时建 WebSocket 连接"},
-    {"from":"f-running-page","to":"f-step-tick","kind":"triggers","note":"auto-step 循环调 POST /step"},
-    {"from":"f-running-page","to":"f-finished-page","kind":"triggers","note":"收到完成事件后导航"},
-    {"from":"f-running-page","to":"f-delete-run","kind":"triggers","note":"退出时删除 run"},
-    {"from":"f-control-bar","to":"f-pause-run","kind":"triggers"},
-    {"from":"f-control-bar","to":"f-resume-run","kind":"triggers"},
-    {"from":"f-control-bar","to":"f-step-tick","kind":"triggers"},
-    {"from":"f-intervention-drawer","to":"f-pause-run","kind":"triggers","note":"打开前自动暂停"},
-    {"from":"f-intervention-drawer","to":"f-intervene","kind":"triggers","note":"提交干预"},
-    {"from":"f-intervention-drawer","to":"f-resume-run","kind":"triggers","note":"成功后自动恢复"},
-    {"from":"f-step-tick","to":"f-ws-broadcast","kind":"publishes","note":"step 完成后广播进度事件"},
-    {"from":"f-pause-run","to":"f-ws-broadcast","kind":"publishes","note":"推送暂停事件"},
-    {"from":"f-resume-run","to":"f-ws-broadcast","kind":"publishes","note":"推送恢复事件"},
-    {"from":"f-ws-broadcast","to":"f-running-page","kind":"publishes","note":"事件投递到前端累积"},
-    {"from":"f-ws-broadcast","to":"f-ws-subscribe","kind":"publishes","note":"消息入队到订阅者"},
-    {"from":"f-step-tick","to":"f-analysis-get","kind":"triggers","note":"达到总 tick 时自动跑分析"},
-    {"from":"f-finished-page","to":"f-analysis-get","kind":"triggers","note":"双查询拉分析结果"},
-    {"from":"f-finished-page","to":"f-analysis-rerun","kind":"triggers","note":"重跑增强按钮"},
-    {"from":"f-finished-page","to":"f-replay-panel","kind":"triggers","note":"副区重放 tab"},
-    {"from":"f-finished-page","to":"f-create-run","kind":"triggers","note":"重跑按钮创建新 run"},
-    {"from":"f-replay-panel","to":"f-query-events","kind":"triggers","note":"拉全部事件"},
-    {"from":"f-create-run","to":"f-ws-subscribe","kind":"depends_on","note":"run 必须存在 ws 才能通过校验"},
-    {"from":"f-app-lifespan","to":"f-ws-broadcast","kind":"enables","note":"attach_loop 是广播前置"},
-    {"from":"f-app-lifespan","to":"f-error-mapping","kind":"enables","note":"注册异常 handler"},
-    {"from":"f-cli-serve","to":"f-app-lifespan","kind":"triggers","note":"uvicorn 启动触发 lifespan"},
-    {"from":"f-cli-run","to":"f-analysis-get","kind":"triggers","note":"跑完自动分析"},
-    {"from":"f-top-bar","to":"f-locale-switch","kind":"triggers","note":"按钮委派切换"},
-    {"from":"f-intervene","to":"f-running-page","kind":"publishes","note":"干预事件被 ws 推送到前端"}
+    {
+      "from": "f-gallery-page",
+      "to": "f-list-scenarios",
+      "kind": "triggers",
+      "note": "拉取场景列表"
+    },
+    {
+      "from": "f-gallery-page",
+      "to": "f-create-run",
+      "kind": "triggers",
+      "note": "点击开始创建 run"
+    },
+    {
+      "from": "f-gallery-page",
+      "to": "f-pre-run-page",
+      "kind": "triggers",
+      "note": "创建成功跳介绍页"
+    },
+    {
+      "from": "f-pre-run-page",
+      "to": "f-running-page",
+      "kind": "triggers",
+      "note": "点击开始仿真跳运行页"
+    },
+    {
+      "from": "f-pre-run-page",
+      "to": "f-delete-run",
+      "kind": "triggers",
+      "note": "返回画廊时删除 run"
+    },
+    {
+      "from": "f-running-page",
+      "to": "f-ws-subscribe",
+      "kind": "subscribes",
+      "note": "订阅运行事件流"
+    },
+    {
+      "from": "f-running-page",
+      "to": "f-step-tick",
+      "kind": "triggers",
+      "note": "自动循环调推进"
+    },
+    {
+      "from": "f-running-page",
+      "to": "f-finished-page",
+      "kind": "triggers",
+      "note": "收到完成事件后跳结束页"
+    },
+    {
+      "from": "f-running-page",
+      "to": "f-delete-run",
+      "kind": "triggers",
+      "note": "退出时删除 run"
+    },
+    {
+      "from": "f-control-bar",
+      "to": "f-pause-run",
+      "kind": "triggers"
+    },
+    {
+      "from": "f-control-bar",
+      "to": "f-resume-run",
+      "kind": "triggers"
+    },
+    {
+      "from": "f-control-bar",
+      "to": "f-step-tick",
+      "kind": "triggers"
+    },
+    {
+      "from": "f-intervention-drawer",
+      "to": "f-pause-run",
+      "kind": "triggers",
+      "note": "打开前自动暂停"
+    },
+    {
+      "from": "f-intervention-drawer",
+      "to": "f-intervene",
+      "kind": "triggers",
+      "note": "提交干预"
+    },
+    {
+      "from": "f-intervention-drawer",
+      "to": "f-resume-run",
+      "kind": "triggers",
+      "note": "成功后自动恢复"
+    },
+    {
+      "from": "f-step-tick",
+      "to": "f-ws-broadcast",
+      "kind": "publishes",
+      "note": "推进后广播进度暂停或完成事件"
+    },
+    {
+      "from": "f-pause-run",
+      "to": "f-ws-broadcast",
+      "kind": "publishes",
+      "note": "推送暂停事件"
+    },
+    {
+      "from": "f-resume-run",
+      "to": "f-ws-broadcast",
+      "kind": "publishes",
+      "note": "推送恢复事件"
+    },
+    {
+      "from": "f-intervene",
+      "to": "f-ws-broadcast",
+      "kind": "publishes",
+      "note": "干预产生的事件随后通过推进被推送"
+    },
+    {
+      "from": "f-ws-broadcast",
+      "to": "f-ws-subscribe",
+      "kind": "publishes",
+      "note": "事件入队到订阅者"
+    },
+    {
+      "from": "f-ws-subscribe",
+      "to": "f-running-page",
+      "kind": "subscribes",
+      "note": "前端流 hook 监听并累积"
+    },
+    {
+      "from": "f-ws-subscribe",
+      "to": "f-ws-reconnect",
+      "kind": "publishes",
+      "note": "异常关闭后由重连流程接管"
+    },
+    {
+      "from": "f-ws-reconnect",
+      "to": "f-ws-subscribe",
+      "kind": "triggers",
+      "note": "退避到期后重新建连"
+    },
+    {
+      "from": "f-step-tick",
+      "to": "f-analysis-get",
+      "kind": "triggers",
+      "note": "达到总轮次时自动跑分析"
+    },
+    {
+      "from": "f-finished-page",
+      "to": "f-analysis-get",
+      "kind": "triggers",
+      "note": "双查询拉分析结果"
+    },
+    {
+      "from": "f-finished-page",
+      "to": "f-analysis-rerun",
+      "kind": "triggers",
+      "note": "重跑增强按钮"
+    },
+    {
+      "from": "f-finished-page",
+      "to": "f-replay-panel",
+      "kind": "triggers",
+      "note": "副区重放页签"
+    },
+    {
+      "from": "f-finished-page",
+      "to": "f-create-run",
+      "kind": "triggers",
+      "note": "重跑按钮创建新 run"
+    },
+    {
+      "from": "f-replay-panel",
+      "to": "f-query-events",
+      "kind": "triggers",
+      "note": "拉全部事件"
+    },
+    {
+      "from": "f-running-page",
+      "to": "f-list-snapshots",
+      "kind": "triggers",
+      "note": "副区图表按需拉快照列表"
+    },
+    {
+      "from": "f-running-page",
+      "to": "f-get-snapshot",
+      "kind": "triggers",
+      "note": "拉取具体快照"
+    },
+    {
+      "from": "f-app-lifespan",
+      "to": "f-ws-broadcast",
+      "kind": "depends_on",
+      "note": "事件循环未绑定时广播变 no-op"
+    },
+    {
+      "from": "f-app-lifespan",
+      "to": "f-error-mapping",
+      "kind": "depends_on",
+      "note": "应用启动时注册异常处理器"
+    },
+    {
+      "from": "f-cli-serve",
+      "to": "f-app-lifespan",
+      "kind": "triggers",
+      "note": "服务器启动时触发生命周期"
+    },
+    {
+      "from": "f-cli-run",
+      "to": "f-analysis-get",
+      "kind": "triggers",
+      "note": "命令行跑完自动分析"
+    },
+    {
+      "from": "f-top-bar",
+      "to": "f-locale-switch",
+      "kind": "triggers"
+    },
+    {
+      "from": "f-error-boundary",
+      "to": "f-running-page",
+      "kind": "depends_on",
+      "note": "全局错误边界包裹所有页面"
+    }
   ]
 }
