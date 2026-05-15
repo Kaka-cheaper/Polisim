@@ -29,37 +29,37 @@
       "id": "run-lifecycle",
       "name": "Run 生命周期",
       "summary": "创建/查询/删除仿真 run",
-      "order": 2
+      "order": 1
     },
     {
       "id": "simulation-control",
       "name": "仿真控制",
       "summary": "step/pause/resume 驱动 tick 推进",
-      "order": 3
+      "order": 2
     },
     {
       "id": "realtime-stream",
       "name": "实时事件流",
       "summary": "WebSocket 订阅广播+前端实时渲染",
-      "order": 3
+      "order": 2
     },
     {
       "id": "intervention",
       "name": "人工干预",
       "summary": "暂停期间注入消息/强制动作/修改属性",
-      "order": 4
+      "order": 2
     },
     {
       "id": "state-query",
       "name": "状态与事件查询",
       "summary": "查询当前状态/快照/事件流",
-      "order": 4
+      "order": 2
     },
     {
       "id": "analysis",
       "name": "分析报告",
       "summary": "纯规则+LLM 增强双轨分析",
-      "order": 5
+      "order": 3
     },
     {
       "id": "cli",
