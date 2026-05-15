@@ -43,3 +43,24 @@
 - cross_feature 引用全部有效
 - publishes 占比 18%（上一版仅 10%）
 - confidence 分布：0.75×2 / 0.8×4 / 0.85×7 / 0.9×13 / 0.95×8
+
+
+---
+
+问题3：用户更新了 prompt（新增 epic.order / epic_flow.note 必填 / 校验脚本），按新版重新执行扫描
+解决方案：
+1. 项目规模自检：3/5 命中重型 → 走 heavy 流程，但因已读过两轮代码直接基于完整心智模型一次性产出
+2. 用 Python 脚本生成完整 features.json（避免长文件 fs_write 截断）
+3. 跑 node .codesee/scripts/validate-features.mjs 校验，发现 f-ws-reconnect 闭环，把 reconnect → detect-close 回边改为正常出口（recovered + give-up），避免无入口环
+4. 严格模式校验通过 exit 0
+修改的代码文件：.codesee/features.json（重写）
+应当达成的效果：
+- 35 feature / 10 epic / 37 cross_feature / 8 epic_flow
+- 所有 epic 含 order 字段（0-5 五层旅程）
+- epic_flow 全部带中文 note 而非技术词
+- confidence 6 档分布（0.7/0.75/0.8/0.85/0.9/0.95）非扁平
+- cross_feature 关系类型多样：triggers 26 + publishes 6 + subscribes 2 + depends_on 3
+- publishes+subscribes 占比 22%（接近 30% 推荐线）
+- flow 边类型：next 144 + error 38 + conditional 21 + async 17 + loop 6
+- 105 个 file ref 全部真实存在
+- node 校验脚本严格模式通过
