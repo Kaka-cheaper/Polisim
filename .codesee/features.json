@@ -62,7 +62,8 @@
       "id": "analysis",
       "name": "分析报告",
       "summary": "纯规则+LLM 增强双轨分析",
-      "order": 3
+      "order": 3,
+      "importance": "core"
     },
     {
       "id": "cli",
