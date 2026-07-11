@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polisim - 分层驱动的多实体仿真引擎</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-bg-primary: #050506;
+            --color-bg-secondary: #1c1c1f;
+            --color-bg-tertiary: #232326;
+            --color-bg-panel: #0c0d0e;
+            --color-bg-accent: #18182f;
+            --color-text-primary: #f7f8f8;
+            --color-text-secondary: #d0d6e0;
+            --color-text-tertiary: #8a8f98;
+            --color-text-muted: #62666d;
+            --color-accent: #7170ff;
+            --color-accent-hover: #828fff;
+            --color-border: #23252a;
+            --color-border-light: #34343a;
+            --color-status-success: #27a644;
+            --color-status-danger: #eb5757;
+            --color-status-warning: #f0bf00;
+            --color-status-info: #4ea7fc;
+            --color-polisim-paused: #f0bf00;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        .liquid-glass {
+            background: rgba(28, 28, 31, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .shadow-glow-accent {
+            box-shadow: 0 0 20px -4px rgba(113, 112, 255, 0.35);
+        }
+
+        .shadow-focus {
+            box-shadow: 0 0 0 3px rgba(94, 105, 209, 0.4);
+        }
+
+        .inner-highlight {
+            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+        }
+
+        .gradient-hero-glow {
+            background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(113, 112, 255, 0.08) 0%, rgba(113, 112, 255, 0.03) 40%, transparent 70%);
+        }
+
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: var(--color-bg-panel);
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: var(--color-border-light);
+            border-radius: 3px;
+        }
+
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: var(--color-text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        const MOCK_SCENARIOS = [
+            {
+                id: 'minimal_market',
+                name: '最小市场',
+                description: '两个竞争公司在市场压力下做出促销或观望决策。演示基本动作效果、属性限制和定时事件。',
+                total_ticks: 5,
+                ui_layout: 'entity_card',
+                world_id: 'minimal_market_world',
+                path: 'scenarios/minimal_market/scenario.yaml'
+            },
+            {
+                id: 'three_party_negotiation',
+                name: '三方谈判',
+                description: '三位谈判者互相提议、接受或拒绝报价，信任关系随时间演变。演示定向消息、关系动态和多效果动作。',
+                total_ticks: 8,
+                ui_layout: 'relation_graph',
+                world_id: 'negotiation_world',
+                path: 'scenarios/three_party_negotiation/scenario.yaml'
+            }
+        ];
+
+        const MOCK_WORLD = {
+            entity_types: {
+                company: { decision_mode: 'llm', attributes: ['cash', 'reputation'], actions: ['promote', 'do_nothing'] },
+                negotiator: { decision_mode: 'rule', attributes: ['trust', 'offer'], actions: ['propose', 'accept', 'reject'] }
+            },
+            action_types: {
+                promote: { params: {}, effects: ['attribute_changed'] },
+                do_nothing: { params: {}, effects: [] },
+                propose: { params: { target: 'string', amount: 'number' }, effects: ['message_sent'] },
+                accept: { params: {}, effects: ['attribute_changed'] },
+                reject: { params: {}, effects: ['message_sent'] }
+            },
+            relation_types: {
+                trust: { value_type: 'number' }
+            }
+        };
+
+        const MOCK_SCENARIO = {
+            id: 'minimal_market',
+            name: '最小市场',
+            entities: [
+                { id: 'company_a', type: 'company', attributes: { cash: 100, reputation: 50 } },
+                { id: 'company_b', type: 'company', attributes: { cash: 80, reputation: 60 } }
+            ],
+            relations: [],
+            environment: { market_pressure: 50 },
+            ui_layout: 'entity_card',
+            total_ticks: 5
+        };
+
+        const generateMockRunDetail = (runId) => ({
+            summary: {
+                run_id: runId,
+                scenario_id: 'minimal_market',
+                total_ticks: 5,
+                status: 'running',
+                started_at: new Date().toISOString()
+            },
+            world: MOCK_WORLD,
+            scenario: MOCK_SCENARIO
+        });
+
+        const generateMockEvents = (tick) => {
+            const events = [];
+            if (tick >= 1) {
+                events.push({
+                    tick: 1,
+                    kind: 'decision_proposed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:01Z',
+                    payload: { action: 'do_nothing', reason: '市场压力适中，选择观望', mode: 'llm' }
+                });
+                events.push({
+                    tick: 1,
+                    kind: 'decision_proposed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:02Z',
+                    payload: { action: 'promote', reason: '现金充足，执行促销', mode: 'rule' }
+                });
+                events.push({
+                    tick: 1,
+                    kind: 'action_executed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:03Z',
+                    payload: { action: 'promote', params: {} }
+                });
+                events.push({
+                    tick: 1,
+                    kind: 'attribute_changed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:04Z',
+                    payload: { name: 'cash', old_value: 80, new_value: 60 }
+                });
+                events.push({
+                    tick: 1,
+                    kind: 'attribute_changed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:05Z',
+                    payload: { name: 'reputation', old_value: 60, new_value: 65 }
+                });
+            }
+            if (tick >= 2) {
+                events.push({
+                    tick: 2,
+                    kind: 'decision_proposed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:06Z',
+                    payload: { action: 'promote', reason: '竞争对手已促销，必须跟进', mode: 'llm' }
+                });
+                events.push({
+                    tick: 2,
+                    kind: 'decision_proposed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:07Z',
+                    payload: { action: 'do_nothing', reason: '刚促销过，等待效果', mode: 'rule' }
+                });
+                events.push({
+                    tick: 2,
+                    kind: 'action_executed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:08Z',
+                    payload: { action: 'promote', params: {} }
+                });
+                events.push({
+                    tick: 2,
+                    kind: 'attribute_changed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:09Z',
+                    payload: { name: 'cash', old_value: 100, new_value: 80 }
+                });
+                events.push({
+                    tick: 2,
+                    kind: 'attribute_changed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:10Z',
+                    payload: { name: 'reputation', old_value: 50, new_value: 55 }
+                });
+            }
+            if (tick >= 3) {
+                events.push({
+                    tick: 3,
+                    kind: 'decision_proposed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:11Z',
+                    payload: { action: 'do_nothing', reason: '现金减少，暂不行动', mode: 'llm' }
+                });
+                events.push({
+                    tick: 3,
+                    kind: 'decision_proposed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:12Z',
+                    payload: { action: 'promote', reason: '声誉上升，继续促销', mode: 'rule' }
+                });
+                events.push({
+                    tick: 3,
+                    kind: 'action_executed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:13Z',
+                    payload: { action: 'promote', params: {} }
+                });
+                events.push({
+                    tick: 3,
+                    kind: 'attribute_changed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:14Z',
+                    payload: { name: 'cash', old_value: 60, new_value: 40 }
+                });
+                events.push({
+                    tick: 3,
+                    kind: 'attribute_changed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:15Z',
+                    payload: { name: 'reputation', old_value: 65, new_value: 70 }
+                });
+            }
+            if (tick >= 4) {
+                events.push({
+                    tick: 4,
+                    kind: 'decision_proposed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:16Z',
+                    payload: { action: 'promote', reason: '竞争对手声誉领先，需要反击', mode: 'llm' }
+                });
+                events.push({
+                    tick: 4,
+                    kind: 'decision_proposed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:17Z',
+                    payload: { action: 'do_nothing', reason: '现金不足，暂停促销', mode: 'rule' }
+                });
+                events.push({
+                    tick: 4,
+                    kind: 'action_executed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:18Z',
+                    payload: { action: 'promote', params: {} }
+                });
+                events.push({
+                    tick: 4,
+                    kind: 'attribute_changed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:19Z',
+                    payload: { name: 'cash', old_value: 80, new_value: 60 }
+                });
+                events.push({
+                    tick: 4,
+                    kind: 'attribute_changed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:20Z',
+                    payload: { name: 'reputation', old_value: 55, new_value: 60 }
+                });
+            }
+            if (tick >= 5) {
+                events.push({
+                    tick: 5,
+                    kind: 'decision_proposed',
+                    actor_id: 'company_a',
+                    timestamp: '2026-04-26T10:30:21Z',
+                    payload: { action: 'do_nothing', reason: '仿真即将结束，保持现状', mode: 'llm' }
+                });
+                events.push({
+                    tick: 5,
+                    kind: 'decision_proposed',
+                    actor_id: 'company_b',
+                    timestamp: '2026-04-26T10:30:22Z',
+                    payload: { action: 'do_nothing', reason: '现金不足，无法促销', mode: 'rule' }
+                });
+                events.push({
+                    tick: 5,
+                    kind: 'run_finished',
+                    actor_id: null,
+                    timestamp: '2026-04-26T10:30:23Z',
+                    payload: {}
+                });
+            }
+            return events;
+        };
+
+        const generateMockSnapshots = (tick) => {
+            const snapshots = [];
+            if (tick >= 1) {
+                snapshots.push({
+                    tick: 1,
+                    entity_state_summary: {
+                        company_a: { cash: 100, reputation: 50 },
+                        company_b: { cash: 60, reputation: 65 }
+                    },
+                    environment_state: { market_pressure: 55 }
+                });
+            }
+            if (tick >= 2) {
+                snapshots.push({
+                    tick: 2,
+                    entity_state_summary: {
+                        company_a: { cash: 80, reputation: 55 },
+                        company_b: { cash: 60, reputation: 65 }
+                    },
+                    environment_state: { market_pressure: 60 }
+                });
+            }
+            if (tick >= 3) {
+                snapshots.push({
+                    tick: 3,
+                    entity_state_summary: {
+                        company_a: { cash: 80, reputation: 55 },
+                        company_b: { cash: 40, reputation: 70 }
+                    },
+                    environment_state: { market_pressure: 65 }
+                });
+            }
+            if (tick >= 4) {
+                snapshots.push({
+                    tick: 4,
+                    entity_state_summary: {
+                        company_a: { cash: 60, reputation: 60 },
+                        company_b: { cash: 40, reputation: 70 }
+                    },
+                    environment_state: { market_pressure: 70 }
+                });
+            }
+            if (tick >= 5) {
+                snapshots.push({
+                    tick: 5,
+                    entity_state_summary: {
+                        company_a: { cash: 60, reputation: 60 },
+                        company_b: { cash: 40, reputation: 70 }
+                    },
+                    environment_state: { market_pressure: 75 }
+                });
+            }
+            return snapshots;
+        };
+
+        const MOCK_ANALYSIS = {
+            phase_a: {
+                turning_points: [
+                    { tick: 1, description: 'company_b 首次促销' },
+                    { tick: 2, description: 'company_a 跟进促销' },
+                    { tick: 3, description: 'company_b 连续促销' },
+                    { tick: 4, description: 'company_a 再次促销' }
+                ],
+                entity_trajectories: {
+                    company_a: {
+                        attributes: {
+                            cash: [100, 80, 80, 60, 60],
+                            reputation: [50, 55, 55, 60, 60]
+                        }
+                    },
+                    company_b: {
+                        attributes: {
+                            cash: [80, 60, 60, 40, 40],
+                            reputation: [60, 65, 65, 70, 70]
+                        }
+                    }
+                },
+                metrics: {
+                    total_events: 20,
+                    total_entities: 2,
+                    avg_decisions_per_tick: 2,
+                    action_execution_rate: 1.0,
+                    intervention_count: 0,
+                    breakpoint_hits: 0
+                }
+            },
+            narrative: {
+                world_overview: '在这个最小市场场景中，有两家竞争公司（company_a 和 company_b），它们可以选择促销或观望。市场压力会随时间变化，影响公司决策。',
+                narrative_summary: '仿真开始时，company_b 率先进行促销活动，消耗了现金但提升了声誉。随后 company_a 跟进促销，双方在市场中展开竞争。最终 company_b 在声誉上占据优势，但现金储备较低。',
+                situation_judgement: '当前状态评估：company_b 的声誉达到 70，领先于 company_a 的 60；但 company_a 的现金储备（60）高于 company_b（40）。市场压力持续上升至 75，未来可能需要更多促销活动。',
+                next_action_suggestions: [
+                    '建议 company_a 继续促销以追赶声誉差距',
+                    '建议 company_b 暂停促销以恢复现金储备',
+                    '考虑引入新的市场变量增加场景复杂度'
+                ]
+            }
+        };
+
+        const ROUTES = {
+            GALLERY: 'gallery',
+            PRERUN: 'pre_run',
+            RUNNING: 'running',
+            FINISHED: 'finished'
+        };
+
+        let currentRoute = ROUTES.GALLERY;
+        let currentRunId = null;
+        let currentScenario = null;
+        let currentLocale = 'zh';
+
+        const t = (key, params = {}) => {
+            const translations = {
+                zh: {
+                    'gallery.title': '分层驱动的多实体仿真引擎',
+                    'gallery.subtitle': '通过 YAML 定义世界，重建社会动态',
+                    'gallery.tagline': '可暂停 · 可干预 · 可回溯分析',
+                    'gallery.badge_new': 'New',
+                    'gallery.badge_text': 'AI-powered multi-agent simulation',
+                    'gallery.section.production': '现成场景',
+                    'gallery.section.upcoming': '即将到来',
+                    'gallery.section.custom': '自定义',
+                    'gallery.empty': '暂无可用场景',
+                    'gallery.retry': '重试',
+                    'gallery.error_title': '加载失败',
+                    'gallery.error_hint': '无法加载场景列表，请重试',
+                    'gallery.provider_toggle.mock': 'Mock',
+                    'gallery.provider_toggle.openai': 'OpenAI',
+                    'gallery.provider_toggle.openai_hint': '使用真实 LLM，可能产生费用',
+                    'scenario_card.start': '▶ 开始',
+                    'scenario_card.ticks_label': '{{count}} ticks',
+                    'scenario_card.world_id_label': 'world: {{id}}',
+                    'scenario_card.v0_3_label': 'v0.3+',
+                    'scenario_card.ui_layout_hint.entity_card': '实体卡片布局',
+                    'scenario_card.ui_layout_hint.relation_graph': '关系图布局',
+                    'scenario_card.ui_layout_hint.event_stream': '事件流布局',
+                    'topbar.title': 'Polisim',
+                    'topbar.lang_toggle': 'EN',
+                    'topbar.lang_toggle_aria': '切换语言',
+                    'pre_run.back': '← 返回',
+                    'pre_run.start': '▶ 开始仿真',
+                    'pre_run.back_to_gallery': '← 选其他场景',
+                    'pre_run.error_title': '加载失败',
+                    'pre_run.no_description': '暂无描述',
+                    'control_bar.tick_label': 'tick {{current}}/{{total}}',
+                    'control_bar.status.running': '运行中',
+                    'control_bar.status.paused': '已暂停',
+                    'control_bar.status.finished': '已完成',
+                    'control_bar.status.idle': '空闲',
+                    'control_bar.pause': '暂停',
+                    'control_bar.resume': '继续',
+                    'control_bar.step': '单步',
+                    'control_bar.speed_label': '速度',
+                    'control_bar.side_panel_show': '显示副区',
+                    'control_bar.side_panel_hide': '隐藏副区',
+                    'control_bar.exit': '退出',
+                    'entity_card.intervene': '📌 干预',
+                    'entity_card.just_executed': '刚执行',
+                    'entity_card.no_action_yet': '暂无动作',
+                    'entity_card.decision_mode_label.llm': 'LLM',
+                    'entity_card.decision_mode_label.rule': '规则',
+                    'entity_card.decision_mode_label.random': '随机',
+                    'running.loading': '加载中...',
+                    'running.error_title': '加载失败',
+                    'event_stream.entities_title': '实体',
+                    'event_stream.stream_aria': '事件流',
+                    'event_stream.no_events': '暂无事件',
+                    'rule_thought.title': '按规则决策',
+                    'rule_thought.random_title': '随机决策',
+                    'finished.header.title': '仿真完成',
+                    'finished.back_to_gallery': '← 返回画廊',
+                    'finished.rerun': '🔄 重跑',
+                    'finished.error.title': '分析失败',
+                    'finished.error.hint': '无法生成分析报告',
+                    'finished.narrative.enhance_failed': 'LLM 增强失败，仅显示 Phase A 数据'
+                },
+                en: {
+                    'gallery.title': 'Layered Multi-Agent Simulation Engine',
+                    'gallery.subtitle': 'Define worlds in YAML, recreate social dynamics',
+                    'gallery.tagline': 'Pauseable · Intervenable · Replayable',
+                    'gallery.badge_new': 'New',
+                    'gallery.badge_text': 'AI-powered multi-agent simulation',
+                    'gallery.section.production': 'Production',
+                    'gallery.section.upcoming': 'Upcoming',
+                    'gallery.section.custom': 'Custom',
+                    'gallery.empty': 'No scenarios available',
+                    'gallery.retry': 'Retry',
+                    'gallery.error_title': 'Failed to load',
+                    'gallery.error_hint': 'Cannot load scenarios, please retry',
+                    'gallery.provider_toggle.mock': 'Mock',
+                    'gallery.provider_toggle.openai': 'OpenAI',
+                    'gallery.provider_toggle.openai_hint': 'Use real LLM, may incur costs',
+                    'scenario_card.start': '▶ Start',
+                    'scenario_card.ticks_label': '{{count}} ticks',
+                    'scenario_card.world_id_label': 'world: {{id}}',
+                    'scenario_card.v0_3_label': 'v0.3+',
+                    'scenario_card.ui_layout_hint.entity_card': 'Entity Card Layout',
+                    'scenario_card.ui_layout_hint.relation_graph': 'Relation Graph Layout',
+                    'scenario_card.ui_layout_hint.event_stream': 'Event Stream Layout',
+                    'topbar.title': 'Polisim',
+                    'topbar.lang_toggle': '中文',
+                    'topbar.lang_toggle_aria': 'Toggle language',
+                    'pre_run.back': '← Back',
+                    'pre_run.start': '▶ Start Simulation',
+                    'pre_run.back_to_gallery': '← Choose another scenario',
+                    'pre_run.error_title': 'Failed to load',
+                    'pre_run.no_description': 'No description',
+                    'control_bar.tick_label': 'tick {{current}}/{{total}}',
+                    'control_bar.status.running': 'Running',
+                    'control_bar.status.paused': 'Paused',
+                    'control_bar.status.finished': 'Finished',
+                    'control_bar.status.idle': 'Idle',
+                    'control_bar.pause': 'Pause',
+                    'control_bar.resume': 'Resume',
+                    'control_bar.step': 'Step',
+                    'control_bar.speed_label': 'Speed',
+                    'control_bar.side_panel_show': 'Show side panel',
+                    'control_bar.side_panel_hide': 'Hide side panel',
+                    'control_bar.exit': 'Exit',
+                    'entity_card.intervene': '📌 Intervene',
+                    'entity_card.just_executed': 'Just executed',
+                    'entity_card.no_action_yet': 'No action yet',
+                    'entity_card.decision_mode_label.llm': 'LLM',
+                    'entity_card.decision_mode_label.rule': 'Rule',
+                    'entity_card.decision_mode_label.random': 'Random',
+                    'running.loading': 'Loading...',
+                    'running.error_title': 'Failed to load',
+                    'event_stream.entities_title': 'Entities',
+                    'event_stream.stream_aria': 'Event stream',
+                    'event_stream.no_events': 'No events yet',
+                    'rule_thought.title': 'Rule-based decision',
+                    'rule_thought.random_title': 'Random decision',
+                    'finished.header.title': 'Simulation Complete',
+                    'finished.back_to_gallery': '← Back to gallery',
+                    'finished.rerun': '🔄 Rerun',
+                    'finished.error.title': 'Analysis failed',
+                    'finished.error.hint': 'Cannot generate analysis report',
+                    'finished.narrative.enhance_failed': 'LLM enhancement failed, showing Phase A data only'
+                }
+            };
+            let text = translations[currentLocale][key] || key;
+            Object.keys(params).forEach(k => {
+                text = text.replace(new RegExp(`{{${k}}}`, 'g'), params[k]);
+            });
+            return text;
+        };
+
+        const formatValue = (v) => {
+            if (v === null || v === undefined) return '—';
+            if (typeof v === 'number') {
+                return Number.isInteger(v) ? String(v) : v.toFixed(2);
+            }
+            if (typeof v === 'boolean') return v ? 'true' : 'false';
+            if (typeof v === 'string') return v;
+            return JSON.stringify(v);
+        };
+
+        const entityTypeEmoji = (type) => {
+            const lower = type.toLowerCase();
+            if (lower.includes('company')) return '🏢';
+            if (lower.includes('negotiator')) return '🤝';
+            if (lower.includes('agent')) return '🤖';
+            return '▪️';
+        };
+
+        const attributeEmoji = (name) => {
+            const lower = name.toLowerCase();
+            if (lower.includes('cash') || lower.includes('money')) return '💰';
+            if (lower.includes('reputation') || lower.includes('repu')) return '📈';
+            if (lower.includes('trust')) return '🤝';
+            return '▫️';
+        };
+
+        const computeDiff = (prev, curr) => {
+            if (typeof prev === 'number' && typeof curr === 'number') {
+                const d = curr - prev;
+                if (d === 0) return { sign: null, delta: null };
+                return { sign: d > 0 ? '↑' : '↓', delta: Math.abs(d) };
+            }
+            return { sign: null, delta: null };
+        };
+
+        const UI_LAYOUT_ICON = {
+            entity_card: '🎴',
+            relation_graph: '🕸️',
+            event_stream: '📜'
+        };
+
+        const TopBar = () => {
+            const handleToggleLocale = () => {
+                currentLocale = currentLocale === 'zh' ? 'en' : 'zh';
+                renderApp();
+            };
+
+            return `
+                <header class="sticky top-0 z-50 flex items-center justify-between border-b border-gray-800 px-6" style="height: 56px; background: rgba(5, 5, 6, 0.8); backdrop-filter: blur(12px);">
+                    <button onclick="navigateToGallery()" class="text-xl font-semibold tracking-tight text-white transition-colors hover:text-${currentLocale === 'zh' ? 'purple-400' : '#7170ff'}">
+                        ${t('topbar.title')}
+                    </button>
+                    <button onclick="${handleToggleLocale}" aria-label="${t('topbar.lang_toggle_aria')}" class="rounded-md border border-gray-700 bg-gray-900/50 px-3 py-1 text-sm font-medium text-gray-300 transition-all hover:-translate-y-px hover:border-${currentLocale === 'zh' ? 'purple-500' : '#7170ff'} hover:bg-gray-800 hover:text-white">
+                        ${t('topbar.lang_toggle')}
+                    </button>
+                </header>
+            `;
+        };
+
+        const ScenarioCard = (scenario, onStart) => {
+            const layoutIcon = UI_LAYOUT_ICON[scenario.ui_layout];
+            return `
+                <div class="group liquid-glass flex flex-col rounded-xl border border-gray-700 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-${currentLocale === 'zh' ? 'purple-500' : '#7170ff'} hover:shadow-lg">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <h3 class="truncate text-xl font-semibold tracking-tight text-white">${scenario.name}</h3>
+                            <p class="mt-1 truncate font-mono text-sm text-gray-500">${scenario.id}</p>
+                        </div>
+                        <span class="text-2xl" title="${scenario.ui_layout}">${layoutIcon}</span>
+                    </div>
+                    <hr class="my-4 border-gray-800" />
+                    <p class="text-sm text-gray-400 line-clamp-3">${scenario.description || t('pre_run.no_description')}</p>
+                    <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+                        <span>${t('scenario_card.ticks_label', { count: scenario.total_ticks })}</span>
+                        <span aria-hidden="true">·</span>
+                        <span class="truncate font-mono">${t('scenario_card.world_id_label', { id: scenario.world_id })}</span>
+                    </div>
+                    <button onclick="${onStart}" class="mt-6 self-start rounded-full bg-${currentLocale === 'zh' ? 'purple-600' : '#7170ff'} px-4 py-2 text-sm font-medium text-white transition-all hover:scale-105 hover:bg-${currentLocale === 'zh' ? 'purple-500' : '#828fff'} hover:shadow-glow-accent active:scale-95">
+                        ${t('scenario_card.start')}
+                    </button>
+                </div>
+            `;
+        };
+
+        const Gallery = () => {
+            const handleStartScenario = (scenario) => {
+                currentScenario = scenario;
+                currentRunId = `demo-run-${Date.now()}`;
+                navigateToPreRun();
+            };
+
+            return `
+                <main class="mx-auto max-w-7xl px-6 py-12">
+                    <header class="relative pb-8 pt-4 text-center" style="background: var(--gradient-hero-glow)">
+                        <div class="mb-6 inline-flex items-center gap-2 liquid-glass rounded-full px-1 py-1">
+                            <span class="rounded-full bg-${currentLocale === 'zh' ? 'purple-600' : '#7170ff'} px-3 py-1 text-xs font-semibold text-white">${t('gallery.badge_new')}</span>
+                            <span class="pr-3 text-xs font-medium text-gray-400">${t('gallery.badge_text')}</span>
+                        </div>
+                        <h1 class="mx-auto max-w-3xl font-bold text-5xl text-white leading-[0.9] tracking-tight">
+                            ${t('gallery.title')}
+                        </h1>
+                        <p class="mt-5 text-xl text-gray-400">${t('gallery.subtitle')}</p>
+                        <p class="mt-2 text-base text-gray-500">${t('gallery.tagline')}</p>
+                        
+                        <div class="mt-8 inline-flex items-center gap-1 liquid-glass rounded-full p-1">
+                            <button type="button" class="rounded-full px-4 py-1.5 text-sm font-medium bg-${currentLocale === 'zh' ? 'purple-600' : '#7170ff'} text-white shadow-glow-accent">
+                                ${t('gallery.provider_toggle.mock')}
+                            </button>
+                            <button type="button" class="rounded-full px-4 py-1.5 text-sm font-medium text-gray-400 hover:text-white">
+                                ${t('gallery.provider_toggle.openai')}
+                            </button>
+                        </div>
+                    </header>
+
+                    <section class="mt-12">
+                        <h2 class="text-sm font-medium uppercase tracking-wide text-gray-500">${t('gallery.section.production')}</h2>
+                        <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+                            ${MOCK_SCENARIOS.map(s => ScenarioCard(s, `handleStartScenario(${JSON.stringify(s).replace(/"/g, '\\"')})`)).join('')}
+                        </div>
+                    </section>
+
+                    <section class="mt-12">
+                        <h2 class="text-sm font-medium uppercase tracking-wide text-gray-500">${t('gallery.section.upcoming')}</h2>
+                        <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+                            <div class="flex cursor-pointer flex-col rounded-xl border border-dashed border-gray-700 bg-gray-900/50 p-6 transition-all hover:-translate-y-0.5 hover:border-gray-600 hover:bg-gray-800/50">
+                                <h3 class="text-xl font-semibold tracking-tight text-gray-500">📰 信息级联</h3>
+                                <hr class="my-4 border-gray-800" />
+                                <p class="flex-1 text-sm text-gray-500">研究信息在群体中的传播模式和影响</p>
+                                <span class="mt-6 self-start rounded-md border border-gray-700 bg-gray-800/50 px-4 py-2 text-sm font-medium text-gray-600">${t('scenario_card.v0_3_label')}</span>
+                            </div>
+                            <div class="flex cursor-pointer flex-col rounded-xl border border-dashed border-gray-700 bg-gray-900/50 p-6 transition-all hover:-translate-y-0.5 hover:border-gray-600 hover:bg-gray-800/50">
+                                <h3 class="text-xl font-semibold tracking-tight text-gray-500">🏛 组织决策</h3>
+                                <hr class="my-4 border-gray-800" />
+                                <p class="flex-1 text-sm text-gray-500">模拟组织内部的决策流程和权力动态</p>
+                                <span class="mt-6 self-start rounded-md border border-gray-700 bg-gray-800/50 px-4 py-2 text-sm font-medium text-gray-600">${t('scenario_card.v0_3_label')}</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="mt-8">
+                        <h2 class="text-sm font-medium uppercase tracking-wide text-gray-500">${t('gallery.section.custom')}</h2>
+                        <div class="mt-4">
+                            <div class="flex cursor-pointer flex-col rounded-xl border border-dashed border-gray-700 bg-gray-900/50 p-6 transition-all hover:-translate-y-0.5 hover:border-gray-600 hover:bg-gray-800/50">
+                                <h3 class="text-xl font-semibold tracking-tight text-gray-500">✨ LLM 辅助建模</h3>
+                                <hr class="my-4 border-gray-800" />
+                                <p class="flex-1 text-sm text-gray-500">通过自然语言交互创建自定义仿真场景</p>
+                                <span class="mt-6 self-start rounded-md border border-gray-700 bg-gray-800/50 px-4 py-2 text-sm font-medium text-gray-600">${t('scenario_card.v0_3_label')}</span>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+            `;
+        };
+
+        const PreRun = () => {
+            const runDetail = generateMockRunDetail(currentRunId);
+
+            return `
+                <main class="mx-auto max-w-7xl px-6 py-8">
+                    <header class="flex flex-wrap items-center justify-between gap-3">
+                        <button onclick="navigateToGallery()" class="rounded-md border border-gray-700 bg-gray-800/50 px-3 py-1.5 text-sm font-medium text-gray-300 transition-all hover:-translate-y-px hover:border-${currentLocale === 'zh' ? 'purple-500' : '#7170ff'} hover:bg-gray-700 hover:text-white">
+                            ${t('pre_run.back')}
+                        </button>
+                        <span class="font-mono text-sm text-gray-500">run_id: <span class="text-gray-300">${currentRunId}</span></span>
+                    </header>
+
+                    <div class="mt-8">
+                        <div class="rounded-xl border border-gray-700 bg-gray-800/50 p-6">
+                            <h2 class="text-2xl font-semibold text-white">${runDetail.scenario.name}</h2>
+                            <p class="mt-2 text-gray-400">${runDetail.scenario.description || t('pre_run.no_description')}</p>
+                            
+                            <div class="mt-6">
+                                <h3 class="text-sm font-medium uppercase tracking-wide text-gray-500">实体列表</h3>
+                                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    ${runDetail.scenario.entities.map(e => `
+                                        <div class="rounded-lg border border-gray-700 bg-gray-900/50 p-4">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xl">${entityTypeEmoji(e.type)}</span>
+                                                <span class="font-semibold text-white">${e.id}</span>
+                                                <span class="font-mono text-xs text-gray-500">${e.type}</span>
+                                            </div>
+                                            <ul class="mt-2 space-y-1">
+                                                ${Object.entries(e.attributes).map(([k, v]) => `
+                                                    <li class="flex items-center gap-2 text-sm">
+                                                        <span>${attributeEmoji(k)}</span>
+                                                        <span class="font-mono text-gray-500">${k}</span>
+                                                        <span class="ml-auto font-mono text-gray-300">${formatValue(v)}</span>
+                                                    </li>
+                                                `).join('')}
+                                            </ul>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <div class="mt-6">
+                                <h3 class="text-sm font-medium uppercase tracking-wide text-gray-500">环境变量</h3>
+                                <ul class="mt-2 flex flex-wrap gap-x-6 gap-y-1">
+                                    ${Object.entries(runDetail.scenario.environment).map(([k, v]) => `
+                                        <li class="flex items-center gap-2 font-mono text-sm">
+                                            <span class="text-gray-500">${k}</span>
+                                            <span class="text-gray-400">=</span>
+                                            <span class="text-white">${formatValue(v)}</span>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex flex-wrap items-center gap-4">
+                        <button onclick="navigateToRunning()" class="rounded-full bg-${currentLocale === 'zh' ? 'purple-600' : '#7170ff'} px-6 py-3 text-lg font-semibold text-white transition-all hover:scale-105 hover:bg-${currentLocale === 'zh' ? 'purple-500' : '#828fff'} hover:shadow-glow-accent active:scale-95">
+                            ${t('pre_run.start')}
+                        </button>
+                        <button onclick="navigateToGallery()" class="rounded-md border border-gray-700 bg-gray-800/50 px-4 py-2 text-sm font-medium text-gray-300 transition-all hover:-translate-y-px hover:border-${currentLocale === 'zh' ? 'purple-500' : '#7170ff'} hover:bg-gray-700 hover:text-white">
+                            ${t('pre_run.back_to_gallery')}
+                        </button>
+                    </div>
+                </main>
+            `;
+        };
+
+        const ControlBar = ({ status, currentTick, totalTicks, speed, onPause, onResume, onStep, onExit }) => {
+            const isRunning = status === 'running';
+            const isPaused = status === 'paused';
+            const isTerminal = status === 'finished';
+
+            return `
+                <div class="sticky top-14 z-40 flex flex-wrap items-center gap-3 border-b border-gray-800 bg-gray-900/90 px-4 py-3" style="backdrop-filter: blur(12px);">
+                    <span class="font-mono text-sm text-white">${t('control_bar.tick_label', { current: currentTick, total: totalTicks })}</span>
+                    
+                    <span class="flex items-center gap-1.5 rounded-sm bg-gray-800/50 px-2 py-0.5 text-xs font-medium ${isRunning ? 'text-green-500' : isPaused ? 'text-yellow-500' : 'text-gray-500'}">
+                        ${isPaused && '<span class="inline-block h-1.5 w-1.5 animate-pulse rounded-circle bg-yellow-500"></span>'}
+                        ${isRunning && '<span class="inline-block h-1.5 w-1.5 animate-pulse rounded-circle bg-green-500"></span>'}
+                        ${t(`control_bar.status.${status}`)}
+                    </span>
+
+                    ${isRunning && `
+                        <button onclick="${onPause}" class="rounded-md border border-gray-700 bg-gray-800/50 px-3 py-1.5 text-sm font-medium text-white transition-all hover:-translate-y-px hover:border-${currentLocale === 'zh' ? 'purple-500' : '#7170ff'} hover:bg-gray-700">
+                            ⏸ ${t('control_bar.pause')}
+                        </button>
+                    `}
+                    ${!isRunning && !isTerminal && `
+                        <button onclick="${onResume}" class="rounded-full bg-${currentLocale === 'zh' ? 'purple-600' : '#7170ff'} px-3 py-1.5 text-sm font-medium text-white transition-all hover:scale-105 hover:bg-${currentLocale === 'zh' ? 'purple-500' : '#828fff'} hover:shadow-glow-accent active:scale-95">
+                            ▶ ${t('control_bar.resume')}
+                        </button>
+                    `}
+
+                    <button onclick="${onStep}" ${!isPaused ? 'disabled' : ''} class="rounded-md border border-gray-700 bg-gray-800/50 px-3 py-1.5 text-sm font-medium text-white transition-all hover:-translate-y-px hover:border-${currentLocale === 'zh' ? 'purple-500' : '#7170ff'} hover:bg-gray-700 ${!isPaused ? 'opacity-50 cursor-not-allowed' : ''}">
+                        ⏭ ${t('control_bar.step')}
+                    </button>
+
+                    <div class="flex items-center gap-1 rounded-md border border-gray-800 bg-gray-900/50 p-0.5">
+                        ${[0.5, 1, 2, 4].map(opt => `
+                            <button onclick="setSpeed(${opt})" class="rounded-sm px-2 py-1 text-xs font-mono transition-all ${opt === speed ? `bg-${currentLocale === 'zh' ? 'purple-600' : '#7170ff'} text-white` : 'text-gray-500 hover:bg-gray-800 hover:text-white'}">
+                                ${opt}x
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <span class="ml-auto" aria-hidden="true"></span>
+
+                    <button onclick="${onExit}" class="rounded-md border border-gray-700 bg-gray-800/50 px-3 py-1.5 text-sm font-medium text-gray-300 transition-all hover:-translate-y-px hover:border-red-500 hover:bg-gray-700 hover:text-red-500">
+                        🚪 ${t('control_bar.exit')}
+                    </button>
+                </div>
+            `;
+        };
+
+        const EntityCard = ({ entry, onIntervene }) => {
+            const { id, type, decisionMode, attributes, prevAttributes, latestDecision, latestAction } = entry;
+            const reason = latestDecision?.payload?.reason || '';
+            const actionLabel = latestAction?.payload?.action || '';
+
+            return `
+                <div class="liquid-glass flex flex-col rounded-xl border border-gray-700 p-4">
+                    <header class="flex items-center gap-2">
+                        <span class="text-xl">${entityTypeEmoji(type)}</span>
+                        <span class="font-semibold text-white">${id}</span>
+                        <span class="font-mono text-xs text-gray-500">${type}</span>
+                        <span class="ml-auto rounded-sm bg-gray-800/50 px-2 py-0.5 font-mono text-xs text-gray-500">
+                            ${t(`entity_card.decision_mode_label.${decisionMode}`)}
+                        </span>
+                    </header>
+                    <hr class="my-3 border-gray-800" />
+                    <ul class="space-y-1">
+                        ${Object.entries(attributes).map(([name, value]) => {
+                            const diff = computeDiff(prevAttributes?.[name], value);
+                            return `
+                                <li class="flex items-center gap-2 text-sm text-gray-400">
+                                    <span>${attributeEmoji(name)}</span>
+                                    <span class="font-mono text-gray-500">${name}</span>
+                                    <span class="ml-auto font-mono text-white">${formatValue(value)}</span>
+                                    ${diff.sign && diff.delta !== null ? `
+                                        <span class="font-mono text-xs ${diff.sign === '↑' ? 'text-green-500' : 'text-red-500'}">${diff.sign}${diff.delta}</span>
+                                    ` : ''}
+                                </li>
+                            `;
+                        }).join('')}
+                    </ul>
+                    ${decisionMode === 'llm' && latestDecision && reason ? `
+                        <div class="mt-3 rounded-lg bg-gray-800/50 p-3">
+                            <p class="text-xs text-gray-500">💡 LLM 决策理由</p>
+                            <p class="mt-1 text-sm text-gray-300">${reason}</p>
+                        </div>
+                    ` : ''}
+                    ${actionLabel ? `
+                        <p class="mt-3 text-xs text-gray-500">⚡ ${t('entity_card.just_executed')}: <span class="font-mono text-gray-400">${actionLabel}</span></p>
+                    ` : `
+                        <p class="mt-3 text-xs text-gray-600">${t('entity_card.no_action_yet')}</p>
+                    `}
+                    <button onclick="${onIntervene}" class="mt-4 self-start rounded-md border border-gray-700 bg-gray-800/50 px-3 py-1.5 text-xs font-medium text-gray-400 transition-all hover:-translate-y-px hover:border-${currentLocale === 'zh' ? 'purple-500' : '#7170ff'} hover:bg-gray-700 hover:text-white">
+                        ${t('entity_card.intervene')}
+                    </button>
+                </div>
+            `;
+        };
+
+        const EntityCardLayout = ({ entries, environment }) => {
+            const envEntries = environment ? Object.entries(environment) : [];
+
+            return `
+                <div>
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        ${entries.map(entry => EntityCard({ entry, onIntervene: `handleEntityClick('${entry.id}')` })).join('')}
+                    </div>
+                    ${envEntries.length > 0 ? `
+                        <section class="mt-6 rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3">
+                            <h3 class="text-sm font-medium uppercase tracking-wide text-gray-500">🌐 environment</h3>
+                            <ul class="mt-2 flex flex-wrap gap-x-6 gap-y-1">
+                                ${envEntries.map(([k, v]) => `
+                                    <li class="flex items-center gap-2 font-mono text-sm">
+                                        <span class="text-gray-500">${k}</span>
+                                        <span class="text-gray-400">=</span>
+                                        <span class="text-white">${formatValue(v)}</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </section>
+                    ` : ''}
+                </div>
+            `;
+        };
+
+        const EventStreamLayout = ({ entries, events }) => {
+            const grouped = {};
+            events.forEach(e => {
+                if (!grouped[e.tick]) grouped[e.tick] = [];
+                grouped[e.tick].push(e);
+            });
+
+            const formatEvent = (e) => {
+                const actor = e.actor_id || 'system';
+                switch (e.kind) {
+                    case 'decision_proposed':
+                        return `${actor} proposed ${e.payload.action} (${e.payload.mode})`;
+                    case 'action_executed':
+                        return `${actor} executed ${e.payload.action}`;
+                    case 'attribute_changed':
+                        return `${actor} ${e.payload.name}: ${e.payload.old_value} -> ${e.payload.new_value}`;
+                    case 'run_finished':
+                        return 'Simulation finished';
+                    default:
+                        return `${actor}: ${e.kind}`;
+                }
+            };
+
+            return `
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-[16rem_1fr]">
+                    <aside class="flex flex-col gap-3">
+                        <h3 class="text-sm font-medium uppercase tracking-wide text-gray-500">${t('event_stream.entities_title')}</h3>
+                        ${entries.map(entry => {
+                            const numericKeys = Object.entries(entry.attributes)
+                                .filter(([, v]) => typeof v === 'number')
+                                .slice(0, 2);
+                            return `
+                                <div class="rounded-lg border border-gray-700 bg-gray-800/50 px-3 py-2">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="font-mono text-sm font-semibold text-white">${entry.id}</span>
+                                        <span class="rounded bg-gray-900/50 px-1.5 py-0.5 text-xs font-medium text-gray-500">${t(`entity_card.decision_mode_label.${entry.decisionMode}`)}</span>
+                                    </div>
+                                    ${numericKeys.length > 0 ? `
+                                        <ul class="mt-1.5 flex flex-col gap-0.5 text-xs font-mono">
+                                            ${numericKeys.map(([k, v]) => `
+                                                <li class="text-gray-500">${k} = <span class="text-gray-400">${formatValue(v)}</span></li>
+                                            `).join('')}
+                                        </ul>
+                                    ` : ''}
+                                    <button onclick="handleEntityClick('${entry.id}')" class="mt-2 w-full rounded border border-gray-700 bg-gray-800/50 px-2 py-1 text-xs font-medium text-gray-300 transition-colors hover:border-${currentLocale === 'zh' ? 'purple-500' : '#7170ff'} hover:bg-gray-700">
+                                        ${t('entity_card.intervene')}
+                                    </button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </aside>
+                    <section class="rounded-lg border border-gray-800 bg-gray-900/50 px-4 py-3 scrollbar-thin" style="height: 60vh; overflow-y: auto;">
+                        ${Object.keys(grouped).length === 0 ? `
+                            <p class="text-center text-gray-500">${t('event_stream.no_events')}</p>
+                        ` : `
+                            <ol class="flex flex-col gap-3">
+                                ${Object.keys(grouped).sort((a, b) => a - b).map(tick => `
+                                    <li class="border-l-2 border-gray-700 pl-3">
+                                        <div class="text-sm font-semibold text-gray-500">⏱ tick ${tick}</div>
+                                        <ul class="mt-1 flex flex-col gap-1 text-sm text-gray-400">
+                                            ${grouped[tick].map((it, i) => `
+                                                <li key="${tick}-${i}" class="font-mono">${formatEvent(it)}</li>
+                                            `).join('')}
+                                        </ul>
+                                    </li>
+                                `).join('')}
+                            </ol>
+                        `}
+                    </section>
+                </div>
+            `;
+        };
+
+        const Running = () => {
+            const [status, setStatus] = window.runState || { status: 'idle', currentTick: 0, speed: 1 };
+            const runDetail = generateMockRunDetail(currentRunId);
+            const events = generateMockEvents(status.currentTick);
+            const snapshots = generateMockSnapshots(status.currentTick);
+
+            const entries = runDetail.scenario.entities.map(e => {
+                const latestSnapshot = snapshots.at(-1);
+                const prevSnapshot = snapshots.length >= 2 ? snapshots.at(-2) : null;
+                const summary = latestSnapshot?.entity_state_summary || {};
+                const prevSummary = prevSnapshot?.entity_state_summary || {};
+                
+                return {
+                    id: e.id,
+                    type: e.type,
+                    decisionMode: runDetail.world.entity_types[e.type]?.decision_mode || 'rule',
+                    attributes: summary[e.id] || e.attributes || {},
+                    prevAttributes: prevSummary[e.id] || null,
+                    latestDecision: events.findLast(ev => ev.kind === 'decision_proposed' && ev.actor_id === e.id),
+                    latestAction: events.findLast(ev => ev.kind === 'action_executed' && ev.actor_id === e.id)
+                };
+            });
+
+            const environment = snapshots.at(-1)?.environment_state || runDetail.scenario.environment;
+
+            const handlePause = () => setStatus({ ...status, status: 'paused' });
+            const handleResume = () => setStatus({ ...status, status: 'running' });
+            const handleStep = () => {
+                if (status.currentTick < runDetail.summary.total_ticks) {
+                    setStatus({ ...status, currentTick: status.currentTick + 1 });
+                }
+            };
+            const handleExit = () => navigateToGallery();
+            const handleEntityClick = (id) => {
+                if (status.status === 'running') {
+                    setStatus({ ...status, status: 'paused' });
+                }
+                alert(`干预实体: ${id}\n\n此功能在演示版中不可用。`);
+            };
+
+            window.runState = { status, setStatus };
+
+            return `
+                ${ControlBar({
+                    status: status.status,
+                    currentTick: status.currentTick,
+                    totalTicks: runDetail.summary.total_ticks,
+                    speed: status.speed,
+                    onPause: 'handlePause()',
+                    onResume: 'handleResume()',
+                    onStep: 'handleStep()',
+                    onExit: 'handleExit()'
+                })}
+                <main class="mx-auto max-w-7xl px-6 py-6">
+                    ${EntityCardLayout({ entries, environment })}
+                </main>
+            `;
+        };
+
+        const Finished = () => {
+            const runDetail = generateMockRunDetail(currentRunId);
+            const analysis = MOCK_ANALYSIS;
+
+            const handleBackToGallery = () => navigateToGallery();
+            const handleRerun = () => {
+                currentRunId = `demo-run-${Date.now()}`;
+                window.runState = { status: { status: 'idle', currentTick: 0, speed: 1 }, setStatus: (s) => window.runState.status = s };
+                navigateToPreRun();
+            };
+
+            return `
+                <main class="mx-auto max-w-7xl px-6 py-12">
+                    <header class="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h1 class="flex items-center gap-3 text-4xl font-semibold leading-tight text-white">
+                                <span>✓</span>
+                                ${t('finished.header.title')}
+                            </h1>
+                            <p class="mt-2 text-sm text-gray-500">runId: <span class="font-mono text-gray-400">${currentRunId}</span></p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="${handleBackToGallery}" class="rounded-md border border-gray-700 bg-gray-800/50 px-4 py-2 text-sm font-medium text-gray-300 transition-all hover:-translate-y-px hover:border-${currentLocale === 'zh' ? 'purple-500' : '#7170ff'} hover:bg-gray-700 hover:text-white">
+                                ${t('finished.back_to_gallery')}
+                            </button>
+                            <button onclick="${handleRerun}" class="rounded-full bg-${currentLocale === 'zh' ? 'purple-600' : '#7170ff'} px-4 py-2 text-sm font-medium text-white transition-all hover:scale-105 hover:bg-${currentLocale === 'zh' ? 'purple-500' : '#828fff'} hover:shadow-glow-accent active:scale-95">
+                                ${t('finished.rerun')}
+                            </button>
+                        </div>
+                    </header>
+
+                    <div class="mt-8">
+                        <h2 class="text-sm font-medium uppercase tracking-wide text-gray-500">仿真指标</h2>
+                        <div class="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+                            <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                <p class="text-2xl font-semibold text-white">${analysis.phase_a.metrics.total_events}</p>
+                                <p class="mt-1 text-xs text-gray-500">总事件数</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                <p class="text-2xl font-semibold text-white">${analysis.phase_a.metrics.total_entities}</p>
+                                <p class="mt-1 text-xs text-gray-500">实体数</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                <p class="text-2xl font-semibold text-white">${analysis.phase_a.metrics.avg_decisions_per_tick}</p>
+                                <p class="mt-1 text-xs text-gray-500">平均决策数/ tick</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                <p class="text-2xl font-semibold text-white">${(analysis.phase_a.metrics.action_execution_rate * 100)}%</p>
+                                <p class="mt-1 text-xs text-gray-500">动作执行率</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                <p class="text-2xl font-semibold text-white">${analysis.phase_a.metrics.intervention_count}</p>
+                                <p class="mt-1 text-xs text-gray-500">干预次数</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                <p class="text-2xl font-semibold text-white">${analysis.phase_a.metrics.breakpoint_hits}</p>
+                                <p class="mt-1 text-xs text-gray-500">断点命中</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <h2 class="text-sm font-medium uppercase tracking-wide text-gray-500">叙事报告</h2>
+                        <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                <h3 class="text-sm font-semibold text-gray-400">🌍 世界概览</h3>
+                                <p class="mt-2 text-sm text-gray-300">${analysis.narrative.world_overview}</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                <h3 class="text-sm font-semibold text-gray-400">📖 叙事总结</h3>
+                                <p class="mt-2 text-sm text-gray-300">${analysis.narrative.narrative_summary}</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                <h3 class="text-sm font-semibold text-gray-400">⚖️ 态势判断</h3>
+                                <p class="mt-2 text-sm text-gray-300">${analysis.narrative.situation_judgement}</p>
+                            </div>
+                            <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                <h3 class="text-sm font-semibold text-gray-400">💡 行动建议</h3>
+                                <ul class="mt-2 space-y-1">
+                                    ${analysis.narrative.next_action_suggestions.map((s, i) => `
+                                        <li class="text-sm text-gray-300">${i + 1}. ${s}</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <h2 class="text-sm font-medium uppercase tracking-wide text-gray-500">转折点</h2>
+                        <div class="mt-4 space-y-2">
+                            ${analysis.phase_a.turning_points.map((tp, i) => `
+                                <div class="rounded-lg border border-gray-700 bg-gray-800/50 px-4 py-3">
+                                    <span class="font-mono text-sm text-purple-400">tick ${tp.tick}</span>
+                                    <span class="ml-3 text-sm text-gray-300">${tp.description}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="mt-8">
+                            <h2 class="text-sm font-medium uppercase tracking-wide text-gray-500">实体轨迹</h2>
+                            <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                ${Object.entries(analysis.phase_a.entity_trajectories).map(([entityId, data]) => `
+                                    <div class="rounded-lg border border-gray-700 bg-gray-800/50 p-4">
+                                        <h3 class="text-sm font-semibold text-gray-400">${entityTypeEmoji(entityId)} ${entityId}</h3>
+                                        <div class="mt-3 space-y-3">
+                                            ${Object.entries(data.attributes).map(([attr, values]) => `
+                                                <div>
+                                                    <p class="text-xs text-gray-500">${attributeEmoji(attr)} ${attr}</p>
+                                                    <div class="mt-1 flex items-end gap-1 h-12">
+                                                        ${values.map((v, i) => `
+                                                            <div class="flex-1 bg-gray-700 rounded-t transition-all" style="height: ${(v / 100) * 100}%; background-color: ${i % 2 === 0 ? '#7170ff' : '#828fff'}"></div>
+                                                        `).join('')}
+                                                    </div>
+                                                    <p class="mt-1 text-xs text-gray-600 font-mono">${values.join(' → ')}</p>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </main>
+                `;
+        };
+
+        const renderApp = () => {
+            const app = document.getElementById('app');
+            if (!app) return;
+
+            let content = '';
+            switch (currentRoute) {
+                case ROUTES.GALLERY:
+                    content = Gallery();
+                    break;
+                case ROUTES.PRERUN:
+                    content = PreRun();
+                    break;
+                case ROUTES.RUNNING:
+                    content = Running();
+                    break;
+                case ROUTES.FINISHED:
+                    content = Finished();
+                    break;
+            }
+
+            app.innerHTML = `${TopBar()}${content}`;
+
+            if (currentRoute === ROUTES.RUNNING && window.runState?.status.status === 'running') {
+                const interval = setInterval(() => {
+                    if (!window.runState) return;
+                    const { status, setStatus } = window.runState;
+                    if (status.status === 'running' && status.currentTick < 5) {
+                        setStatus({ ...status, currentTick: status.currentTick + 1 });
+                        renderApp();
+                    } else if (status.currentTick >= 5) {
+                        setStatus({ ...status, status: 'finished' });
+                        clearInterval(interval);
+                        navigateToFinished();
+                    }
+                }, 1000 / status.speed);
+                window.runState.interval = interval;
+            }
+        };
+
+        const navigateToGallery = () => {
+            if (window.runState?.interval) {
+                clearInterval(window.runState.interval);
+            }
+            currentRoute = ROUTES.GALLERY;
+            currentRunId = null;
+            currentScenario = null;
+            window.runState = null;
+            renderApp();
+        };
+
+        const navigateToPreRun = () => {
+            currentRoute = ROUTES.PRERUN;
+            renderApp();
+        };
+
+        const navigateToRunning = () => {
+            window.runState = { 
+                status: { status: 'running', currentTick: 0, speed: 1 }, 
+                setStatus: (s) => { window.runState.status = s; }
+            };
+            currentRoute = ROUTES.RUNNING;
+            renderApp();
+        };
+
+        const navigateToFinished = () => {
+            if (window.runState?.interval) {
+                clearInterval(window.runState.interval);
+            }
+            currentRoute = ROUTES.FINISHED;
+            renderApp();
+        };
+
+        const setSpeed = (speed) => {
+            if (window.runState) {
+                window.runState.status.speed = speed;
+                if (window.runState.interval) {
+                    clearInterval(window.runState.interval);
+                }
+                renderApp();
+            }
+        };
+
+        const handleStartScenario = (scenario) => {
+            currentScenario = scenario;
+            currentRunId = `demo-run-${Date.now()}`;
+            navigateToPreRun();
+        };
+
+        const handlePause = () => {
+            if (window.runState?.interval) {
+                clearInterval(window.runState.interval);
+            }
+            window.runState.status.status = 'paused';
+            renderApp();
+        };
+
+        const handleResume = () => {
+            window.runState.status.status = 'running';
+            renderApp();
+        };
+
+        const handleStep = () => {
+            if (window.runState && window.runState.status.currentTick < 5) {
+                window.runState.status.currentTick += 1;
+                renderApp();
+            }
+        };
+
+        const handleExit = () => {
+            navigateToGallery();
+        };
+
+        const handleEntityClick = (id) => {
+            if (window.runState?.status.status === 'running') {
+                handlePause();
+            }
+            alert(`干预实体: ${id}\n\n此功能在演示版中不可用。`);
+        };
+
+        document.addEventListener('DOMContentLoaded', renderApp);
