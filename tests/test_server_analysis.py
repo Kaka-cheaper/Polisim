@@ -125,3 +125,42 @@ class TestPostAnalyze:
             "/api/v1/runs/never-exist/analyze", json={"llm_enhance": False}
         )
         assert resp.status_code == 404
+
+
+# =============================================================================
+# F6（session 45）：mock provider 跳过 enhance 的防御逻辑
+# =============================================================================
+
+
+class TestMockProviderSkipsEnhance:
+    """session 45 F6：MockProvider 不能产出 4 段叙事 JSON——AnalysisService
+    前置检查 isinstance(provider, MockProvider) 命中时跳过 enhance_with_llm，
+    返 Phase A 不报 502，避免误报错。"""
+
+    def test_get_analysis_with_enhance_true_on_mock_provider(
+        self, client: TestClient, finished_run_id: str
+    ) -> None:
+        """mock provider + enhance=true → 200（不是 502）+ Phase A 数据。"""
+        resp = client.get(
+            f"/api/v1/runs/{finished_run_id}/analysis?enhance=true"
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        # Phase A 字段完整
+        assert "summary" in body
+        # Phase C 字段在 mock 跳过时为 None（与 enhance=false 行为一致）
+        assert body.get("narrative_summary") is None
+        assert body.get("situation_judgement") is None
+        assert body.get("next_action_suggestions") is None
+
+    def test_post_analyze_with_enhance_true_on_mock_provider(
+        self, client: TestClient, finished_run_id: str
+    ) -> None:
+        """POST /analyze + llm_enhance=True + mock → 同样降级。"""
+        resp = client.post(
+            f"/api/v1/runs/{finished_run_id}/analyze",
+            json={"llm_enhance": True},
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body.get("narrative_summary") is None

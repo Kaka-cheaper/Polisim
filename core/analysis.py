@@ -404,8 +404,8 @@ _ANALYSIS_PROMPT_INSTRUCTIONS = (
     "concrete evidence (tick + attribute change, or entity comparison row).\n"
     "- \"next_action_suggestions\": array of 2-5 concrete, actionable "
     "suggestion strings for a human operator. EACH suggestion MUST embed "
-    "supporting evidence (e.g. 'because regulator_main.strictness rose to 80 "
-    "at tick 4, consider...')."
+    "supporting evidence (e.g. 'because <entity_id>.<attribute> rose to N "
+    "at tick T, consider...')."
 )
 
 

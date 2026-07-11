@@ -187,7 +187,7 @@ def query_events(
     tick: int | None = Query(None, ge=0, description="精确匹配某 tick"),
     kind: str | None = Query(None, description="按 EventKind 过滤"),
     actor_id: str | None = Query(None, description="按 actor_id 过滤"),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(100, ge=1, le=5000),
     offset: int = Query(0, ge=0),
     until_tick: int | None = Query(None, ge=0, description="返 tick<=until_tick 的事件"),
     svc: RunService = Depends(get_run_service),

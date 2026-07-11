@@ -140,10 +140,12 @@ class StreamService:
         **健壮性保证**（session 33 架构审查 F2）：整个推送用 try/except 包裹——
         Pydantic 序列化报错 / loop 关闭 / queue 赋值异常都不能阻断调用者
         （典型场景：RunService.step）主流程。仅 log warning，让 server 永远能返 200。
+
+        **race fix**（session 45 F8）：原本 ``self._loop is None`` 检查与
+        后续 ``call_soon_threadsafe`` 之间存在 TOCTOU 窗口——如果 detach()
+        在两者之间把 loop 设为 None，会触发 NoneType.call_soon_threadsafe。
+        改为持锁同时读 loop + 订阅者快照。
         """
-        if self._loop is None:
-            # server 还未启动 attach_loop——丢弃消息（不阻断 broadcaster）
-            return
         try:
             # 序列化为 dict（一次性，避免每个订阅者重复 dump）
             message = event.model_dump(mode="json")
@@ -156,13 +158,18 @@ class StreamService:
                 exc_info=True,
             )
             return
+        # F8：把 loop 引用与订阅者快照一同在锁内读取，闭合 TOCTOU 窗口
         with self._lock:
+            loop = self._loop
             queues = list(self._subscribers.get(run_id, ()))
+        if loop is None:
+            # server 还未启动 attach_loop 或已 detach——丢弃消息（不阻断 broadcaster）
+            return
         if not queues:
             return
         for queue in queues:
             try:
-                self._loop.call_soon_threadsafe(self._safe_put, queue, message)
+                loop.call_soon_threadsafe(self._safe_put, queue, message)
             except RuntimeError:
                 # loop 已关闭——server 正在 shutdown；忽略
                 logger.debug(
@@ -188,13 +195,17 @@ class StreamService:
         """通知该 run 所有订阅者结束——通过特殊 sentinel `None` put 到 queue。
 
         WebSocket 协程读到 None → break 循环 + close ws + unsubscribe。
+
+        **race fix**（session 45 F8）：与 broadcast 同模式——loop 引用 + 订阅者
+        快照在锁内同时读，闭合与 detach() 的 TOCTOU 窗口。
         """
-        if self._loop is None:
-            return
         with self._lock:
+            loop = self._loop
             queues = list(self._subscribers.get(run_id, ()))
+        if loop is None:
+            return
         for queue in queues:
             try:
-                self._loop.call_soon_threadsafe(self._safe_put, queue, None)
+                loop.call_soon_threadsafe(self._safe_put, queue, None)
             except RuntimeError:
                 pass

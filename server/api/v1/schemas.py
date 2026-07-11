@@ -21,6 +21,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from models.config_models import RuntimeConfig
+from models.runtime_models import EventRecord
 from models.scenario_models import Scenario
 from models.world_models import WorldDefinition
 
@@ -157,9 +158,9 @@ class EventListResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    events: list = Field(
+    events: list[EventRecord] = Field(
         default_factory=list,
-        description="EventRecord 列表（按发生顺序）；元素结构对齐 models.runtime_models.EventRecord",
+        description="EventRecord 列表（按发生顺序）",
     )
     total: int = Field(..., ge=0, description="过滤后命中的总条数（不分页）")
     has_more: bool = Field(..., description="是否还有下一页")

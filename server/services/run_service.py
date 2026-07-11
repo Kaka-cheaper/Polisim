@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
@@ -51,6 +52,8 @@ from server.api.v1.ws_events import (
 )
 from server.runtime_registry import RuntimeRegistry
 from server.services.stream_service import StreamService
+
+_logger = logging.getLogger(__name__)
 
 
 # 默认 mock LLM 响应——所有 llm 实体走 do_nothing（与 cli/run.py 一致）
@@ -315,9 +318,16 @@ class RunService:
                     self._stream_service.broadcast(
                         run_id, RunFinishedEvent(data=analysis)
                     )
-            except Exception:
-                # 分析失败不阻断 step 主路径——前端可手动调 GET /analysis
-                pass
+            except Exception:  # noqa: BLE001 顶层守护——Phase A 失败不阻断 step
+                # F5（session 45）：失败不再静默——log warning 保留诊断信息
+                # （analyze_run 解析 events.jsonl 异常 / IO 错等）。
+                # 前端仍可手动调 GET /analysis 重新生成。
+                _logger.warning(
+                    "Phase A analyze_run failed for run_id=%s; "
+                    "RunFinishedEvent ws push skipped, client may retry GET /analysis",
+                    run_id,
+                    exc_info=True,
+                )
             # 通知所有订阅者：该 run 已结束
             self._stream_service.close_run(run_id)
         elif result.paused_after and not skip_paused_broadcast:
@@ -401,8 +411,9 @@ class RunService:
 
         返 ``EventListResponse`` 含分页 metadata。
         """
-        if limit < 1 or limit > 1000:
-            raise ValueError(f"limit 必须在 [1, 1000]，收到 {limit}")
+        # session 45 F2：cap 与 route 层 Query(le=5000) 对齐
+        if limit < 1 or limit > 5000:
+            raise ValueError(f"limit 必须在 [1, 5000]，收到 {limit}")
         if offset < 0:
             raise ValueError(f"offset 不能为负，收到 {offset}")
         if tick is not None and until_tick is not None:

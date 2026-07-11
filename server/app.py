@@ -19,6 +19,12 @@
 
 from __future__ import annotations
 
+# session 45：保险——uvicorn --reload fork 的子进程不会经过 cli/run.py 的 load_dotenv()，
+# 在这里再加载一次（dotenv 默认 override=False，不会覆盖已存在的 env vars，幂等）。
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -108,6 +114,11 @@ async def _lifespan(app: FastAPI) -> Any:  # noqa: ANN401 fastapi 接受 AsyncIt
     try:
         yield
     finally:
+        # P-known-2（session 45）：优雅关 ws——先广播 close sentinel 给所有订阅者，
+        # 让 WebSocket 协程在客户端看到 close 帧（而非 server 单方面 detach 后
+        # 客户端读到 ConnectionClosedError）。然后再 shutdown_all + detach。
+        for summary in registry.list_summaries():
+            stream_service.close_run(summary.run_id)
         registry.shutdown_all()
         stream_service.detach()
 

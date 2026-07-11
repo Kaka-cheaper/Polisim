@@ -431,9 +431,25 @@ class TestEventsQuery:
 
     def test_invalid_limit_returns_400(self, client: TestClient) -> None:
         rid = _create_min_run(client)
-        # FastAPI 路由层 Query(le=1000) 拦截 → 422 (validation error)；
-        # 服务端 ValueError 也是 400——任何 4xx 都接受
+        # session 45 F2：limit cap 提到 5000；5001 应被拦截
+        # FastAPI 路由层 Query(le=5000) 拦截 → 422 validation error。
+        resp = client.get(
+            f"/api/v1/runs/{rid}/events", params={"limit": 5001}
+        )
+        assert 400 <= resp.status_code < 500
+
+    def test_limit_at_max_boundary_succeeds(self, client: TestClient) -> None:
+        """F7（session 45）：limit=5000 是新上限，必须通过校验。"""
+        rid = _create_min_run(client)
         resp = client.get(
             f"/api/v1/runs/{rid}/events", params={"limit": 5000}
+        )
+        assert resp.status_code == 200, resp.text
+
+    def test_limit_zero_returns_400(self, client: TestClient) -> None:
+        """F7（session 45）：limit ge=1 边界，0 应被拒绝。"""
+        rid = _create_min_run(client)
+        resp = client.get(
+            f"/api/v1/runs/{rid}/events", params={"limit": 0}
         )
         assert 400 <= resp.status_code < 500

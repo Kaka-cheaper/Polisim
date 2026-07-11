@@ -49,7 +49,15 @@
       "title": "✨ 创建你自己的场景",
       "description": "通过对话告诉 AI 你想要什么样的世界 → AI 生成 world + scenario YAML → 立即跑起来看效果"
     },
-    "coming_soon_toast": "v0.3+ 即将开放，进度见 progress.md"
+    "coming_soon_toast": "v0.3+ 即将开放，进度见 progress.md",
+    "badge_new": "New",
+    "badge_text": "AI 驱动的多实体仿真",
+    "provider_toggle": {
+      "aria": "选择 LLM 提供商",
+      "mock": "🎭 Mock（快速）",
+      "openai": "🧠 真 LLM（需 .env）",
+      "openai_hint": "使用 config/llm.yaml 的 default_provider 与 .env 中的真实 API key；分析增强可用。"
+    }
   },
   "scenario_card": {
     "start": "▶ 开始",

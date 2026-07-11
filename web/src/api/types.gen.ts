@@ -954,9 +954,9 @@ export interface components {
         EventListResponse: {
             /**
              * Events
-             * @description EventRecord 列表（按发生顺序）；元素结构对齐 models.runtime_models.EventRecord
+             * @description EventRecord 列表（按发生顺序）
              */
-            events?: unknown[];
+            events?: components["schemas"]["EventRecord"][];
             /**
              * Total
              * @description 过滤后命中的总条数（不分页）

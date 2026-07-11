@@ -36,6 +36,13 @@ import sys
 from pathlib import Path
 from typing import Any, Callable, TextIO
 
+# session 45: 加载项目根 .env 至 os.environ（不覆盖已显式设置的系统环境变量），
+# 让用户把 VVEAI_API_KEY / OPENAI_API_KEY 等放进 .env 后无需每次手动 export。
+# 必须在 import OpenAIProvider / Server 等下游模块**之前**调起，否则下游读到空值。
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from core.analysis import analyze_run, enhance_with_llm, write_analysis
 from core.definition_loader import load_world_definition
 from core.errors import SimEngineError

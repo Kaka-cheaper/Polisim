@@ -40,6 +40,22 @@
 
 ## 五、踩坑清单
 
+### [P3] 2026-05-06 Run finished 后自动 GC——并发满槽时被悄悄清理（session 45 架构审查 P-known-1 修复）
+
+**✅ 已实施**（session 45 P-known-1）：`@server/runtime_registry.py:register()` 在 `len(self._runtimes) >= max_concurrent` 时不再直接抛 `RegistryFullError`——而是先 sweep `current_tick >= total_ticks` 的 finished runs（按创建时间从老到新），最老的 1 个被 close 让出槽。
+
+- **现象**：用户连续创建多个 run 跑完后查看 finished 报告，跑到第 11+ 个 run 时 `GET /api/v1/runs/<旧 run_id>` 返 404。`GET /api/v1/runs` 列表也不见旧的。但 `runs/<run_id>/events.jsonl` + `analysis/final.md` **仍在磁盘**。
+- **根因**：`max_concurrent` 默认 10。session 33 起就有 P-known："finished run 不自动 GC，长期跑充满 registry"。session 45 选 opportunistic GC 策略修复——满槽 + 有 finished candidate 时，最老的被 close。这避免了 `503 RegistryFullError`，但**牺牲了 finished run 在 registry 里的可见性**。
+- **行为契约（user-facing）**：
+  - active / paused 状态的 run **永不**被 GC——只能用户显式 DELETE 才释放
+  - finished run 落盘的 events.jsonl + snapshots/ + analysis/ 都在 `runs/<run_id>/`，可手动 inspect
+  - server log 会打 `INFO: registry full; auto-GC finished run_id=X to free slot for Y` 记录每次 GC
+- **诊断**：发现 `/runs/<id>` 404 时先看 server stdout 是否有 `auto-GC` 行；磁盘 `runs/<id>/` 应仍在
+- **防再犯**：
+  - v0.3+ 加 "归档分析"功能（GC 后仍能 GET 报告，从磁盘 lazy load）
+  - v0.3+ 给 GC 加可调参数（`max_finished_keep` 默认 5）让用户控制行为
+  - 文档化 register 的 GC 行为——已加 docstring + 本 pitfall
+
 ### [P2] 2026-05-06 Playwright "auto-step 期间循环切档" race condition（session 43 架构清债踩坑）
 
 **✅ 已修**（session 43 spec step 5 重构）：mockup-flow.spec.ts step 5 原方案是"4 档循环 1x→2x→4x→0.5x，末档 0.5x 兜底降速"。session 41/42 跑通是因为机器恰好够快——session 43 同机器在重启 vite + recharts re-optimize 后**第一次跑**时 4x 档（250ms/tick）期间已推完 5 tick → 自动 navigate `/finished` → 0.5x 按钮不存在 → `aria-pressed` 断言超时 8s。改为"进 /run → 等 tick 1 → 立即 pause → 4 档循环切档"：paused 状态下 aria-pressed 仍能验证（speed 是纯 zustand state，不依赖 status）。

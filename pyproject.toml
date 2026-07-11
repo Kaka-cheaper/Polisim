@@ -34,6 +34,7 @@ keywords = ["simulation", "multi-agent", "llm", "tick-based"]
 #   openai 1.50+  —— Phase B.2 真实 LLM provider；response_format/parse 稳定
 #   fastapi 0.110+ + uvicorn[standard] 0.27+ —— v0.2 server (D-017)；
 #                    自动 OpenAPI、Pydantic 直接做 response_model、async ws 支持
+#   python-dotenv 1.x —— session 45：CLI 入口加载项目根 .env（不污染系统环境变量）
 dependencies = [
   "pydantic>=2.0,<3.0",
   "pyyaml>=6.0,<7.0",
@@ -41,6 +42,7 @@ dependencies = [
   "openai>=1.50,<2.0",
   "fastapi>=0.110,<1.0",
   "uvicorn[standard]>=0.27,<1.0",
+  "python-dotenv>=1.0,<2.0",
 ]
 
 [project.optional-dependencies]

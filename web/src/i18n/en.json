@@ -49,7 +49,15 @@
       "title": "✨ Build your own scenario",
       "description": "Describe the world you want to AI → AI generates world + scenario YAML → run it immediately"
     },
-    "coming_soon_toast": "v0.3+ is on the way—see progress.md for status"
+    "coming_soon_toast": "v0.3+ is on the way—see progress.md for status",
+    "badge_new": "New",
+    "badge_text": "AI-powered multi-agent simulation",
+    "provider_toggle": {
+      "aria": "Select LLM provider",
+      "mock": "🎭 Mock (Fast)",
+      "openai": "🧠 Real LLM (.env)",
+      "openai_hint": "Uses config/llm.yaml default_provider + real API key from .env; analysis enhancement enabled."
+    }
   },
   "scenario_card": {
     "start": "▶ Start",

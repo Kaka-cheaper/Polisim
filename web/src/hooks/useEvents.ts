@@ -4,9 +4,8 @@
  * mockup §11.7 H8。
  *
  * 设计要点：
- *   - server `EventListResponse.events` schema 类型是 `unknown[]`（openapi-typescript
- *     对 List[EventRecord] 泛化处理），本 hook 做一次 cast 转成 `EventRecord[]` 便于
- *     业务层直接消费（mockup §11.7 H8 契约已承诺返 EventRecord）
+ *   - server `EventListResponse.events` 已类型化为 `EventRecord[]`（session 45 F1 修复
+ *     bare list → list[EventRecord]，前端无需 cast）
  *   - staleTime 5 min：跑完后 events 不会再变（append-only）
  *   - filters 变化会产生新 queryKey → react-query 自动并行缓存多套过滤结果
  *
@@ -62,7 +61,7 @@ export function useEvents(
         `/runs/${runId}/events${qs ? `?${qs}` : ""}`,
       );
       return {
-        events: (raw.events ?? []) as EventRecord[],
+        events: raw.events ?? [],
         total: raw.total,
         has_more: raw.has_more,
       };

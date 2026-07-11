@@ -15,6 +15,7 @@
  *   - `useScenarios` empty → 文案提示（mockup §4.1 兼容 server scenarios/ 为空场景）
  *   - `useCreateRun.isPending` → 所有 production 卡片按钮 disabled，避免双击
  */
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -57,15 +58,15 @@ export default function Gallery() {
     refetch,
   } = useScenarios();
   const createRun = useCreateRun();
+  // session 45：LLM provider 开关——默认 mock（快速跳、不烧 token）；openai 走 .env 里的真实 key。
+  // 选 openai 后创建的 run 在跑完后能调通分析增强（Phase C）。
+  const [llmProvider, setLlmProvider] = useState<"mock" | "openai">("mock");
 
   const handleStartProduction = async (scenario: ScenarioSummary) => {
     try {
       const detail = await createRun.mutateAsync({
         scenario_path: scenario.path,
-        // 显式 mock —— Pydantic 端 default="mock"，但 openapi-typescript v7 把
-        // 带 default 的字段也列入 required 数组。后续 PR4 高级选项接通业务时改读
-        // AdvancedOptionsPanel 的 value.llm_provider。
-        llm_provider: "mock",
+        llm_provider: llmProvider,
       });
       navigate(`/runs/${detail.summary.run_id}/intro`);
     } catch {
@@ -104,6 +105,43 @@ export default function Gallery() {
           {t("gallery.subtitle")}
         </p>
         <p className="mt-2 text-md text-fg-tertiary">{t("gallery.tagline")}</p>
+
+        {/* LLM provider toggle（session 45） */}
+        <div
+          className="mt-8 inline-flex items-center gap-1 liquid-glass rounded-full p-1"
+          role="group"
+          aria-label={t("gallery.provider_toggle.aria")}
+        >
+          <button
+            type="button"
+            onClick={() => setLlmProvider("mock")}
+            aria-pressed={llmProvider === "mock"}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-fast ease-out ${
+              llmProvider === "mock"
+                ? "bg-accent text-fg-on-accent shadow-glow-accent"
+                : "text-fg-secondary hover:text-fg-primary"
+            }`}
+          >
+            {t("gallery.provider_toggle.mock")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLlmProvider("openai")}
+            aria-pressed={llmProvider === "openai"}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-fast ease-out ${
+              llmProvider === "openai"
+                ? "bg-accent text-fg-on-accent shadow-glow-accent"
+                : "text-fg-secondary hover:text-fg-primary"
+            }`}
+          >
+            {t("gallery.provider_toggle.openai")}
+          </button>
+        </div>
+        {llmProvider === "openai" && (
+          <p className="mt-3 text-xs text-fg-tertiary">
+            {t("gallery.provider_toggle.openai_hint")}
+          </p>
+        )}
       </header>
 
       {/* loading skeleton */}

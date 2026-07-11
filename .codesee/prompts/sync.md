@@ -1,122 +1,133 @@
-# CodeSee · 协作模式 Prompt（增量同步）
+# CodeSee · 增量同步
 
-> 用途：你和 AI 在 IDE 里完成一轮改动后，让 AI **基于本次改动**更新 `features.json`。
-> 用法：把整段拷给 AI；它会读 git diff + 现有 features.json，输出最小补丁后写回。
+> 每轮代码改动后执行。基于 git diff 或当前完成的功能更新 `.codesee/features.json`。
+> 参考：`_schema.md`、`_rules.md`
 
 ---
 
-## 你的任务
+## 场景判断
 
-我刚完成了一轮代码改动。请你：
+根据当前 features.json 状态选择策略：
 
-1. 读项目根的 `.codesee/features.json`（现有功能图）
-2. 读本次改动的 git diff（命令：`git diff HEAD~1`，如果不可用就读 `git status` + `git diff`）
-3. 推断这一轮改动**新增 / 修改 / 删除**了哪些 feature 或 step
-4. 输出**最小变更**，重写 features.json
+### 场景 A：从 0 开发（features.json 为空或只有少量 feature）
 
-## 必须遵守的约束
+你刚帮用户写完一个新功能。不需要 diff——你完全知道刚才写了什么。
 
-- **只动受影响的 feature**。其他 feature 一字不改，连 updated_at 都不要动。
-- **永远不修改 `locked: true` 的 feature**。如果改动影响了它，在输出末尾用一句话提醒我"功能 X 被锁定但已受影响，建议手动复核"。
-- **不要重命名既有 feature.id / step.id**。改名会破坏画布上的人工标注。如需改名，新建并标记旧的为 `deprecated` 标签。
-- 新增的 feature 标 `provenance: 'ai'`，受影响但你只是更新内容的也保持原 provenance。
-- 视情况调整 confidence；改动越涉及非显式约定（异步、事件、配置驱动），confidence 越低。
+1. 直接把刚完成的功能作为新 feature 加入
+2. 如果涉及新的业务领域，同时新建 Epic
+3. 如果和已有 feature 有关系，补 cross_feature
+4. 更新 epic_flow（如果 Epic 结构变了）
 
-## 写步骤的"语义级"原则
+优势：你刚写完代码，上下文完整，step 粒度和 refs 都能精确到行。
 
-step 必须是**动作语义**，不是代码层面的实现细节：
+### 场景 B：改动已有项目
 
-| 不要写                       | 要写                       |
-| ---------------------------- | -------------------------- |
-| `调用 bcrypt.compare`        | 比对密码                   |
-| `执行 SQL select`            | 查询用户                   |
-| `用 zod 解析 body`           | 校验输入                   |
-| `await fetch(...)`           | 调用支付网关               |
-| `setState(...)`              | 更新视图状态               |
-| `推送 tick_advanced`         | 推送进度事件               |
-| `构造 RECONNECT_BACKOFF_MS`  | 计算重连等待               |
+1. 读 `.codesee/features.json`（注意 `manifest.lang` 确定输出语言）
+2. 读 `git diff HEAD~1`（或 `git status` + `git diff`）
+3. 推断受影响的 feature/step
+4. 输出最小变更，覆盖写入
 
-**step.name 硬约束**：
-- 必须中文动词短语
-- 禁止英文代码标识符 / 函数调用形式 / 事件名照搬
-- 不确定写"其他"也比写英文标识符强
+### 场景 C：从规划阶段进入实现
 
-## 异步 / 错误 / 条件 三类边的强制规则
+**触发条件（必须同时满足）**：
 
-改动如果引入或改动了下面任何一类，必须用对应的 flow.kind：
+1. features.json 中存在 `tags: ['planned']` 的 feature
+2. 该 planned feature 的 refs 中**至少有一个文件**，是**本次任务你实际修改过的**（在 `git status` / `git diff` 输出中，或在你本轮对话中明确写过/编辑过的）
 
-- **异步副作用**（`async`）：推送事件 / 入队 / WebSocket / 跨线程投递 / 后台 fire-and-forget / react-query mutation / Promise 链
-- **条件分支**（`conditional`）：if/else 走不同动作（如 wasPaused=true 跳过 auto-resume），并填 `condition`
-- **错误分支**（`error`）：参数校验失败 / 资源不存在 / 鉴权失败 / 依赖故障 / 业务规则失败 / 降级路径
+**关键约束**：
 
-漏掉这三类是 features.json 失真最严重的来源，自检时优先检查。
+- ❌ 不要因为 refs 里的文件"恰好存在于仓库中"就升级——别的 agent 可能正在实现它
+- ❌ 不要批量升级所有 planned feature——只动你**这次**确实实现了的
+- ✓ 判断标准是"我本次任务动过这个文件吗"，不是"这个文件存在吗"
+- ✓ 不确定时保持 planned 状态，让用户/原 owner 自己升级
 
-## cross_feature 关系不要全写 triggers
+**升级动作**（只对满足条件的 feature）：
 
-四类关系：
-- `triggers`：A 主动调 B 的接口
-- `depends_on`：A 不调 B 但 B 不在 A 跑不起来（lifespan / 全局中间件等，画 1-2 条代表性的即可）
-- `publishes`：A 完成后发出事件 / 状态变更 ★ **WebSocket / 事件总线 / 消息队列 → 必须有**
-- `subscribes`：B 监听 A 发出的事件作出反应
+1. 移除 `tags` 中的 `'planned'`（保留其他 tags）
+2. 补上真实的 refs（指向你刚写的代码）
+3. 把 confidence 从 0.3 升到合理值（0.9+ 如果是简单 CRUD）
+4. 把粗粒度的 step 细化（3-6 → 5-10）
+5. 补上 error 分支（规划阶段允许略过的）
 
-如果改动涉及发布订阅模型，必须画 publishes/subscribes，不要全写成 triggers。
+未实现 / 不属于本次任务的 planned feature 保持原状，画布上一眼能区分"已实现 vs 规划中 vs 别人正在做"。
+
+**Multi-agent 协作场景**：如果你是其中一个 agent，只动你 owner 的 feature。即使你看到某个 planned 的 refs 文件已经存在，也不要假定它"已实现"——可能是别的 agent 创建的脚手架，业务逻辑还没填。除非你能从代码内容确认实现完整 + 你本次也动了它，否则不升级。
+
+## Checkpoint 协议（重要）
+
+**问题**：用户给的任务可能很大（"实现整个购物车模块"），涉及 20+ 文件。如果等到全部写完才 sync，上下文已经被代码稀释，容易遗漏功能、粒度跑偏、refs 不准。
+
+**协议**：把大任务拆成 checkpoint，**每个逻辑闭环完成立即 sync**。
+
+### 什么是"逻辑闭环"
+
+一个用户能感知的、可独立验证的小功能。例子：
+- ✓ "添加购物车 API + 数据库表 + 前端按钮" = 1 个闭环
+- ✓ "结算流程的下单步骤" = 1 个闭环
+- ✗ "购物车整个模块" = 太大，应拆成多个闭环
+- ✗ "数据库 schema 改完" = 不够，没法独立验证
+
+### 执行流程
+
+```
+任务开始
+  ↓
+实现闭环 1（写代码 + 自测）
+  ↓
+[checkpoint 1] sync features.json，加入这个 feature
+  ↓
+实现闭环 2
+  ↓
+[checkpoint 2] sync features.json
+  ↓
+... 继续直到任务全部完成
+  ↓
+[最终核查] 整体一致性检查
+```
+
+### 最终核查步骤
+
+任务全部完成后，**不要直接回复用户"完成"**。先做一次整体核查：
+
+1. **覆盖度检查**：本次任务涉及的所有用户可感知功能，是否都进了 features.json？漏了哪个？
+2. **关系检查**：新增 feature 之间、新增 feature 和已有 feature 之间，是否有遗漏的 cross_feature？
+3. **epic_flow 检查**：本次任务有没有改变用户旅程的主线？epic_flow 是否需要更新？
+4. **refs 准确性**：每个 step 的 refs 是否真的指向对应的代码？文件路径有没有写错？
+5. **跑校验器**：`node .codesee/scripts/validate-features.mjs`，错误必须 0
+6. **总结报告**：告诉用户 checkpoint 数 / 总 feature 数 / 是否所有 feature 都通过校验
+
+### 何时跳过 checkpoint
+
+- 任务很小（单文件改动、单功能调整）→ 直接最终核查就行
+- 纯样式/重构/重命名 → 不需要 sync
+- 用户明确说"先全部写完再统一更新"→ 按用户要求
+
+## 通用约束
+
+- **只动受影响的 feature**，其他一字不改
+- **只动本次任务实际修改的代码对应的 feature**——别因为 refs 文件存在就假定它属于你
+- **不改 locked: true 的 feature**（提醒用户复核）
+- **不重命名既有 id**（废弃用 `tags: ['deprecated']`）
+- 新增 feature 标 `provenance: 'ai'`
+- step.name 必须用 manifest.lang 指定的语言写动词短语（见 `_rules.md` MUST #4）
+- flow.kind 必填（MUST #2）
+- 异步 → async；条件 → conditional；错误 → error
 
 ## epic_flow 维护
 
-如果本次改动**新增或删除了 Epic**，或者 Epic 之间的主线关系发生了变化：
-- 更新 `epic_flow` 数组
-- **优先考虑 `next`**（用户旅程下一步）；技术依赖才用 `depends_on`；先决条件不要全写 `enables`
-- `note` 必须是中文语义短句（如"配置完成后运行"），不要写技术词
-- 通常 3-8 条，只画用户能感知的主线
-- 不要因为一次小改动就重写整个 epic_flow——只动受影响的条目
+Epic 增删或主线变化时更新 epic_flow。
+优先 `next`，note 必填，用 manifest.lang 指定的语言写语义短句。
+不要因小改动重写整个 epic_flow。
 
-## 输出协议
+## 完成
 
-只输出一个完整 JSON，结构完全等同 `features.json`，不要 markdown 包裹。
-然后把它**覆盖写入** `.codesee/features.json`。
+1. 覆盖写入 `.codesee/features.json`
+2. 跑 `node .codesee/scripts/validate-features.mjs`，退出码 1 必须修
+3. 变更摘要：新增 / 修改 / 删除 / planned → implemented 了什么
 
-写入后**立即跑校验**：
+## 边界情况
 
-```bash
-node .codesee/scripts/validate-features.mjs
-```
-
-- 退出码 0 → 通过，进入下方"变更摘要"
-- 退出码 1 → 必须按报错修复并再跑校验，**直到通过**才能告诉用户"完成"
-- 退出码 2 → 排查文件/JSON 问题
-
-写完后用人话简短总结这一轮：
-
-```
-变更摘要：
-- 新增 feature: f-xxx（XX 功能）
-- 修改 feature: f-yyy（添加了 N 步：…）
-- 删除 feature: 无
-- 锁定但受影响：无
-- 不确定的地方：…
-```
-
-## 边界情况处理
-
-- **改动只涉及样式 / 重构 / 重命名**：不改 features.json，仅在总结里说明"本次为非语义改动，未更新功能图"。
-- **改动跨多个 feature**：分别更新，保持原有 feature 边界。
-- **新文件但还没接入到任何 feature**：暂不追加 feature，只在总结里提示。
-- **删除了某个功能的代码**：把对应 feature 标 `tags: ['deprecated']`，不要直接删除（保留历史，方便对照）。
-
-## schema 速查
-
-```ts
-type Feature = {
-  id: string; name: string; summary?: string; epicId?: string
-  triggers?: { kind: 'http'|'cli'|'cron'|'event'|'ui'|'manual'|'startup'|'unknown'; detail: string }[]
-  steps: { id: string; name: string; role: 'input'|'validation'|'auth'|'data-read'|'data-write'|'compute'|'transform'|'side-effect'|'output'|'error'|'other'; note?: string; refs?: { file: string; lines?: [number, number] }[] }[]
-  flow: { from: string; to: string; kind: 'next'|'async'|'conditional'|'loop'|'error'; condition?: string }[]
-  confidence: number
-  provenance: 'ai' | 'user'
-  locked?: boolean
-  tags?: string[]
-  updated_at: string
-}
-```
-
-完整 schema 见 `.codesee/prompts/scan-light.md`。
+- 纯样式/重构：不改 features.json，说明"非语义改动"
+- 跨多 feature：分别更新
+- 新文件未接入：不追加，只在总结里提
+- 删除功能代码：标 `deprecated`，不直接删

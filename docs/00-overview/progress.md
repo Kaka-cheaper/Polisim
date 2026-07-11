@@ -6,7 +6,7 @@
 
 ## 一、当前位置
 
-**阶段**：**v0.2 架构清债（F1-F10 / docstring 重写 / 3 dead alias / 4 dead i18n keys / cytoscape + recharts 共用抽离 / playwright race fix）交付**（session 43 末，2026-05-06）——`https://github.com/Kaka-cheaper/Polisim`
+**阶段**：**v0.2 视觉升级两阶段 + 后端架构审查 F1-F9 + P-known-1/2 全修**（session 45 末，2026-05-06）。`https://github.com/Kaka-cheaper/Polisim`
 
 **进度**：第 1-6 步全通 ✅；**Phase A / B / C 三段闭环**已交付；**D-011 / D-013 / D-014 / D-015 全量版 / D-016 + LLM 增强分析升级**已落地；**改名 SimEngine → Polisim**；**810 tests passing**（本 session 仅前端，0 后端测试变动）；**v0.2 阶段：D-017 spec（session 29）+ UI mockup v1（session 30）+ Server REST（session 31）+ WebSocket（session 32）+ 架构审查 F1-F10（session 33）+ mockup 第二阶段配套（session 34）+ PR1 web/ 项目骨架（session 35）+ PR2 API 层 + 7 hooks + ErrorBoundary（session 36）+ **PR3：routes/Gallery + routes/PreRun + components/{ScenarioCard, ScenarioIntroPanel, AdvancedOptionsPanel} + i18n 4 组 keys + schema.ts 加 6 嵌套类型别名**（session 37）**
 
@@ -1067,10 +1067,81 @@
       - **类比 session 33 模式**——扫问题 + 出 F-list + 全量修复 + 回归测试，0 引入新功能（避免清债与新功能交叉）
       - **pitfalls.md 纪律**——race 现象立即记 P2 条目（playwright auto-step + UI 交互 race + page snapshot 诊断捷径）
     - **新踩坑（pitfalls.md +1 P2）**：playwright spec step 5 4 档循环切档遇 auto-step race，机器/vite 状态变化时 finished 页提前出现；解法：先 pause 后切档，从 timing-sensitive 转 deterministic
+73. **v0.2 视觉升级第一阶段：Raycast + Framer 混合路线**（session 44，2026-05-06）：用户看完 Polisim 当前 UI 后表达"觉得不够高级"，请求外部设计参考。AI 浏览 `awesome-design-md/design-md/{linear.app, raycast, framer}/DESIGN.md` 给出三条路线（Raycast 极致克制 / Framer 渐变光晕 / 混合）；user 选混合路线。落地 6 项 C1-C6：
+    - **C1 Inter OpenType 品牌字形**：`tokens.css` `--font-features` 从 `cv01,ss03` 扩展到 `calt,kern,liga,cv01,cv05,cv11,ss03`（Raycast 签名 ss03 单层 g + cv11 dotted 0 + cv05 tailed l）
+    - **C2 Surface ladder 加深**：`--color-bg-primary` `#08090a → #050506`（dashboard 主画布更深）+ `--color-bg-panel` `#0f1011 → #0c0d0e` + `--color-header-bg rgba(11,11,11,.8) → rgba(5,5,6,.8)`（对齐新 canvas）。拉大与 surface 的 delta 让卡片浮起感更强
+    - **C3 Hero radial glow**：tokens.css 加 `--gradient-hero-glow: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(113,112,255,.08) 0%, .03 40%, transparent 70%)`；Gallery `<header>` 应用作背景光晕（Framer spotlight 风格，单页一个）
+    - **C4 Primary CTA → pill + ambient glow**：扫全代码 `rounded-md bg-accent` 8 个 button（PreRun start / Finished rerun / ScenarioCard start / RawDataView download / PromptContextModal close / InterventionDrawer submit / ErrorBoundary reload / ControlBar resume）→ 全改 `rounded-full` + 加 `hover:shadow-glow-accent`（Framer pill 形 + 紫色辐射光晕）
+    - **C5 Glow + inner-highlight token**：tokens.css 加 `--shadow-glow-accent: 0 0 20px -4px rgba(113,112,255,.35)` + `--shadow-glow-accent-strong .5` + `--inner-highlight-strong inset 0 1px 0 0 rgba(255,255,255,.12)`；tailwind.config.ts boxShadow 加 `glow-accent` / `glow-accent-strong`
+    - **C6 DESIGN.md 同步**：Do's/Don'ts 加 6 条新规则（pill 唯一给 primary / glow 不用于 secondary / hero glow 一页一个 / OpenType features 必启用）+ 加「Session 45 Visual Upgrade Changelog」节（6 项变更全记录）+ 顺手修 2 处 MD060 表格 lint
+    - **验收**：`tsc --noEmit` 0 错 / playwright 2 passed (30.9s) / `vite 5174 ready`（5173 有旧 server，新启用 5174）/ Browser preview 可视确认（user 看到效果）
+    - **设计纪律遵守**：0 v0.1 内核改动 / 0 server 改动 / 0 后端测试变动 / token 单源（C2/C3/C5 都改 tokens.css 而非业务组件 hardcode）/ AGENTS.md 第 3.2 节落点合规
+    - **未引入新 pitfall**——0 P3 / 0 P2 / 0 P1（视觉升级是设计层面调参，不涉及架构边界）
+74. **v0.2 视觉升级第二阶段：motionsites.ai liquid-glass 适配**（session 45，2026-05-06）：用户提供完整 motionsites.ai landing page spec（700+ 行：fonts / tokens / liquid-glass CSS / sections / animations / dependencies），询问能否适配。AI 三选项后用户选"提取设计元素适配到 Polisim"。落地 D1-D9 9 项：
+    - **D1 装 motion**：`npm install motion --legacy-peer-deps`（5 包；framer-motion 新名 motion@12.x）
+    - **D2 Instrument Serif 字体**：`index.html` 加 Google Fonts preconnect + `Instrument+Serif:ital@0;1` link；`tailwind.config.ts` fontFamily 加 `heading: ["'Instrument Serif'", "serif"]`。同步把 `<title>web</title> → <title>Polisim</title>`
+    - **D3 liquid-glass CSS**：`web/src/index.css` 加 `@layer components`，定义两个工具类：`.liquid-glass`（4px blur + inset white shadow + ::before 渐变 mask 边框）+ `.liquid-glass-strong`（50px blur + 4px outer shadow，更强 mask 边框）。两类都用 `mask-composite: exclude` 技巧画 1.4px 渐变边
+    - **D4 BlurText 组件**：新建 `components/BlurText.tsx`——逐词 motion.span，IntersectionObserver 触发，`filter: blur(10px) → blur(0)` + `opacity: 0 → 1` + `y: 20 → 0`，stagger by index × delay/1000，duration 0.5s，cubic-bezier(0.16,1,0.3,1)（与现有 Linear ease-out 同曲线）
+    - **D5 Gallery hero 升级**：`<h1>` 改用 `<BlurText italic className="font-heading text-7xl ..."/>`（衬线斜体 + 逐词模糊淡入）+ glass badge（liquid-glass rounded-full 容器 + bg-accent 内嵌"New" pill + tagline）+ 沿用 session 44 的 hero radial glow
+    - **D6 Card → liquid-glass**：`ScenarioCard`（production 卡片）+ `EntityCard` 移除 `bg-surface shadow-[var(--inner-highlight),var(--shadow-md)]` 改用 `liquid-glass`，保留 border + rounded + hover transitions
+    - **D7 TopBar → liquid-glass**：`<header>` 移除 `bg-header backdrop-blur-md` 改用 `liquid-glass`（视觉一致性，不再需要 backdrop-blur 因为 liquid-glass 内置）
+    - **D8 跳过**：CTA `liquid-glass-strong` 与 `bg-accent` 颜色冲突（glass 透明背景）；session 44 已给 CTA pill + glow，视觉差异化已足够
+    - **D9 验收**：`tsc --noEmit` 0 错；`playwright 1 次失败（点击 start 不导航，疑 HMR 重载竞态）+ 1 次重跑 2 passed (30.9s)`。失败截图保留在 `test-results/`。检查 5173 dev server + 8000 backend 都已外部跑起后第二次直通。**未改 playwright spec / 未引入跨度回归**
+    - **关键决策**：
+      - 不直接照搬 motionsites.ai 的视频背景 / Mux HLS / 营销文案——Polisim 是仿真工具不是营销页
+      - 衬线 Instrument Serif 仅在 hero 用（保留 Inter 作主字体）；Tailwind class 是 `font-heading`，business 组件需手动加才生效（不全局 override）
+      - liquid-glass 的 `position:relative + overflow:hidden` 是必要的（::before 定位 + clip 渐变边）；如未来出现 dropdown 跨溢出问题需另想方案
+    - **设计纪律遵守**：
+      - 0 v0.1 内核改动 / 0 server 改动 / 0 后端测试变动 / 0 新顶层目录（BlurText 落 components/ 已预设）
+      - mockup §8.4 token 单源——`liquid-glass` 是 utility CSS，不是 token；属 design-system 工具类，与 tokens.css 并行（类似 Tailwind utilities 与 design tokens 关系）
+      - AGENTS.md 第 3.2 节合规——所有新增在 `web/src/{components, styles}/` + `index.html` + `tailwind.config.ts`
+    - **未引入新 pitfall**——D9 第一次 playwright fail 是 HMR 时序问题不是 bug；motion 装包用 --legacy-peer-deps 是 PR3 已记录的 P3（openapi-typescript@7 peer dep 冲突），不是新 pitfall
+75. **v0.2 dotenv 集成 + .env 工作流**（session 45 末，2026-05-06）：用户问"每次运行前后端是不是要重设 API key"，回答 PowerShell `$env:` 是会话级会丢失后用户选「方案 B：python-dotenv 自动加载」。落地 E1-E5 5 项：
+    - **E1 装包**：`pip install python-dotenv`（已在系统 1.2.1）+ `pyproject.toml` 加 `python-dotenv>=1.0,<2.0` 到 dependencies
+    - **E2 .env.example 模板**：项目根新建 `.env.example`（含 VVEAI_API_KEY 主条目 + 注释 OPENAI_API_KEY / OPENROUTER_API_KEY 备用条目 + 安全提示三段）；并 `Copy-Item` 到 `.env` 给用户初始化（用户填真实 key 即可）
+    - **E3 .gitignore 核实**：`.env` 已在 .gitignore 第 25 行（虚拟环境段）✅；`.env.example` 不在 ignore，作为模板进版本控制
+    - **E4 双重保险加载**：`cli/run.py` 顶部 + `server/app.py` 顶部各加 `from dotenv import load_dotenv; load_dotenv()`。**为何双保险**：`cli/run.py` 覆盖正常 CLI 调用链（`python -m cli serve` / `python -m cli run`）；`server/app.py` 覆盖 `uvicorn --reload` 子进程（reload 模式 fork 子进程跳过 cli/run.py 入口）。`load_dotenv()` 默认 `override=False`，幂等，不会覆盖已显式设置的系统环境变量
+    - **E5 验收**：`pytest tests/ -q` → **814 passed in 16.70s / 0 回归**（dotenv 仅添加缺失 env vars，不影响任何既有测试）
+    - **关键决策**：
+      - **不**用 `python-dotenv-cli` 全局命令（多一层依赖）；直接 lib 调 `load_dotenv()`
+      - **不**改 `OpenAIProvider` 构造期校验逻辑——保持 D-011 错误体系不动；env 加载在更外层的 entry point
+      - **不**让前端读 .env——前端只调本地 8000 后端，无需 LLM key（保持单一信任边界）
+    - **设计纪律遵守**：0 v0.1 内核改动 / 0 server 业务逻辑改动（仅入口 import） / 0 后端测试变动 / .env 与 config/llm.yaml 职责清晰分离（前者放真实 key，后者只放变量名 + provider 元数据）
+    - **未引入新 pitfall**——dotenv override=False 默认行为是预期；若用户用 `setx` + .env 同名变量，setx 优先（已显式设置）
+76. **v0.2 后端架构审查 F1-F9 + P-known-1/2 全修**（session 45 末，2026-05-06）：用户跑前端时遇 LLM 增强 502 + events `limit=5000` 422，触发回头看后端整体架构状态。按 13 维度（A1-A3 接口契约 / B1-B2 边界纪律 / C1-C3 代码健康 / D1-D2 资源/并发 / E1-E3 系统/工程）扫一遍，出 F1-F9 清单 + 2 P-known，user 选最激进"全修 + P-known-1/2"。**0 v0.1 内核改动 / 0 业务功能改动**——纯健康度提升。
+    - **F-list 全清单**：
+      - **F1 [P2]**：`schemas.py` `EventListResponse.events: list` bare type → `list[EventRecord]`，OpenAPI gen types 后前端 `events: EventRecord[]`（原 `unknown[]`），`useEvents.ts` 删 `as EventRecord[]` cast + 注释
+      - **F2 [P2]**：events `limit` cap `1000 → 5000` 同步——`routes/runs.py:190` Query(le=5000) + `services/run_service.py:414` service 层防御 `> 5000` + 3 处文档（D-017 spec / mockup §10.1 行 1223 / §10.6 M2 行 1299）
+      - **F3 [P2]**：`analysis_service.py` 顶部 docstring 加 session 45 mock skip 段——明确"mock provider 调 enhance 必抛 LLMProtocolError，前置检查降级返 Phase A"
+      - **F4 [P2]**：`runtime_registry.shutdown()` `except Exception: pass` → `_logger.warning(..., exc_info=True)` 保留 close 失败诊断
+      - **F5 [P2]**：`run_service.step()` reached_total_ticks 后跑 Phase A 失败 silent pass → 同样加 logger.warning
+      - **F6 [P3]**：`tests/test_server_analysis.py` 加 `TestMockProviderSkipsEnhance` 2 项（GET/POST analyze enhance=true on mock → 200 + Phase C 字段 None）
+      - **F7 [P3]**：`tests/test_server_runs.py` 改 `test_invalid_limit_returns_400` 用 5001（原 5000 在新 cap 下变 valid）+ 加 `test_limit_at_max_boundary_succeeds`（5000 通） + `test_limit_zero_returns_400`（0 拒）
+      - **F8 [P3-latent]**：`stream_service.py` `broadcast` + `close_run` 同模式重构——把 `self._loop is None` 检查与 `self._subscribers.get(...)` 一起在 `_lock` 内读，闭合与 `detach()` 的 TOCTOU 窗口
+      - **F9 [P3-latent / cross-layer]**：`core/analysis.py:407` LLM system prompt 示例文本 `regulator_main.strictness` → `<entity_id>.<attribute>` 通用占位（去除 minimal_market 场景跨层污染）
+      - **P-known-1**：`runtime_registry.register()` 满槽时不直接 503——先 sweep finished runs（按创建时间从老到新），最老的关 1 个让槽。active/paused 永不被 GC。带 logger.info 记录 GC 操作
+      - **P-known-2**：`server/app.py` lifespan finally 顺序变更：先 `close_run(run_id)` 给所有活跃 run 的 ws 订阅者发 close sentinel → `shutdown_all` → `detach`，让客户端看到优雅 close 帧而非 ConnectionClosedError
+    - **验收**：
+      - **pytest**：`818 passed in 19.12s`（净 +4：F6×2 + F7×2，0 回归）
+      - **tsc**：`npx tsc --noEmit` 0 错（含 F1 删 cast 后类型流一致）
+      - **playwright**：`2 passed (30.9s)` —— 前端跑通完整 mockup §6 + PR4.5 流程
+      - **server cold restart**：`python -m cli serve` 启动正常，dotenv 加载 + lifespan 构造无 warning
+    - **关键决策**：
+      - **GC 策略选 opportunistic on register**（满才 GC，老 finished 优先）而非"finished 立即 GC"——保留用户在跑完后查看 finished 页的窗口，避免误删未读完的报告
+      - **GC 拒掉 active/paused**——只有用户显式 DELETE 才能释放正在跑的 run，避免误关用户正在干预的 run
+      - F8 race fix 的成本：每次 broadcast 多一次锁内读 `self._loop`——Python `threading.Lock` 微秒级，broadcast 本就只在 step 后调用（非热路径），可接受
+      - F2 spec 文档同步用"session 45"而非"v0.2.1"标注——与 progress.md 同 session 编号一致，便于追溯
+      - F1 OpenAPI gen 时不会 break 前端：`events?: EventRecord[]` 与原 `events?: unknown[]` 在 TypeScript 结构上兼容，且 cast 已删
+    - **设计纪律遵守**：
+      - **MUST NOT 全员遵守**——0 v0.1 内核改动 / 0 业务功能改动 / 0 mockup 之外新依赖 / 0 跨层污染（F9 反而是消除 1 处）
+      - **AGENTS.md 第 3.2 节**——所有改动落在已声明位置（server/{api,services,runtime_registry} + tests/test_server_*）
+      - **类比 session 33 / 43 模式**——扫问题 + 出 F-list + user 决策 + 全量修复 + 跑回归测试，0 引入新功能
+      - **pitfalls.md 纪律**——P-known-1 GC 行为可能在某些边界情境下让用户疑惑（"我刚跑完的 run 在 list_runs 里没了"），加 1 条 P3 防再犯
+    - **新踩坑（pitfalls.md +1 P3）**：P-known-1 自动 GC 在并发 ≥ max_concurrent 时触发——用户可能"刚看完 finished 报告，回 Gallery 跑新 run，发现 list_runs 不返回旧的"。已在 register docstring + pitfalls 详细解释；user-facing 影响小（finished 报告 events.jsonl 已落盘），但需要文档保护
 
 **进行中**：
 
-- v0.2 session 43 **架构清债（类比 session 33 模式）**全部交付——F1-F10 清单 + 修复 + 抽 2 共用文件 + 修 playwright race。`tsc 0 错 / playwright 2 passed 32.8s（test 1 minimal_market 18 step + step 5 重构 / test 2 three_party_negotiation 4 step） / pitfalls.md +2 条 P2（playwright race + LLMThoughtBubble title）`。**v0.2 R 前端代码债清算阶段完成**，核心功能已 session 42 闭环；session 44+ 入口任务剩余 3 选 1（生产部署 / info_cascade 第三场景 / 第二阶段 LLM 辅助建模 PoC）。
+- 无（session 45 末已交付完整视觉升级 + dotenv + 后端 F1-F9 + P-known-1/2 全修）。剩余 v0.2 主路径外的可选任务：(a) 生产部署（Docker compose / nginx / pm2）/ (b) info_cascade 第三场景 / (c) 第二阶段 LLM 辅助建模 PoC。session 46+ 入口由用户决定。
 - **PR3 关键文件清单**（session 37 落地，全在 `web/src/`）：
   - `routes/Gallery.tsx`（重写——useScenarios + 3 段 grid）
   - `routes/PreRun.tsx`（重写——useRun + ScenarioIntroPanel + AdvancedOptionsPanel + 上下按钮）

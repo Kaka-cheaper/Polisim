@@ -22,6 +22,7 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from datetime import datetime, timezone
 from typing import Literal
@@ -29,6 +30,8 @@ from typing import Literal
 from core.runtime import Runtime
 
 from server.api.v1.schemas import RunSummary
+
+_logger = logging.getLogger(__name__)
 
 
 class RegistryFullError(Exception):
@@ -83,6 +86,10 @@ class RuntimeRegistry:
 
         v1 内核已经在 EventLog 层保证 run_id 唯一（generate_run_id 含时间戳）；
         此处再加一道防御以防上层重复注册。
+
+        **机会式 GC**（session 45 P-known-1）：满槽时优先 sweep 已 finished 的
+        run（按创建时间从老到新），避免 slot 泄漏导致长期跑充满 registry。
+        active / paused 状态的 run **永不**被 GC——用户必须显式 DELETE 才释放。
         """
         with self._lock:
             if run_id in self._runtimes:
@@ -90,10 +97,43 @@ class RuntimeRegistry:
                     f"run_id={run_id!r} 已注册——重复 register 是上层 bug"
                 )
             if len(self._runtimes) >= self._max_concurrent:
-                raise RegistryFullError(
-                    f"活跃 run 数 {len(self._runtimes)} 已达上限 "
-                    f"{self._max_concurrent}；请等待已有 run 完成或调高 max_concurrent"
+                # 找 finished 状态的 run（current_tick >= total_ticks），按创建时间从老到新
+                victims = [
+                    rid
+                    for rid, rt in sorted(
+                        self._runtimes.items(),
+                        key=lambda kv: self._created_at.get(
+                            kv[0], datetime.now(timezone.utc)
+                        ),
+                    )
+                    if rt.current_tick() >= rt.scenario.config.total_ticks
+                ]
+                if not victims:
+                    # 全是 active/paused —— 不能 GC，抛 503
+                    raise RegistryFullError(
+                        f"活跃 run 数 {len(self._runtimes)} 已达上限 "
+                        f"{self._max_concurrent}（无 finished 可回收）；"
+                        f"请等待已有 run 完成或调高 max_concurrent"
+                    )
+                # 释放最老的 finished run（释放 1 个就够，刚好让出新槽）
+                gc_target = victims[0]
+                gc_runtime = self._runtimes.pop(gc_target)
+                self._created_at.pop(gc_target, None)
+                # 锁外 close（避免 close 阻塞期间锁住整个 registry）
+                _logger.info(
+                    "registry full; auto-GC finished run_id=%s to free slot for %s",
+                    gc_target,
+                    run_id,
                 )
+                # 注：close 失败的 logging 由内部 try/except 兜底（F4）
+                try:
+                    gc_runtime.close()
+                except Exception:  # noqa: BLE001
+                    _logger.warning(
+                        "auto-GC: runtime.close() failed for run_id=%s",
+                        gc_target,
+                        exc_info=True,
+                    )
             self._runtimes[run_id] = runtime
             self._created_at[run_id] = datetime.now(timezone.utc)
 
@@ -123,9 +163,14 @@ class RuntimeRegistry:
             return False
         try:
             runtime.close()
-        except Exception:
-            # 关闭失败不该阻断 registry 清理；防止 close 异常吞掉 server lifecycle
-            pass
+        except Exception:  # noqa: BLE001 顶层守护——不阻断 registry 清理
+            # F4（session 45）：close 失败不再静默——log warning 保留诊断
+            # 信息（如 EventLog flush IO 错），但仍清理 dict 避免泄露
+            _logger.warning(
+                "runtime.close() failed for run_id=%s; registry slot freed",
+                run_id,
+                exc_info=True,
+            )
         return True
 
     def shutdown_all(self) -> int:
